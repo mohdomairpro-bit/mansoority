@@ -8,6 +8,7 @@ public final class ShadowConfig {
     public static final ForgeConfigSpec.IntValue MIN_MINUTES;
     public static final ForgeConfigSpec.DoubleValue CHANCE;
     public static final ForgeConfigSpec.IntValue MAX_WITNESSES;
+    public static final ForgeConfigSpec.DoubleValue CATCH_DAMAGE;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -16,6 +17,10 @@ public final class ShadowConfig {
         MIN_MINUTES = b.comment("Minimum real minutes between encounters for one player").defineInRange("minMinutesBetweenEncounters", 50, 5, 10000);
         CHANCE = b.comment("Chance per eligible minute (night/underground, calm, no boss) once the cooldown is over").defineInRange("chancePerEligibleMinute", 0.025D, 0.0D, 1.0D);
         MAX_WITNESSES = b.comment("Only happens if at most this many players are within 32 blocks").defineInRange("maxPlayersNearby", 2, 1, 100);
+        b.pop();
+        b.push("damage");
+        CATCH_DAMAGE = b.comment("Damage when it catches you at the end of the chase (2 = one heart). It can never kill you: you're always left with at least 1 heart. 0 = harmless.")
+                .defineInRange("catchDamage", 4.0D, 0.0D, 10.0D);
         b.pop();
         SPEC = b.build();
     }

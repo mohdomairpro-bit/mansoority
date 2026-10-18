@@ -266,6 +266,7 @@ public class ShadowEntity extends PathfinderMob {
         double d = Math.sqrt(dx * dx + dz * dz);
         if (d < 2.4 || r > 80) {
             jumpscare(p, true);
+            if (d < 3.5) bite(p);
             this.discard();
             return;
         }
@@ -274,6 +275,15 @@ public class ShadowEntity extends PathfinderMob {
         this.setPos(this.getX() + dx / d * speed, ny, this.getZ() + dz / d * speed);
         if (r % 5 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.5F);
         if (r == 12) soundAround(ShadowRegistry.SCREAM, 3.0F, 0.75F);
+    }
+
+    /** a little damage when it catches you. never lethal: always leaves at least one heart */
+    private void bite(ServerPlayer p) {
+        float dmg = ShadowConfig.CATCH_DAMAGE.get().floatValue();
+        if (dmg <= 0F || p.isCreative() || p.isSpectator()) return;
+        float allowed = Math.min(dmg, p.getHealth() - 2.0F);
+        if (allowed <= 0F) return;
+        p.hurt(this.damageSources().mobAttack(this), allowed);
     }
 
     /** used by commands to skip straight to the chase */
