@@ -20,6 +20,7 @@ import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 
@@ -57,6 +58,21 @@ public class ShadowEvents {
         }
     }
 
+    /** rare: you wake up and it's standing over your bed */
+    @SubscribeEvent
+    public void onWake(PlayerWakeUpEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer p) || event.wakeImmediately()) return;
+        if (!ShadowConfig.ENABLED.get() || p.isCreative() || p.isSpectator()) return;
+        CompoundTag data = p.getPersistentData();
+        long now = p.level().getGameTime();
+        if (data.contains(KEY_NEXT) && now < data.getLong(KEY_NEXT)) return;
+        if (p.getRandom().nextFloat() > 0.10F || ShadowEntity.anyNear(p, 160)) return;
+        p.server.execute(() -> {
+            ShadowEntity e = ShadowEntity.spawnAround(p, -1, p.getRandom().nextBoolean() ? 60 : -60, 2.5);
+            if (e != null) data.putLong(KEY_NEXT, now + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
+        });
+    }
+
     private static boolean eligible(ServerPlayer p) {
         if (p.isCreative() || p.isSpectator() || p.isSleeping()) return false;
         boolean spooky = !p.level().isDay() || p.getY() < 40 || !p.level().canSeeSky(p.blockPosition());
@@ -86,7 +102,7 @@ public class ShadowEvents {
         d.register(Commands.literal("shadow").requires(s -> s.hasPermission(2))
                 .then(Commands.argument("action", StringArgumentType.word())
                         .suggests((c, b) -> {
-                            for (String a : new String[]{"test", "stalk", "rush", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
+                            for (String a : new String[]{"test", "stalk", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
                             return b.buildFuture();
                         })
                         .executes(c -> run(c, c.getSource().getPlayerOrException()))
@@ -110,6 +126,10 @@ public class ShadowEvents {
                 ShadowEntity e = ShadowEntity.rushFrom(p, 24);
                 reply(src, e != null ? "Run." : "No room to spawn it there.");
             }
+            case "bed" -> {
+                ShadowEntity e = ShadowEntity.spawnAround(p, -1, 60, 2.5);
+                reply(src, e != null ? "It's right next to " + p.getScoreboardName() + "." : "No room to spawn it there.");
+            }
             case "scare" -> { ShadowEntity.jumpscare(p, false); reply(src, "Jumpscare sent."); }
             case "event" -> { soundEvent(p); reply(src, "Sound event sent."); }
             case "despawn" -> {
@@ -124,7 +144,7 @@ public class ShadowEvents {
                 p.getPersistentData().putLong(KEY_NEXT, p.level().getGameTime() + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
                 reply(src, "Cooldown restarted for " + p.getScoreboardName() + ".");
             }
-            default -> { reply(src, "Use: test, stalk, rush, scare, event, despawn, soon, reset"); return 0; }
+            default -> { reply(src, "Use: test, stalk, rush, bed, scare, event, despawn, soon, reset"); return 0; }
         }
         return 1;
     }

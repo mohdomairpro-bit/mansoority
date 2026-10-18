@@ -146,7 +146,7 @@ public class ShadowEntity extends PathfinderMob {
 
         if (life % 160 == 20) soundAround(ShadowRegistry.DRONE, 2.2F, 0.85F);
         if (life % 400 == 200) soundAround(ShadowRegistry.WHISPER, 1.6F, 0.6F);
-        if (life > 20 * 120 || unseen > 20 * 50) startVanish();
+        if (life > 20 * 120 || unseen > 20 * 50 || (stage < 0 && life > 20 * 12)) startVanish();
     }
 
     private void faceTowards(Player player) {
@@ -197,8 +197,7 @@ public class ShadowEntity extends PathfinderMob {
                 ui(p, ShadowRegistry.HIT, 1F, 1F);
                 ui(p, ShadowRegistry.HIT, 1F, 0.9F);
             }
-            p.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 160, 0, false, false));
-            p.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 180, 0, false, false));
+            p.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 140, 0, false, false));
             ui(p, ShadowRegistry.STATIC, 0.8F, 0.8F);
             soundAround(ShadowRegistry.SNAP, 2.0F, 1.2F);
         }
@@ -211,11 +210,11 @@ public class ShadowEntity extends PathfinderMob {
         if (s == 31) soundAround(ShadowRegistry.SNAP, 2.0F, 0.7F);
         if (s == 26) ui(p, ShadowRegistry.STATIC, 1F, 0.6F);
         if (s == 40) ui(p, ShadowRegistry.WHISPER, 1F, 0.6F);
+        if (stage < 0 && s >= 10) { startVanish(); return; }   // bedside visit: one look and it's gone
         if (s >= STARE_LIMIT) advance(p);
     }
 
     private void calm(ServerPlayer p) {
-        p.removeEffect(MobEffects.DARKNESS);
         p.removeEffect(MobEffects.CONFUSION);
     }
 

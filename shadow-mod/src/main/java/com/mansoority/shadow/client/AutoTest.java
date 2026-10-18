@@ -86,8 +86,16 @@ public final class AutoTest {
         if (js == ClientFx.SCARE_AT + 4) shot(mc, "12_scare_face");
         if (js == ClientFx.SCARE_AT + 7) shot(mc, "13_scare_red");
         if (js == ClientFx.SCARE_AT + 20) shot(mc, "14_scare_late");
-        if (t == 420) { mc.options.hideGui = false; ClientFx.handle(FxPacket.of(FxPacket.SEQUENCE)); }
-        if (t == 520) { log("done"); mc.stop(); }
+        if (t == 430) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.serverLevel().setDayTime(13500);
+            ShadowEntity e = ShadowEntity.spawnAround(sp, -1, 35, 3.0);
+            log("bedside: " + (e != null));
+        });
+        if (t == 445) lookNear(mc, 28F);
+        if (t == 455) shot(mc, "15_bedside");
+        if (t == 470) { mc.options.hideGui = false; ClientFx.handle(FxPacket.of(FxPacket.SEQUENCE)); }
+        if (t == 560) { log("done"); mc.stop(); }
     }
 
     /** aim at the shadow's head, offset sideways by 'offset' degrees */

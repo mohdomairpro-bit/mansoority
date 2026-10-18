@@ -220,10 +220,12 @@ public final class ClientFx {
 
         // staring: the edges close in and the screen fills with static
         if (stare > 0.02F && js < 0) {
-            g.setColor(1F, 1F, 1F, Math.min(1F, stare * 1.1F));
+            g.setColor(1F, 1F, 1F, Math.min(0.9F, stare * 0.9F));
             g.blit(VIGNETTE, 0, 0, w, h, 0F, 0F, 256, 256, 256, 256);
-            g.setColor(1F, 1F, 1F, stare * 0.35F);
-            g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
+            if (stare > 0.35F) {
+                g.setColor(1F, 1F, 1F, Math.min(1F, (stare - 0.35F) * 1.5F));
+                g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
+            }
             g.setColor(1F, 1F, 1F, 1F);
         }
 
@@ -244,19 +246,19 @@ public final class ClientFx {
                 float k = (t - SCARE_AT) + partialTick;
                 g.fill(0, 0, w, h, 0xFF000000);
                 float scale = k < 3F ? 0.35F + 0.85F * (k / 3F) : 1.15F + R.nextFloat() * 0.18F;
-                int size = (int) (h * 1.35F * scale);
+                int size = (int) (h * 1.6F * scale);
                 int cx = w / 2 + (int) ((R.nextFloat() - 0.5F) * 30F);
                 int cy = h / 2 + h / 10 + (int) ((R.nextFloat() - 0.5F) * 30F);
-                boolean red = t < SCARE_AT + 18 && ((t / 2) % 2 == 1);
+                boolean red = t < SCARE_AT + 18 && (t % 4 == 3);
                 g.pose().pushPose();
                 g.pose().translate(cx, cy, 0);
                 g.pose().mulPose(Axis.ZP.rotationDegrees((R.nextFloat() - 0.5F) * 14F));
                 g.blit(red ? FACE_RED : FACE, -size / 2, -size / 2, size, size, 0F, 0F, 512, 512, 512, 512);
                 g.pose().popPose();
-                g.setColor(1F, 1F, 1F, 0.28F);
+                g.setColor(1F, 1F, 1F, 0.6F);
                 g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
                 g.setColor(1F, 1F, 1F, 1F);
-                if (red) g.fill(0, 0, w, h, 0x44FF0000);
+                if (red) g.fill(0, 0, w, h, 0x30FF0000);
             }
         }
         RenderSystem.disableBlend();
