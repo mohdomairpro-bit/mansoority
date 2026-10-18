@@ -221,10 +221,10 @@ public final class ClientFx {
         // staring: the edges close in and the screen fills with static
         if (stare > 0.02F && js < 0) {
             g.setColor(1F, 1F, 1F, Math.min(0.9F, stare * 0.9F));
-            g.blit(VIGNETTE, 0, 0, w, h, 0F, 0F, 256, 256, 256, 256);
+            blend(); g.blit(VIGNETTE, 0, 0, w, h, 0F, 0F, 256, 256, 256, 256);
             if (stare > 0.35F) {
                 g.setColor(1F, 1F, 1F, Math.min(1F, (stare - 0.35F) * 1.5F));
-                g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
+                blend(); g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
             }
             g.setColor(1F, 1F, 1F, 1F);
         }
@@ -253,10 +253,10 @@ public final class ClientFx {
                 g.pose().pushPose();
                 g.pose().translate(cx, cy, 0);
                 g.pose().mulPose(Axis.ZP.rotationDegrees((R.nextFloat() - 0.5F) * 14F));
-                g.blit(red ? FACE_RED : FACE, -size / 2, -size / 2, size, size, 0F, 0F, 512, 512, 512, 512);
+                blend(); g.blit(red ? FACE_RED : FACE, -size / 2, -size / 2, size, size, 0F, 0F, 512, 512, 512, 512);
                 g.pose().popPose();
                 g.setColor(1F, 1F, 1F, 0.6F);
-                g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
+                blend(); g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
                 g.setColor(1F, 1F, 1F, 1F);
                 if (red) g.fill(0, 0, w, h, 0x30FF0000);
             }
@@ -265,6 +265,12 @@ public final class ClientFx {
     }
 
     public static int jumpscareTick() { return js; }
+
+    /** GuiGraphics.fill() switches blending off when it flushes, so turn it back on before every textured draw */
+    private static void blend() {
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+    }
 
     private ClientFx() {}
 }
