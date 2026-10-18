@@ -39,6 +39,7 @@ public class ShadowEntity extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DATA_STARE = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_TARGET = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_VANISH = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_RUSH = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
 
     public static final int STARE_LIMIT = 60;
     private UUID targetId;
@@ -69,11 +70,13 @@ public class ShadowEntity extends PathfinderMob {
         this.entityData.define(DATA_STARE, 0);
         this.entityData.define(DATA_TARGET, -1);
         this.entityData.define(DATA_VANISH, 0);
+        this.entityData.define(DATA_RUSH, 0);
     }
 
     public int getStare() { return this.entityData.get(DATA_STARE); }
     public int getTargetEntityId() { return this.entityData.get(DATA_TARGET); }
     public int getVanish() { return this.entityData.get(DATA_VANISH); }
+    public int getRush() { return this.entityData.get(DATA_RUSH); }
 
     public void setTarget(ServerPlayer player, int stage) {
         this.targetId = player.getUUID();
@@ -120,6 +123,11 @@ public class ShadowEntity extends PathfinderMob {
             return;
         }
         faceTowards(player);
+
+        if (getRush() > 0) {
+            rushTick(player);
+            return;
+        }
 
         if (isWatchedBy(player)) {
             this.getNavigation().stop();
@@ -229,8 +237,7 @@ public class ShadowEntity extends PathfinderMob {
         this.entityData.set(DATA_STARE, 0);
         burst();
         if (stage >= 3) {
-            jumpscare(p, true);
-            this.discard();
+            startRush(p);
             return;
         }
         Vec3 behind = p.position().subtract(p.getLookAngle().multiply(1, 0, 1).normalize().scale(1.0));
@@ -239,6 +246,41 @@ public class ShadowEntity extends PathfinderMob {
         if (spot == null) { this.discard(); return; }
         this.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
         unseen = 0;
+    }
+
+    /** final stage: it sprints straight at you, through anything, screaming. it never touches you: the scare hits first */
+    public void startRush(ServerPlayer p) {
+        this.noPhysics = true;
+        this.setNoGravity(true);
+        this.entityData.set(DATA_RUSH, 1);
+        soundAround(ShadowRegistry.SCREAM, 3.0F, 0.65F);
+        ui(p, ShadowRegistry.STINGER, 1F, 0.9F);
+        ui(p, ShadowRegistry.RISER, 1F, 1.4F);
+    }
+
+    private void rushTick(ServerPlayer p) {
+        int r = getRush();
+        this.entityData.set(DATA_RUSH, r + 1);
+        double dx = p.getX() - this.getX();
+        double dz = p.getZ() - this.getZ();
+        double d = Math.sqrt(dx * dx + dz * dz);
+        if (d < 2.4 || r > 80) {
+            jumpscare(p, true);
+            this.discard();
+            return;
+        }
+        double speed = Math.min(d, 0.35 + r * 0.06);   // starts slow, gets horribly fast
+        double ny = this.getY() + (p.getY() - this.getY()) * 0.25;
+        this.setPos(this.getX() + dx / d * speed, ny, this.getZ() + dz / d * speed);
+        if (r % 5 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.5F);
+        if (r == 12) soundAround(ShadowRegistry.SCREAM, 3.0F, 0.75F);
+    }
+
+    /** used by commands to skip straight to the chase */
+    public static ShadowEntity rushFrom(ServerPlayer p, double dist) {
+        ShadowEntity e = spawnAround(p, 2, 0, dist);
+        if (e != null) { e.stage = 3; e.startRush(p); }
+        return e;
     }
 
     public void startVanish() {

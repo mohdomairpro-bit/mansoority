@@ -73,7 +73,7 @@ public class ShadowEvents {
     }
 
     private static void soundEvent(ServerPlayer p) {
-        int id = p.getRandom().nextInt(4);
+        int id = p.getRandom().nextInt(7);
         FxPacket pkt = new FxPacket(FxPacket.SEQUENCE, id, 0, 0, 0, 1, 1);
         ShadowNet.send(p, pkt);
         for (ServerPlayer o : ShadowEntity.friendsNear(p)) ShadowNet.send(o, pkt);
@@ -86,7 +86,7 @@ public class ShadowEvents {
         d.register(Commands.literal("shadow").requires(s -> s.hasPermission(2))
                 .then(Commands.argument("action", StringArgumentType.word())
                         .suggests((c, b) -> {
-                            for (String a : new String[]{"test", "stalk", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
+                            for (String a : new String[]{"test", "stalk", "rush", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
                             return b.buildFuture();
                         })
                         .executes(c -> run(c, c.getSource().getPlayerOrException()))
@@ -106,6 +106,10 @@ public class ShadowEvents {
                 ShadowEntity e = ShadowEntity.spawnAround(p, 0, 180, 28);
                 reply(src, e != null ? "It's watching " + p.getScoreboardName() + " from behind." : "No room to spawn it there.");
             }
+            case "rush" -> {
+                ShadowEntity e = ShadowEntity.rushFrom(p, 24);
+                reply(src, e != null ? "Run." : "No room to spawn it there.");
+            }
             case "scare" -> { ShadowEntity.jumpscare(p, false); reply(src, "Jumpscare sent."); }
             case "event" -> { soundEvent(p); reply(src, "Sound event sent."); }
             case "despawn" -> {
@@ -120,7 +124,7 @@ public class ShadowEvents {
                 p.getPersistentData().putLong(KEY_NEXT, p.level().getGameTime() + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
                 reply(src, "Cooldown restarted for " + p.getScoreboardName() + ".");
             }
-            default -> { reply(src, "Use: test, stalk, scare, event, despawn, soon, reset"); return 0; }
+            default -> { reply(src, "Use: test, stalk, rush, scare, event, despawn, soon, reset"); return 0; }
         }
         return 1;
     }

@@ -33,13 +33,15 @@ public final class ClientFx {
     private static final ResourceLocation STATIC = new ResourceLocation(TheShadow.MODID, "textures/gui/static.png");
     private static final Random R = new Random();
 
-    private static final int SCARE_AT = 80;     // tick the face hits you
+    public static final int SCARE_AT = 80;      // tick the face hits you
     private static final int SCARE_LEN = 34;
     private static final int END = 175;
 
     private static int js = -1;                 // jumpscare timeline tick, -1 = off
     private static int seq = -1, seqTick;       // scripted sound event
     private static float stare;                 // 0..1 how hard you're staring at it right now
+    private static boolean rushing;             // it's running at you
+    private static float lightsOut;             // 0..1 extra darkness for the 'lights out' event
 
     // ------------------------------------------------------------------ packets
     public static void handle(FxPacket p) {
@@ -81,14 +83,16 @@ public final class ClientFx {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null) { js = -1; seq = -1; stare = 0; return; }
+        if (mc.player == null || mc.level == null) { js = -1; seq = -1; stare = 0; lightsOut = 0; return; }
         if (mc.isPaused()) return;
 
         // how hard is it being stared at (only the shadow that is after *me*)
         float target = 0F;
+        rushing = false;
         for (Entity e : mc.level.entitiesForRendering()) {
             if (e instanceof ShadowEntity s && s.getTargetEntityId() == mc.player.getId()) {
                 target = Math.max(target, Math.min(1F, s.getStare() / (float) ShadowEntity.STARE_LIMIT));
+                if (s.getRush() > 0) { target = 1F; rushing = true; }
             }
         }
         stare += (target - stare) * 0.25F;
@@ -159,18 +163,44 @@ public final class ClientFx {
                 if (t == 110) around(ShadowRegistry.STATIC.get(), 180, 1, 0, 0.6F, 0.7F);
                 if (t > 120) seq = -1;
             }
+            case 4 -> { // you 'join the game'... while you're already in it
+                String me = mc.player.getGameProfile().getName();
+                if (t == 0) mc.gui.getChat().addMessage(Component.translatable("multiplayer.player.joined", me).withStyle(ChatFormatting.YELLOW));
+                if (t == 60) around(ShadowRegistry.WHISPER.get(), 180, 1.2, 0, 0.9F, 0.7F);
+                if (t == 140) mc.gui.getChat().addMessage(Component.translatable("multiplayer.player.left", me).withStyle(ChatFormatting.YELLOW));
+                if (t > 150) seq = -1;
+            }
+            case 5 -> { // something says your name
+                String me = mc.player.getGameProfile().getName();
+                if (t == 0) around(ShadowRegistry.WHISPER.get(), 200, 0.8, 0, 1F, 0.55F);
+                if (t == 10) mc.gui.setOverlayMessage(Component.literal(me.toLowerCase() + "...").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC), false);
+                if (t == 70) mc.gui.setOverlayMessage(Component.literal("turn around").withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC), false);
+                if (t == 72) around(ShadowRegistry.BREATH.get(), 180, 0.5, 0, 1F, 0.7F);
+                if (t > 120) seq = -1;
+            }
+            case 6 -> { // the lights go out for a moment
+                if (t == 0) ui(ShadowRegistry.STATIC.get(), 0.7F, 0.6F);
+                if (t < 20) lightsOut = Math.min(1F, t / 20F);
+                else if (t < 90) lightsOut = 1F;
+                else lightsOut = Math.max(0F, 1F - (t - 90) / 25F);
+                if (t == 30 || t == 52 || t == 70) ui(ShadowRegistry.HEARTBEAT.get(), 1F, 0.8F + t * 0.003F);
+                if (t == 60) around(ShadowRegistry.BREATH.get(), 170, 1.0, 0, 1F, 0.75F);
+                if (t == 88) around(ShadowRegistry.SNAP.get(), 190, 2.0, 0, 1F, 0.8F);
+                if (t > 116) { lightsOut = 0F; seq = -1; }
+            }
             default -> seq = -1;
         }
     }
 
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
-        js = -1; seq = -1; stare = 0;
+        js = -1; seq = -1; stare = 0; lightsOut = 0; rushing = false;
     }
 
     // ------------------------------------------------------------------ camera shake
     public static void onCamera(ViewportEvent.ComputeCameraAngles event) {
         float amp = 0F;
         if (js >= SCARE_AT && js < SCARE_AT + 26) amp = 9F * (1F - (js - SCARE_AT) / 26F) + 1.5F;
+        if (rushing) amp = Math.max(amp, 3.5F);
         if (stare > 0.05F) {
             float t = (float) (System.currentTimeMillis() % 100000L) / 1000F;
             event.setRoll(event.getRoll() + (float) Math.sin(t * 1.3F) * 4F * stare);
@@ -195,6 +225,11 @@ public final class ClientFx {
             g.setColor(1F, 1F, 1F, stare * 0.35F);
             g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
             g.setColor(1F, 1F, 1F, 1F);
+        }
+
+        if (lightsOut > 0F) {
+            g.setColor(1F, 1F, 1F, 1F);
+            g.fill(0, 0, w, h, ((int) (lightsOut * 0.93F * 255) << 24));
         }
 
         if (js >= 0) {
@@ -226,6 +261,8 @@ public final class ClientFx {
         }
         RenderSystem.disableBlend();
     }
+
+    public static int jumpscareTick() { return js; }
 
     private ClientFx() {}
 }

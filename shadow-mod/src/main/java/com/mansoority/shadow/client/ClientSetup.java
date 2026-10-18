@@ -14,6 +14,7 @@ public final class ClientSetup {
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onClientTick);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onCamera);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onLogout);
+        if (AutoTest.enabled()) MinecraftForge.EVENT_BUS.addListener(AutoTest::onClientTick);
     }
 
     private static void onLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {

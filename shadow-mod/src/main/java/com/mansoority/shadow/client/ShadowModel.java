@@ -130,6 +130,27 @@ public class ShadowModel extends HierarchicalModel<ShadowEntity> {
         armL.xRot += Mth.cos(limbSwing * 0.45F + Mth.PI) * 0.5F * walk;
         armR.xRot += Mth.cos(limbSwing * 0.45F) * 0.5F * walk;
 
+        // the chase: arms thrown forward, head down, jaw wide open, legs pumping
+        int rush = e.getRush();
+        if (rush > 0) {
+            float k = Math.min(1F, rush / 6F);
+            head.xRot += 0.35F * k;
+            jaw.xRot += 1.0F * k;
+            armL.xRot -= 1.5F * k;
+            armR.xRot -= 1.5F * k;
+            armL.zRot -= 0.15F * k;
+            armR.zRot += 0.15F * k;
+            handL.xRot -= 0.9F * k;
+            handR.xRot -= 0.9F * k;
+            chest.xRot += 0.2F * k;
+            float run = age * 1.6F;
+            legL.xRot += Mth.cos(run) * 1.0F * k;
+            legR.xRot += Mth.cos(run + Mth.PI) * 1.0F * k;
+            shinL.xRot -= Math.max(0F, Mth.sin(run)) * 0.8F * k;
+            shinR.xRot -= Math.max(0F, Mth.sin(run + Mth.PI)) * 0.8F * k;
+            head.zRot += (hash((int) age, id) - 0.5F) * 0.4F;
+        }
+
         // vanishing: everything spasms
         if (vanish > 0) {
             float v = vanish / 12F;

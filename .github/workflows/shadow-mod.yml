@@ -8,6 +8,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -17,13 +18,44 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.8'
+
       - name: Build
         id: build
         working-directory: shadow-mod
         run: |
           set -o pipefail
           gradle build --no-daemon --stacktrace 2>&1 | tee build.log
-      - name: Publish jar + log
+
+      - name: Server boot test
+        id: server
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        working-directory: shadow-mod
+        run: |
+          set -o pipefail
+          mkdir -p run
+          echo "eula=true" > run/eula.txt
+          printf "view-distance=4\nsimulation-distance=4\nspawn-protection=0\nonline-mode=false\n" > run/server.properties
+          timeout 900 gradle runServer --no-daemon 2>&1 | tee server.log
+          grep -q "SHADOW-SERVERTEST\] OK" server.log
+
+      - name: Client screenshot test
+        id: client
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        working-directory: shadow-mod
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-utils > /dev/null
+          mkdir -p run/saves
+          if [ -d run/world ]; then rm -rf run/saves/autotest && cp -r run/world run/saves/autotest; fi
+          export LIBGL_ALWAYS_SOFTWARE=1
+          set -o pipefail
+          timeout 1500 xvfb-run -a -s "-screen 0 1280x720x24" gradle runClient --no-daemon 2>&1 | tee client.log || true
+          mkdir -p shots && cp run/screenshots/*.png shots/ 2>/dev/null || true
+          ls -la shots
+          grep -q "SHADOW-AUTOTEST\] done" client.log
+
+      - name: Publish jar, logs, screenshots
         if: always()
         uses: softprops/action-gh-release@v2
         with:
@@ -31,7 +63,10 @@ jobs:
           name: The Shadow mod (auto build)
           prerelease: true
           make_latest: false
-          body: "Auto-built from the shadow-mod branch. Commit ${{ github.sha }}. Build result: ${{ steps.build.outcome }}"
+          body: "Auto-built from the shadow-mod branch. Commit ${{ github.sha }}. Build: ${{ steps.build.outcome }} | Server test: ${{ steps.server.outcome }} | Client test: ${{ steps.client.outcome }}"
           files: |
             shadow-mod/build/libs/*.jar
             shadow-mod/build.log
+            shadow-mod/server.log
+            shadow-mod/client.log
+            shadow-mod/shots/*.png
