@@ -1,0 +1,52 @@
+{
+ "breath": {
+  "sounds": [
+   "theshadow:breath"
+  ]
+ },
+ "drone": {
+  "sounds": [
+   "theshadow:drone"
+  ]
+ },
+ "heartbeat": {
+  "sounds": [
+   "theshadow:heartbeat"
+  ]
+ },
+ "hit": {
+  "sounds": [
+   "theshadow:hit"
+  ]
+ },
+ "riser": {
+  "sounds": [
+   "theshadow:riser"
+  ]
+ },
+ "scream": {
+  "sounds": [
+   "theshadow:scream"
+  ]
+ },
+ "snap": {
+  "sounds": [
+   "theshadow:snap"
+  ]
+ },
+ "static": {
+  "sounds": [
+   "theshadow:static"
+  ]
+ },
+ "stinger": {
+  "sounds": [
+   "theshadow:stinger"
+  ]
+ },
+ "whisper": {
+  "sounds": [
+   "theshadow:whisper"
+  ]
+ }
+}

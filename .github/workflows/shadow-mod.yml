@@ -1,0 +1,37 @@
+name: Build The Shadow mod
+on:
+  push:
+    branches: [shadow-mod]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Build
+        id: build
+        working-directory: shadow-mod
+        run: |
+          set -o pipefail
+          gradle build --no-daemon --stacktrace 2>&1 | tee build.log
+      - name: Publish jar + log
+        if: always()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: shadow-mod-build
+          name: The Shadow mod (auto build)
+          prerelease: true
+          make_latest: false
+          body: "Auto-built from the shadow-mod branch. Commit ${{ github.sha }}. Build result: ${{ steps.build.outcome }}"
+          files: |
+            shadow-mod/build/libs/*.jar
+            shadow-mod/build.log

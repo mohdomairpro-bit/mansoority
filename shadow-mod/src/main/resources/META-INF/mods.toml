@@ -1,0 +1,24 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All rights reserved"
+
+[[mods]]
+modId="theshadow"
+version="1.0.0"
+displayName="The Shadow"
+authors="Mansoority"
+description='''Something watches you on Mansoority. It can't hurt you. Don't look at it.'''
+
+[[dependencies.theshadow]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.theshadow]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"

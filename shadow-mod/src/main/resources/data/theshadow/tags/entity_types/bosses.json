@@ -1,0 +1,97 @@
+{
+ "replace": false,
+ "values": [
+  {
+   "id": "minecraft:wither",
+   "required": false
+  },
+  {
+   "id": "minecraft:ender_dragon",
+   "required": false
+  },
+  {
+   "id": "minecraft:warden",
+   "required": false
+  },
+  {
+   "id": "minecraft:elder_guardian",
+   "required": false
+  },
+  {
+   "id": "minecraft:ravager",
+   "required": false
+  },
+  {
+   "id": "cataclysm:ignis",
+   "required": false
+  },
+  {
+   "id": "cataclysm:netherite_monstrosity",
+   "required": false
+  },
+  {
+   "id": "cataclysm:ender_guardian",
+   "required": false
+  },
+  {
+   "id": "cataclysm:the_harbinger",
+   "required": false
+  },
+  {
+   "id": "cataclysm:the_leviathan",
+   "required": false
+  },
+  {
+   "id": "cataclysm:ancient_remnant",
+   "required": false
+  },
+  {
+   "id": "cataclysm:maledictus",
+   "required": false
+  },
+  {
+   "id": "cataclysm:scylla",
+   "required": false
+  },
+  {
+   "id": "iceandfire:fire_dragon",
+   "required": false
+  },
+  {
+   "id": "iceandfire:ice_dragon",
+   "required": false
+  },
+  {
+   "id": "iceandfire:lightning_dragon",
+   "required": false
+  },
+  {
+   "id": "iceandfire:cyclops",
+   "required": false
+  },
+  {
+   "id": "iceandfire:sea_serpent",
+   "required": false
+  },
+  {
+   "id": "iceandfire:gorgon",
+   "required": false
+  },
+  {
+   "id": "iceandfire:dread_lich",
+   "required": false
+  },
+  {
+   "id": "endertrigon:ender_trigon",
+   "required": false
+  },
+  {
+   "id": "minecraft:elder_guardian",
+   "required": false
+  },
+  {
+   "id": "minecraft:warden",
+   "required": false
+  }
+ ]
+}
