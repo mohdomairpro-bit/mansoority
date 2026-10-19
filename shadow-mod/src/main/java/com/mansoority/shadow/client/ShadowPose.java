@@ -51,7 +51,7 @@ final class ShadowPose {
             neck.xRot += lean * 0.45F;
             head.xRot -= lean * 0.5F;
             head.zRot += Math.max(0F, s - 0.25F) * 2.1F;
-            jaw.xRot += s * s * 1.1F;
+            jaw.xRot += s * s * 1.6F;   // unhinges far past what a jaw should do
             // arms creep up and forward toward you, fingers opening
             armL.xRot -= s * 1.1F; armR.xRot -= s * 1.1F;
             armL.zRot -= s * 0.45F; armR.zRot += s * 0.45F;
@@ -70,7 +70,7 @@ final class ShadowPose {
         if (rush > 0) {
             float k = Math.min(1F, rush / 5F);
             head.xRot += 0.3F * k;
-            jaw.xRot += 0.9F * k;
+            jaw.xRot += 1.4F * k;
             armL.xRot -= 1.3F * k; armR.xRot -= 1.3F * k;
             handL.xRot -= 0.6F * k; handR.xRot -= 0.6F * k;
             float run = age * 1.5F;

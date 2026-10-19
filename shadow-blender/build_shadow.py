@@ -237,6 +237,24 @@ for i in range(NT):
         upper.append(tooth((x * 0.8, y * 0.8 + 0.008, -0.058 - h * 0.35), h * 0.7, 0.003, False))
         lower.append(tooth((x * 0.8, y * 0.8 + 0.008, -0.078 + h * 0.3), h * 0.6, 0.0028, True))
 
+for i in range(14):
+    a = math.radians(-70 + i * (140 / 13))
+    x = math.sin(a) * 0.046; y = -0.012 - math.cos(a) * 0.036
+    upper.append(tooth((x, y, -0.060), random.uniform(0.008, 0.013), 0.0026, False))
+    lower.append(tooth((x, y, -0.084), random.uniform(0.007, 0.011), 0.0024, True))
+drips = []
+for i in range(16):
+    a = math.radians(random.uniform(-70, 70))
+    x = math.sin(a) * 0.07; y = -0.042 - math.cos(a) * 0.056
+    L = random.uniform(0.008, 0.03)
+    bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.0011, radius2=0.0024, depth=L, location=(x, y, -0.07 - L / 2))
+    d0 = bpy.context.active_object; d0.name = "drip"
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=8, ring_count=6, radius=0.0028, location=(x, y, -0.07 - L))
+    d1 = bpy.context.active_object; d1.name = "drip"
+    for o_ in (d0, d1):
+        for p_ in o_.data.polygons: p_.use_smooth = True
+    drips += [d0, d1]
+
 def growth(base, dirs, radii):
     vs = [base]; rs = [radii[0]]; es = []
     p = base.copy()
@@ -284,7 +302,7 @@ for c, r in SOCKETS:
     glints.append(bpy.context.active_object)
 
 for g_ in (gL, gL2, gL3, gR, gR2): bpy.data.objects.remove(g_)
-HEAD_PARTS = {"head": [skull, void] + hair + eyes + upper + glints, "jaw": [jaw] + lower}
+HEAD_PARTS = {"head": [skull, void] + hair + eyes + upper + glints + drips, "jaw": [jaw] + lower}
 # place head on the neck
 head_xf = Matrix.Translation(HEAD_C) @ Matrix.Rotation(math.radians(-6), 4, 'X')
 head_inv = head_xf.inverted()
@@ -300,6 +318,7 @@ def mat_color(kind, co):
     if kind == "skin":   return Vector((0.012, 0.010, 0.011)) * (1 + 0.6 * n)
     if kind == "void":   return Vector((0.0, 0.0, 0.0))
     if kind == "hair":   return Vector((0.012, 0.010, 0.010)) * (1 + 0.4 * n)
+    if kind == "saliva": return Vector((0.62, 0.60, 0.52))
     if kind == "face":
         blot = 0.7 + 0.6 * (noise.noise(co * 9 + Vector((5, 2, 1))) * 0.5 + 0.5)
         vein = 1 - abs(noise.noise(co * 32))
@@ -316,11 +335,12 @@ KIND = {}
 for o in [body] + extra: KIND[o.name] = "skin"
 KIND[skull.name] = "face"; KIND[jaw.name] = "face"; KIND[throat.name] = "throat"; KIND[void.name] = "void"
 for o in hair: KIND[o.name] = "hair"
+for o in drips: KIND[o.name] = "saliva"
 for o in upper + lower: KIND[o.name] = "tooth"
 for o in glints: KIND[o.name] = "glint"
 for o in eyes: KIND[o.name] = "eye"
 
-ALL = [body] + extra + [skull, void, jaw, throat] + hair + eyes + upper + lower + glints
+ALL = [body] + extra + [skull, void, jaw, throat] + hair + eyes + upper + lower + glints + drips
 # join a temporary copy of everything for AO ray casts
 def world_tris(objs):
     vs, fs = [], []
@@ -399,7 +419,7 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.07
     nt.links.new(tex.outputs["Fac"], bump.inputs["Height"]); nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mt
-MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.6, 0.3, sss=0.05), "hair": make_mat("hair", 0.5, 0.4), "void": make_mat("void", 1.0, 0.0),
+MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.6, 0.3, sss=0.05), "hair": make_mat("hair", 0.5, 0.4), "saliva": make_mat("saliva", 0.02, 1.0), "void": make_mat("void", 1.0, 0.0),
        "bone": make_mat("bone", 0.7, 0.3), "tooth": make_mat("tooth", 0.25, 0.7),
        "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=12)}
 for o in ALL:
@@ -538,15 +558,16 @@ def jumpscare(frames=26):
     cam = camera(face + Vector((0, -0.75, 0.0)), ft, 30)
     sinew_mat = bpy.data.materials.new("sinew"); sinew_mat.use_nodes = True
     sb = sinew_mat.node_tree.nodes["Principled BSDF"]
-    sb.inputs["Base Color"].default_value = (0.16, 0.05, 0.05, 1); sb.inputs["Roughness"].default_value = 0.2
+    sb.inputs["Base Color"].default_value = (0.55, 0.52, 0.45, 1); sb.inputs["Roughness"].default_value = 0.03
+    sb.inputs["Transmission Weight"].default_value = 0.55; sb.inputs["Specular IOR Level"].default_value = 1.0
     strands = []
     def build_strands(open_amt):
         for o_ in strands: bpy.data.objects.remove(o_)
         strands.clear()
         if open_amt < 0.05: return
-        for sx in (-1, 1):
-            for k in range(4):
-                x = sx * (0.050 + k * 0.012)
+        for sx in (-1, 0, 1):
+            for k in range(5 if sx else 3):
+                x = sx * (0.030 + k * 0.012) if sx else random.uniform(-0.02, 0.02)
                 up = head_rig.matrix_world @ head_rig.matrix_parent_inverse.inverted() @ Vector((0, 0, 0))
                 a_ = head_xf @ Vector((x, -0.05 + abs(x) * 0.25, -0.060))
                 lo = jaw_rig.matrix_world @ jaw_rig.matrix_parent_inverse @ Vector((0, 0, 0))
@@ -557,12 +578,12 @@ def jumpscare(frames=26):
                 rot = jaw_rig.matrix_world.to_3x3() @ head_rig.matrix_world.to_3x3().inverted()
                 b_ = piv + rot @ ((head_xf @ b_local) - piv)
                 cd = bpy.data.curves.new("strand", 'CURVE'); cd.dimensions = '3D'
-                cd.bevel_depth = random.uniform(0.0008, 0.0016); cd.bevel_resolution = 2
+                cd.bevel_depth = random.uniform(0.0004, 0.0011); cd.bevel_resolution = 2
                 sp = cd.splines.new('BEZIER'); sp.bezier_points.add(1)
                 for i_, pt in enumerate((a_, b_)):
                     bp = sp.bezier_points[i_]; bp.co = pt
                     bp.handle_left_type = bp.handle_right_type = 'AUTO'
-                mid_sag = Vector((0, -0.004, -0.01))
+                mid_sag = Vector((random.uniform(-0.003, 0.003), -0.006, -0.012 - 0.03 * open_amt * random.random()))
                 sp.bezier_points[0].handle_right_type = 'FREE'; sp.bezier_points[0].handle_right = a_.lerp(b_, 0.33) + mid_sag
                 sp.bezier_points[1].handle_left_type = 'FREE'; sp.bezier_points[1].handle_left = a_.lerp(b_, 0.66) + mid_sag
                 ob = link(bpy.data.objects.new("strand", cd)); ob.data.materials.append(sinew_mat)
@@ -576,7 +597,7 @@ def jumpscare(frames=26):
         shake = Vector(((random.random() - 0.5) * 0.012, 0, (random.random() - 0.5) * 0.012)) * (1 if t > 0.3 else 0.2)
         cam.location = face + Vector((0, -dist, 0.01)) + shake
         jaw_open = 1 - (1 - min(1, max(0, (t - 0.05) / 0.5))) ** 2
-        jaw_rig.rotation_euler = (math.radians(8 + 62 * jaw_open), 0, 0)
+        jaw_rig.rotation_euler = (math.radians(8 + 92 * jaw_open), 0, 0)
         head_rig.rotation_euler = (0, math.sin(f * 2.3) * (0.05 if t > 0.35 else 0), math.sin(f * 1.7) * (0.06 if t > 0.35 else 0))
         under.data.energy = 22 * (0.3 if (f % 6 == 4) else 1.0)
         bpy.context.view_layer.update()
