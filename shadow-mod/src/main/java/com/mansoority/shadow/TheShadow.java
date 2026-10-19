@@ -1,6 +1,8 @@
 package com.mansoority.shadow;
 
 import com.mansoority.shadow.client.ClientSetup;
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -14,6 +16,7 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 @Mod(TheShadow.MODID)
 public class TheShadow {
     public static final String MODID = "theshadow";
+    public static final Logger LOGGER = LogUtils.getLogger();
 
     public TheShadow() {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();

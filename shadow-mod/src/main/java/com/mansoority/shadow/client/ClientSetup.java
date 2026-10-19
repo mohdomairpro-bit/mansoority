@@ -8,17 +8,12 @@ import net.minecraftforge.eventbus.api.IEventBus;
 
 public final class ClientSetup {
     public static void init(IEventBus modBus) {
-        modBus.addListener(ClientSetup::onLayers);
         modBus.addListener(ClientSetup::onRenderers);
         modBus.addListener(ClientSetup::onOverlays);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onClientTick);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onCamera);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onLogout);
         if (AutoTest.enabled()) MinecraftForge.EVENT_BUS.addListener(AutoTest::onClientTick);
-    }
-
-    private static void onLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
-        event.registerLayerDefinition(ShadowModel.LAYER, ShadowModel::createBodyLayer);
     }
 
     private static void onRenderers(EntityRenderersEvent.RegisterRenderers event) {

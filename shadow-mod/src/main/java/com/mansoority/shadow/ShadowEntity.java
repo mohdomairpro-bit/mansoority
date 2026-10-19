@@ -42,6 +42,8 @@ public class ShadowEntity extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DATA_RUSH = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
 
     public static final int STARE_LIMIT = 60;
+    /** Blender metres -> blocks for the mesh model (about 8 blocks tall) */
+    public static final float MODEL_SCALE = 3.0F;
     private UUID targetId;
     private int stage;
     private int life;
