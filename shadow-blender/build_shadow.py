@@ -148,7 +148,8 @@ def make_head():
     for v in hd.data.vertices:
         p = v.co.copy()
         z = p.z * 0.17
-        w = 0.092 if z > 0 else 0.092 * (1 - 0.42 * (-z / 0.17) ** 1.3)     # long, narrowing to a pointed chin
+        w = 0.083 if z > 0 else 0.083 * (1 - 0.45 * (-z / 0.17) ** 1.3)     # long, narrowing to a pointed chin
+        if z < -0.09: z = -0.09 + (z + 0.09) * 1.6                           # stretched, sagging chin
         d = 0.115 if z > 0 else 0.115 * (1 - 0.25 * (-z / 0.17))
         q = Vector((p.x * w, p.y * d, z))
         if z > 0.06: q.x *= 1 + 0.12 * (z - 0.06) / 0.11                   # wide cranium
@@ -170,6 +171,10 @@ bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24, radius=1, locat
 cutter = bpy.context.active_object; CUTTERS.append(cutter)
 cutter.scale = (0.105, 0.075, 0.016)                                        # splits the cheeks open
 b = skull.modifiers.new("mouth", 'BOOLEAN'); b.object = cutter; b.operation = 'DIFFERENCE'
+for sx in (-1, 1):
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=1, location=(0.072 * sx, -0.075, -0.058), rotation=(0, math.radians(-30 * sx), 0))
+    cc = bpy.context.active_object; CUTTERS.append(cc); cc.scale = (0.032, 0.05, 0.007)
+    bc = skull.modifiers.new("corner", 'BOOLEAN'); bc.object = cc; bc.operation = 'DIFFERENCE'
 for c, r in SOCKETS:
     bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=16, radius=r * 0.62, location=c + Vector((0, 0.004, 0)))
     sc = bpy.context.active_object; CUTTERS.append(sc)
@@ -245,8 +250,28 @@ gL3 = growth(Vector((-0.11, 0.07, 0.16)), [Vector((-0.07, -0.03, 0.05)), Vector(
 gR = growth(Vector((0.06, -0.02, 0.10)), [Vector((0.06, 0.06, 0.05)), Vector((0.05, 0.07, 0.02))], [0.017, 0.015, 0.014])
 gR2 = growth(Vector((0.04, 0.03, 0.14)), [Vector((0.02, 0.05, 0.06)), Vector((0.0, 0.05, 0.04))], [0.008, 0.006, 0.002])
 for g_ in (gL, gL2, gL3, gR, gR2): apply_mods(g_)
+hair = []
+random.seed(11)
+for k in range(110):
+    th = random.uniform(-2.6, 2.6); ph = random.uniform(0.15, 1.35)
+    root = Vector((math.sin(th) * math.sin(ph) * 0.084, math.cos(th) * math.sin(ph) * 0.11, math.cos(ph) * 0.16))
+    if root.y < -0.05 and abs(root.x) < 0.055 and root.z < 0.10: continue     # keep the face uncovered... mostly
+    L = random.uniform(0.25, 0.6)
+    pts = [root]
+    p_ = root.copy(); d_ = (root * Vector((1.2, 1.0, 0.3))).normalized() * 0.03
+    for sgm in range(7):
+        d_ = (d_ + Vector((0, 0, -0.022)) + Vector((random.uniform(-1, 1), random.uniform(-1, 1), 0)) * 0.004).normalized() * (L / 7)
+        p_ = p_ + d_; pts.append(p_.copy())
+    cd = bpy.data.curves.new("hair", 'CURVE'); cd.dimensions = '3D'; cd.bevel_depth = random.uniform(0.0025, 0.0045); cd.bevel_resolution = 1
+    sp = cd.splines.new('POLY'); sp.points.add(len(pts) - 1)
+    for i_, q_ in enumerate(pts): sp.points[i_].co = (q_.x, q_.y, q_.z, 1); sp.points[i_].radius = 1.0 - i_ / (len(pts) + 1)
+    ho = link(bpy.data.objects.new("hair", cd))
+    me_ = bpy.data.meshes.new_from_object(ho.evaluated_get(bpy.context.evaluated_depsgraph_get()))
+    mo = link(bpy.data.objects.new("hairm", me_)); bpy.data.objects.remove(ho)
+    for p2 in mo.data.polygons: p2.use_smooth = True
+    hair.append(mo)
 eyes = []
-EYE_R = [0.0128, 0.0152]                          # uneven
+EYE_R = [0.0105, 0.0118]                          # uneven
 for (c, r), er in zip(SOCKETS, EYE_R):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=24, radius=er, location=c + Vector((0, 0.006, 0)))
     e_ = bpy.context.active_object; e_.name = "eye"
@@ -254,10 +279,11 @@ for (c, r), er in zip(SOCKETS, EYE_R):
     eyes.append(e_)
 glints = []
 for c, r in SOCKETS:
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.0016, location=c + Vector((0.0, -0.011, 0.0)))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.0019, location=c + Vector((0.0025, -0.0035, 0.002)))
     glints.append(bpy.context.active_object)
 
-HEAD_PARTS = {"head": [skull, void, gL, gL2, gL3, gR, gR2] + eyes + upper + glints, "jaw": [jaw] + lower}
+for g_ in (gL, gL2, gL3, gR, gR2): bpy.data.objects.remove(g_)
+HEAD_PARTS = {"head": [skull, void] + hair + eyes + upper + glints, "jaw": [jaw] + lower}
 # place head on the neck
 head_xf = Matrix.Translation(HEAD_C) @ Matrix.Rotation(math.radians(-6), 4, 'X')
 head_inv = head_xf.inverted()
@@ -272,10 +298,11 @@ def mat_color(kind, co):
     n = noise.noise(co * 18) * 0.5 + noise.noise(co * 70) * 0.25
     if kind == "skin":   return Vector((0.012, 0.010, 0.011)) * (1 + 0.6 * n)
     if kind == "void":   return Vector((0.0, 0.0, 0.0))
+    if kind == "hair":   return Vector((0.012, 0.010, 0.010)) * (1 + 0.4 * n)
     if kind == "face":
         blot = 0.7 + 0.6 * (noise.noise(co * 9 + Vector((5, 2, 1))) * 0.5 + 0.5)
         vein = 1 - abs(noise.noise(co * 32))
-        c = Vector((0.25, 0.23, 0.20)) * blot * (1 + 0.2 * n)
+        c = Vector((0.17, 0.175, 0.15)) * blot * (1 + 0.2 * n)
         if vein > 0.94: c = c * 0.45 + Vector((0.05, 0.0, 0.02))
         return c
     if kind == "bone":   return Vector((0.30, 0.27, 0.22)) * (1 + 0.4 * n)
@@ -287,12 +314,12 @@ def mat_color(kind, co):
 KIND = {}
 for o in [body] + extra: KIND[o.name] = "skin"
 KIND[skull.name] = "face"; KIND[jaw.name] = "face"; KIND[throat.name] = "throat"; KIND[void.name] = "void"
-for o in (gL, gL2, gL3, gR, gR2): KIND[o.name] = "bone"
+for o in hair: KIND[o.name] = "hair"
 for o in upper + lower: KIND[o.name] = "tooth"
 for o in glints: KIND[o.name] = "glint"
 for o in eyes: KIND[o.name] = "eye"
 
-ALL = [body] + extra + [skull, void, jaw, throat, gL, gL2, gL3, gR, gR2] + eyes + upper + lower + glints
+ALL = [body] + extra + [skull, void, jaw, throat] + hair + eyes + upper + lower + glints
 # join a temporary copy of everything for AO ray casts
 def world_tris(objs):
     vs, fs = [], []
@@ -329,7 +356,8 @@ for o in ALL:
             d = (v.co - centre).normalized()
             fwd = (head_xf.to_3x3() @ Vector((0, -1, 0))).normalized()
             ang = math.acos(max(-1, min(1, d.dot(fwd))))
-            if ang < 0.30: c = Vector((0.0, 0.0, 0.0))                              # pinpoint pupil
+            c = Vector((0.006, 0.004, 0.004))                                         # all-black eyes
+            if False: pass
             elif ang < 0.55: c = Vector((0.20, 0.02, 0.015)) * (0.5 + 0.5 * (ang / 0.55))  # dark red iris
             else:
                 vein = 1 - abs(noise.noise(d * 14))
@@ -376,9 +404,9 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.07
     nt.links.new(tex.outputs["Fac"], bump.inputs["Height"]); nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mt
-MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.32, 0.55, sss=0.08), "void": make_mat("void", 1.0, 0.0),
+MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.6, 0.3, sss=0.05), "hair": make_mat("hair", 0.5, 0.4), "void": make_mat("void", 1.0, 0.0),
        "bone": make_mat("bone", 0.7, 0.3), "tooth": make_mat("tooth", 0.25, 0.7),
-       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.22, 0.6), "glint": make_mat("glint", 0.1, 0.5, emit=12)}
+       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=12)}
 for o in ALL:
     o.data.materials.clear(); o.data.materials.append(MAT[KIND[o.name]])
 

@@ -43,7 +43,7 @@ public class ShadowEntity extends PathfinderMob {
 
     public static final int STARE_LIMIT = 60;
     /** Blender metres -> blocks for the mesh model (about 8 blocks tall) */
-    public static final float MODEL_SCALE = 3.0F;
+    public static final float MODEL_SCALE = 4.6F;   // ~12 blocks tall
     /** head centre in model metres (from the Blender export log) */
     private static final double HEAD_UP = 2.145, HEAD_FWD = 0.71;
     private UUID targetId;
@@ -164,7 +164,7 @@ public class ShadowEntity extends PathfinderMob {
 
     /** where the head is in the world (it hangs out in front of the body) */
     public Vec3 headPos() {
-        float s = MODEL_SCALE * (1F + Math.min(1F, getStare() / (float) STARE_LIMIT) * 0.25F);
+        float s = MODEL_SCALE * (1F + Math.min(1F, getStare() / (float) STARE_LIMIT) * 0.12F);
         double fwd = HEAD_FWD * s;
         double rad = Math.toRadians(this.yBodyRot);
         return new Vec3(this.getX() - Math.sin(rad) * fwd, this.getY() + HEAD_UP * s, this.getZ() + Math.cos(rad) * fwd);
@@ -214,8 +214,20 @@ public class ShadowEntity extends PathfinderMob {
         if (s == 31) soundAround(ShadowRegistry.SNAP, 2.0F, 0.7F);
         if (s == 26) ui(p, ShadowRegistry.STATIC, 1F, 0.6F);
         if (s == 40) ui(p, ShadowRegistry.WHISPER, 1F, 0.6F);
+        if (stage >= 0 && (s == 20 || s == 40) && this.distanceTo(p) > 6) lurch(p);
         if (stage < 0 && s >= 10) { startVanish(); return; }   // bedside visit: one look and it's gone
         if (s >= STARE_LIMIT) advance(p);
+    }
+
+    /** a sudden jerk one step toward you while you're looking at it */
+    private void lurch(ServerPlayer p) {
+        Vec3 dir = p.position().subtract(this.position()).multiply(1, 0, 1).normalize();
+        BlockPos spot = findStand((ServerLevel) this.level(), this.getX() + dir.x * 1.6, this.getY(), this.getZ() + dir.z * 1.6, 3);
+        if (spot != null) {
+            this.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+            soundAround(ShadowRegistry.SNAP, 2.5F, 0.6F);
+            ui(p, ShadowRegistry.HIT, 0.8F, 1.3F);
+        }
     }
 
     private void calm(ServerPlayer p) {

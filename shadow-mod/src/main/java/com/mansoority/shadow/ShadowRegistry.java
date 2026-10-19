@@ -16,7 +16,7 @@ public final class ShadowRegistry {
 
     public static final RegistryObject<EntityType<ShadowEntity>> SHADOW = ENTITIES.register("shadow",
             () -> EntityType.Builder.<ShadowEntity>of(ShadowEntity::new, MobCategory.MISC)
-                    .sized(1.6F, 7.6F)
+                    .sized(2.2F, 11.5F)
                     .clientTrackingRange(10)
                     .updateInterval(1)
                     .fireImmune()

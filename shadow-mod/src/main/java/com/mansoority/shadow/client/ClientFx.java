@@ -204,6 +204,11 @@ public final class ClientFx {
         js = -1; seq = -1; stare = 0; lightsOut = 0; rushing = false;
     }
 
+    /** staring pulls your view into it (narrowing FOV) - you can't look away from the face */
+    public static void onFov(ViewportEvent.ComputeFov event) {
+        if (stare > 0.02F) event.setFOV(event.getFOV() * (1.0 - 0.45 * stare));
+    }
+
     // ------------------------------------------------------------------ camera shake
     public static void onCamera(ViewportEvent.ComputeCameraAngles event) {
         float amp = 0F;

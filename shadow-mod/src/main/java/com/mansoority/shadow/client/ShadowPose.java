@@ -45,16 +45,18 @@ final class ShadowPose {
         // being watched: the head locks on, then slowly tips over sideways, the jaw unhinges, arms open wide
         if (stare > 0F) {
             float s = stare;
-            head.zRot += s * 1.25F;
-            neck.xRot -= s * 0.2F;
-            jaw.xRot += s * 0.85F;
-            armL.zRot -= s * 1.9F;
-            armR.zRot += s * 1.9F;
-            foreL.zRot += s * 0.5F;
-            foreR.zRot -= s * 0.5F;
-            handL.xRot -= s * 0.6F;
-            handR.xRot -= s * 0.6F;
-            chest.xRot -= s * 0.25F;
+            // first it goes completely still and leans in to look at you, then the head slowly rolls over
+            float lean = Math.min(1F, s * 2.5F);
+            chest.xRot += lean * 0.35F;
+            neck.xRot += lean * 0.45F;
+            head.xRot -= lean * 0.5F;
+            head.zRot += Math.max(0F, s - 0.25F) * 2.1F;
+            jaw.xRot += s * s * 1.1F;
+            // arms creep up and forward toward you, fingers opening
+            armL.xRot -= s * 1.1F; armR.xRot -= s * 1.1F;
+            armL.zRot -= s * 0.45F; armR.zRot += s * 0.45F;
+            foreL.xRot -= s * 0.5F; foreR.xRot -= s * 0.5F;
+            handL.xRot -= s * 0.7F; handR.xRot -= s * 0.7F;
             if (s > 0.6F) {
                 float j = (s - 0.6F) * 2.5F;
                 head.zRot += (hash((int) age, id) - 0.5F) * 0.5F * j;

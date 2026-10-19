@@ -38,7 +38,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         float age = e.tickCount + partialTick;
         ShadowPose.apply(mesh, e, age, partialTick);
         float bodyYaw = Mth.rotLerp(partialTick, e.yBodyRotO, e.yBodyRot);
-        float grow = 1F + Math.min(1F, e.getStare() / (float) ShadowEntity.STARE_LIMIT) * 0.25F;
+        float grow = 1F + Math.min(1F, e.getStare() / (float) ShadowEntity.STARE_LIMIT) * 0.12F;
         pose.pushPose();
         pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw));
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);

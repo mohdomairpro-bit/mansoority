@@ -12,6 +12,7 @@ public final class ClientSetup {
         modBus.addListener(ClientSetup::onOverlays);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onClientTick);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onCamera);
+        MinecraftForge.EVENT_BUS.addListener(ClientFx::onFov);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onLogout);
         if (AutoTest.enabled()) MinecraftForge.EVENT_BUS.addListener(AutoTest::onClientTick);
     }

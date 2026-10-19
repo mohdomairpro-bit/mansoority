@@ -49,6 +49,7 @@ public class ShadowEvents {
 
         data.putLong(KEY_NEXT, now + cooldown + p.getRandom().nextInt(20 * 60 * 20));
         double roll = p.getRandom().nextDouble();
+        warnAll(p);
         if (roll < 0.65) {
             if (ShadowEntity.spawnAround(p, 0, 180, 28) == null) soundEvent(p);
         } else if (roll < 0.93) {
@@ -68,9 +69,22 @@ public class ShadowEvents {
         if (data.contains(KEY_NEXT) && now < data.getLong(KEY_NEXT)) return;
         if (p.getRandom().nextFloat() > 0.10F || ShadowEntity.anyNear(p, 160)) return;
         p.server.execute(() -> {
-            ShadowEntity e = ShadowEntity.spawnAround(p, -1, p.getRandom().nextBoolean() ? 60 : -60, 2.5);
+            ShadowEntity e = ShadowEntity.spawnAround(p, -1, p.getRandom().nextBoolean() ? 60 : -60, 3.5);
+            if (e != null) warnAll(p);
             if (e != null) data.putLong(KEY_NEXT, now + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
         });
+    }
+
+    private static final String[] WARNINGS = {
+            "Something is awake tonight.", "One of you is being watched.", "It has chosen someone.",
+            "Don't look at it.", "Someone is not alone right now.", "It's closer than you think.",
+            "Check behind you.", "It knows your name.", "Someone just heard it breathing."};
+
+    /** an anonymous warning in everyone's chat: it could be anyone */
+    public static void warnAll(ServerPlayer p) {
+        String msg = WARNINGS[p.getRandom().nextInt(WARNINGS.length)];
+        p.server.getPlayerList().broadcastSystemMessage(
+                Component.literal(msg).withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), false);
     }
 
     private static boolean eligible(ServerPlayer p) {
