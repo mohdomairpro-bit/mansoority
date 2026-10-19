@@ -406,25 +406,49 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     nt = mt.node_tree; bsdf = nt.nodes["Principled BSDF"]
     a = nt.nodes.new("ShaderNodeAttribute"); a.attribute_name = "Col"; a.attribute_type = 'GEOMETRY'
     base_out = a.outputs["Color"]
-    if name in ("skin", "face", "hair", "bone"):
-        nz = nt.nodes.new("ShaderNodeTexNoise"); nz.inputs["Scale"].default_value = 35; nz.inputs["Detail"].default_value = 10
-        nz.inputs["Roughness"].default_value = 0.65
-        rmp = nt.nodes.new("ShaderNodeMapRange"); rmp.inputs["To Min"].default_value = 0.45; rmp.inputs["To Max"].default_value = 1.6
-        nt.links.new(nz.outputs["Fac"], rmp.inputs["Value"])
-        vor = nt.nodes.new("ShaderNodeTexVoronoi"); vor.feature = 'DISTANCE_TO_EDGE'; vor.inputs["Scale"].default_value = 18 if name == "skin" else 30
-        vein = nt.nodes.new("ShaderNodeMapRange"); vein.inputs["From Min"].default_value = 0.0; vein.inputs["From Max"].default_value = 0.035
-        vein.inputs["To Min"].default_value = 0.25; vein.inputs["To Max"].default_value = 1.0
-        nt.links.new(vor.outputs["Distance"], vein.inputs["Value"])
-        m1 = nt.nodes.new("ShaderNodeMix"); m1.data_type = 'RGBA'; m1.blend_type = 'MULTIPLY'; m1.inputs["Factor"].default_value = 1.0
-        nt.links.new(base_out, m1.inputs[6]); nt.links.new(rmp.outputs["Result"], m1.inputs[7])
-        m2 = nt.nodes.new("ShaderNodeMix"); m2.data_type = 'RGBA'; m2.blend_type = 'MULTIPLY'; m2.inputs["Factor"].default_value = 1.0
-        nt.links.new(m1.outputs[2], m2.inputs[6]); nt.links.new(vein.outputs["Result"], m2.inputs[7])
-        if name == "skin":     # lift the near-black body a little so the detail reads in game
-            m3 = nt.nodes.new("ShaderNodeMix"); m3.data_type = 'RGBA'; m3.blend_type = 'ADD'; m3.inputs["Factor"].default_value = 1.0
-            m3.inputs[7].default_value = (0.028, 0.022, 0.022, 1)
-            nt.links.new(m2.outputs[2], m3.inputs[6]); base_out = m3.outputs[2]
+    if name in ("skin", "face", "bone"):
+        L = nt.links.new
+        def node(t, **kw):
+            n = nt.nodes.new(t)
+            for k, v in kw.items(): n.inputs[k].default_value = v
+            return n
+        def mix(a, b, fac, blend='MIX'):
+            m = nt.nodes.new("ShaderNodeMix"); m.data_type = 'RGBA'; m.blend_type = blend
+            if isinstance(fac, float): m.inputs["Factor"].default_value = fac
+            else: L(fac, m.inputs["Factor"])
+            for idx, v in ((6, a), (7, b)):
+                if isinstance(v, tuple): m.inputs[idx].default_value = v
+                else: L(v, m.inputs[idx])
+            return m.outputs[2]
+        def ramp(src, lo, hi):
+            r = node("ShaderNodeMapRange", **{"From Min": lo, "From Max": hi}); L(src, r.inputs["Value"]); r.clamp = True
+            return r.outputs["Result"]
+        co = nt.nodes.new("ShaderNodeTexCoord").outputs["Object"]
+        big = node("ShaderNodeTexNoise", Scale=4.0, Detail=6.0, Roughness=0.6); L(co, big.inputs["Vector"])
+        mid = node("ShaderNodeTexNoise", Scale=22.0, Detail=8.0, Roughness=0.7); L(co, mid.inputs["Vector"])
+        vor = nt.nodes.new("ShaderNodeTexVoronoi"); vor.feature = 'DISTANCE_TO_EDGE'; vor.inputs["Scale"].default_value = 9.0 if name == "skin" else 16.0
+        warp = node("ShaderNodeTexNoise", Scale=6.0, Detail=3.0)
+        vadd = nt.nodes.new("ShaderNodeVectorMath"); vadd.operation = 'ADD'; L(co, vadd.inputs[0]); L(warp.outputs["Color"], vadd.inputs[1])
+        L(vadd.outputs[0], vor.inputs["Vector"])
+        wave = nt.nodes.new("ShaderNodeTexWave"); wave.bands_direction = 'Z'
+        wave.inputs["Scale"].default_value = 26.0; wave.inputs["Distortion"].default_value = 9.0; wave.inputs["Detail"].default_value = 4.0
+        L(co, wave.inputs["Vector"])
+        ao = nt.nodes.new("ShaderNodeAmbientOcclusion"); ao.samples = 8; ao.inputs["Distance"].default_value = 0.08
+        if name == "face":
+            pale, rot = a.outputs["Color"], (0.10, 0.075, 0.07, 1)
+        elif name == "bone":
+            pale, rot = (0.36, 0.33, 0.27, 1), (0.12, 0.10, 0.07, 1)
         else:
-            base_out = m2.outputs[2]
+            pale, rot = (0.20, 0.165, 0.15, 1), (0.045, 0.03, 0.032, 1)
+        c = mix(pale, rot, ramp(big.outputs["Fac"], 0.38, 0.66))                         # big rotting blotches
+        c = mix(c, (0.0, 0.0, 0.0, 1), ramp(mid.outputs["Fac"], 0.5, 0.8), 'MIX')        # dark pores / grime
+        c = mix(c, (0.09, 0.01, 0.02, 1), ramp(vor.outputs["Distance"], 0.03, 0.0))      # dark red veins
+        c = mix(c, ramp(wave.outputs["Fac"], 0.0, 1.0), 0.35, 'MULTIPLY')                # stretched wrinkles
+        if name == "skin":                                                               # old blood / dirt pooling low
+            dirt = node("ShaderNodeTexNoise", Scale=11.0, Detail=5.0); L(co, dirt.inputs["Vector"])
+            c = mix(c, (0.13, 0.02, 0.015, 1), ramp(dirt.outputs["Fac"], 0.62, 0.72))
+        c = mix(c, ramp(ao.outputs["AO"], 0.0, 1.0), 0.8, 'MULTIPLY')                   # baked cavity shading
+        base_out = c
     nt.links.new(base_out, bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = rough
     bsdf.inputs["Specular IOR Level"].default_value = spec
@@ -482,12 +506,22 @@ def bake_atlas(objs, size=2048):
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.002)
     bpy.ops.object.mode_set(mode='OBJECT')
-    scene.render.engine = 'CYCLES'; scene.cycles.device = 'CPU'; scene.cycles.samples = 8
+    for o in objs:                                   # keep the top strip free for the swatches
+        for d in o.data.uv_layers.active.data: d.uv = d.uv * 0.985
+    scene.render.engine = 'CYCLES'; scene.cycles.device = 'CPU'; scene.cycles.samples = 16
     scene.render.bake.margin = 4
     bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'}, use_clear=True)
+    import numpy as np
+    px = np.empty(size * size * 4, dtype=np.float32); img.pixels.foreach_get(px); px = px.reshape(size, size, 4)
+    for i, (k, col) in enumerate(SOLID.items()):          # swatches live in the top-left corner (v=0.998)
+        x0 = int(i * 0.004 * size); px[size - 12:size, x0:x0 + int(0.004 * size), :3] = col
+    img.pixels.foreach_set(px.ravel())
     img.filepath_raw = os.path.join(OUT, "shadow_atlas.png"); img.file_format = 'PNG'; img.save()
     print("[SHADOW] atlas baked")
 
+# small/flat-coloured parts don't waste atlas space: they sample a painted swatch
+SOLID = {"glint": (1, 1, 1), "hair": (0.025, 0.02, 0.022), "void": (0, 0, 0), "throat": (0.14, 0.01, 0.01), "eye": (0.004, 0.004, 0.004)}
+SWATCH = {k: (0.002 + i * 0.004, 0.998) for i, k in enumerate(SOLID)}
 DECIMATE = {"skin": 0.45, "face": 0.22, "void": 0.15, "hair": 0.5, "throat": 0.3, "eye": 0.5}
 
 def export():
@@ -503,7 +537,7 @@ def export():
             d = (a + ab * t - p).length
             if d < best: best, bp = d, part
         return bp
-    bake_atlas([o for o in ALL if KIND[o.name] != "glint"])
+    bake_atlas([o for o in ALL if KIND[o.name] not in SOLID], 4096)
     tris = {k: [] for k in PARTS}
     def add_obj(o, force=None):
         kind = KIND[o.name]
@@ -522,7 +556,7 @@ def export():
             if part not in tris: part = "chest"
             for k, vi in enumerate(lt.vertices):
                 n = (nm @ me.vertices[vi].normal).normalized()
-                uv = uvl[lt.loops[k]].uv if (uvl and not emis) else (0.0, 0.0)
+                uv = SWATCH[kind] if kind in SOLID else uvl[lt.loops[k]].uv
                 tris[part].append((ws[k], n, uv, emis))
         if src is not o: bpy.data.objects.remove(src)
     for o in [body] + extra: add_obj(o)
