@@ -200,8 +200,8 @@ for ob in (skull, jaw):
     sol = ob.modifiers.new("solid", 'SOLIDIFY'); sol.thickness = 0.005
     apply_mods(ob)
     for p in ob.data.polygons: p.use_smooth = True
-bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=1, location=(0, -0.025, -0.074))
-throat = bpy.context.active_object; throat.name = "throat"; throat.scale = (0.058, 0.05, 0.022)
+bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=1, location=(0, 0.005, -0.074))
+throat = bpy.context.active_object; throat.name = "throat"; throat.scale = (0.05, 0.04, 0.02)
 apply_mods(throat)
 bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=1, location=(0, 0.0, 0.01))
 void = bpy.context.active_object; void.name = "void"; void.scale = (0.075, 0.085, 0.13)   # black inside the skull
@@ -245,12 +245,19 @@ gL3 = growth(Vector((-0.11, 0.07, 0.16)), [Vector((-0.07, -0.03, 0.05)), Vector(
 gR = growth(Vector((0.06, -0.02, 0.10)), [Vector((0.06, 0.06, 0.05)), Vector((0.05, 0.07, 0.02))], [0.017, 0.015, 0.014])
 gR2 = growth(Vector((0.04, 0.03, 0.14)), [Vector((0.02, 0.05, 0.06)), Vector((0.0, 0.05, 0.04))], [0.008, 0.006, 0.002])
 for g_ in (gL, gL2, gL3, gR, gR2): apply_mods(g_)
+eyes = []
+EYE_R = [0.0165, 0.019]                          # uneven
+for (c, r), er in zip(SOCKETS, EYE_R):
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=24, radius=er, location=c + Vector((0, 0.006, 0)))
+    e_ = bpy.context.active_object; e_.name = "eye"
+    for p_ in e_.data.polygons: p_.use_smooth = True
+    eyes.append(e_)
 glints = []
 for c, r in SOCKETS:
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.0035, location=c + Vector((0.003, 0.010, -0.002)))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.0016, location=c + Vector((0.0, -0.011, 0.0)))
     glints.append(bpy.context.active_object)
 
-HEAD_PARTS = {"head": [skull, void, gL, gL2, gL3, gR, gR2] + upper + glints, "jaw": [jaw] + lower}
+HEAD_PARTS = {"head": [skull, void, gL, gL2, gL3, gR, gR2] + eyes + upper + glints, "jaw": [jaw] + lower}
 # place head on the neck
 head_xf = Matrix.Translation(HEAD_C) @ Matrix.Rotation(math.radians(-6), 4, 'X')
 head_inv = head_xf.inverted()
@@ -263,7 +270,7 @@ HEAD_PARTS["head"].append(throat)
 # ------------------------------------------------------------------ colour (per-vertex) + ambient occlusion
 def mat_color(kind, co):
     n = noise.noise(co * 18) * 0.5 + noise.noise(co * 70) * 0.25
-    if kind == "skin":   return Vector((0.030, 0.027, 0.029)) * (1 + 0.6 * n)
+    if kind == "skin":   return Vector((0.012, 0.010, 0.011)) * (1 + 0.6 * n)
     if kind == "void":   return Vector((0.0, 0.0, 0.0))
     if kind == "face":
         blot = 0.7 + 0.6 * (noise.noise(co * 9 + Vector((5, 2, 1))) * 0.5 + 0.5)
@@ -283,8 +290,9 @@ KIND[skull.name] = "face"; KIND[jaw.name] = "face"; KIND[throat.name] = "throat"
 for o in (gL, gL2, gL3, gR, gR2): KIND[o.name] = "bone"
 for o in upper + lower: KIND[o.name] = "tooth"
 for o in glints: KIND[o.name] = "glint"
+for o in eyes: KIND[o.name] = "eye"
 
-ALL = [body] + extra + [skull, void, jaw, throat, gL, gL2, gL3, gR, gR2] + upper + lower + glints
+ALL = [body] + extra + [skull, void, jaw, throat, gL, gL2, gL3, gR, gR2] + eyes + upper + lower + glints
 # join a temporary copy of everything for AO ray casts
 def world_tris(objs):
     vs, fs = [], []
@@ -313,9 +321,20 @@ for o in ALL:
     attr = me.color_attributes.new("Col", 'FLOAT_COLOR', 'POINT')
     m = o.matrix_world; nm = m.to_3x3().inverted().transposed()
     kind = KIND[o.name]
+    centre = sum((v.co for v in me.vertices), Vector()) / max(1, len(me.vertices))
     for i, v in enumerate(me.vertices):
         p = m @ v.co; n = (nm @ v.normal).normalized()
         c = mat_color(kind, p)
+        if kind == "eye":
+            d = (v.co - centre).normalized()
+            fwd = (head_xf.to_3x3() @ Vector((0, -1, 0))).normalized()
+            ang = math.acos(max(-1, min(1, d.dot(fwd))))
+            if ang < 0.16: c = Vector((0.0, 0.0, 0.0))                              # pinpoint pupil
+            elif ang < 0.42: c = Vector((0.22, 0.03, 0.02)) * (0.6 + 0.4 * (ang / 0.42))  # dark red iris
+            else:
+                vein = 1 - abs(noise.noise(d * 14))
+                c = Vector((0.80, 0.72, 0.62)) * (1 - 0.35 * (ang / 1.6))
+                if vein > 0.82 or ang > 1.05: c = c.lerp(Vector((0.55, 0.04, 0.03)), 0.75)   # bloodshot
         occ = 1.0 if kind in ("glint",) else (0.25 + 0.75 * ao(p, n))
         if kind == "face":
             lp = head_inv @ p
@@ -324,6 +343,18 @@ for o in ALL:
             c = c * (1 - 0.6 * g(lp, Vector((0, -0.09, -0.068)), 0.05))               # filth around the mouth
             c = c * (1 - 0.7 * g(lp, Vector((0, -0.105, -0.02)), 0.02))               # nose cavity
             c = c * (0.75 + 0.25 * max(0, min(1, (lp.z + 0.17) / 0.3)))              # darker toward the chin
+            # blood running from the eyes and the corners of the mouth
+            for bx, bz, wd in ((-0.040, 0.010, 0.0045), (-0.033, 0.012, 0.003), (0.044, 0.004, 0.005), (0.050, 0.006, 0.0028),
+                               (-0.085, -0.072, 0.006), (0.088, -0.074, 0.007), (-0.02, -0.09, 0.004), (0.015, -0.095, 0.005)):
+                if lp.z < bz and lp.y < 0:
+                    run = bz - lp.z
+                    wob = bx + 0.004 * math.sin(lp.z * 90 + bx * 50)
+                    wdt = wd * (1 + run * 6)
+                    k = max(0, 1 - abs(lp.x - wob) / wdt) * max(0, 1 - run / 0.16)
+                    if k > 0: c = c.lerp(Vector((0.16, 0.005, 0.008)), min(1, k * 1.6))
+            # red gums along the split mouth
+            gum = max(0, 1 - abs(lp.z + 0.066) / 0.012) * (1 if lp.y < -0.02 else 0)
+            c = c.lerp(Vector((0.30, 0.02, 0.03)), gum * 0.85)
         attr.data[i].color = (c.x * occ, c.y * occ, c.z * occ, 1.0)
 
 # ------------------------------------------------------------------ materials for Blender renders
@@ -347,7 +378,7 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     return mt
 MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.32, 0.55, sss=0.08), "void": make_mat("void", 1.0, 0.0),
        "bone": make_mat("bone", 0.7, 0.3), "tooth": make_mat("tooth", 0.25, 0.7),
-       "throat": make_mat("throat", 0.15, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=12)}
+       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.05, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=12)}
 for o in ALL:
     o.data.materials.clear(); o.data.materials.append(MAT[KIND[o.name]])
 
