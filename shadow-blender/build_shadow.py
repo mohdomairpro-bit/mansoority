@@ -138,54 +138,46 @@ for o in ribs():
     apply_mods(o); extra.append(o)
 
 # ------------------------------------------------------------------ head: almost human, stretched, mouth split ear to ear
-HEAD_C = J["head0"][0] + Vector((0, -0.08, 0.10))
+HEAD_C = J["head0"][0] + Vector((0, -0.10, 0.06))
+SOCKETS = [(Vector((-0.040, -0.088, 0.028)), 0.028), (Vector((0.042, -0.086, 0.022)), 0.032)]   # uneven
+def g(q, c, r):
+    return math.exp(-((q - c).length / r) ** 2)
 def make_head():
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=72, ring_count=48, radius=1.0, location=(0, 0, 0))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=96, ring_count=64, radius=1.0, location=(0, 0, 0))
     hd = bpy.context.active_object; hd.name = "skull"
-    me = hd.data
-    sockets = [(Vector((-0.045, -0.105, 0.035)), 0.034), (Vector((0.047, -0.103, 0.028)), 0.040)]  # uneven
-    for v in me.vertices:
+    for v in hd.data.vertices:
         p = v.co.copy()
-        x, y, z = p.x * 0.105, p.y * 0.125, p.z * 0.165       # long narrow skull
-        if z < 0: x *= 1 - 0.35 * (-z / 0.165); y *= 1 - 0.15 * (-z / 0.165)   # gaunt lower face
-        q = Vector((x, y, z))
-        # cheekbones
+        z = p.z * 0.17
+        w = 0.092 if z > 0 else 0.092 * (1 - 0.42 * (-z / 0.17) ** 1.3)     # long, narrowing to a pointed chin
+        d = 0.115 if z > 0 else 0.115 * (1 - 0.25 * (-z / 0.17))
+        q = Vector((p.x * w, p.y * d, z))
+        if z > 0.06: q.x *= 1 + 0.12 * (z - 0.06) / 0.11                   # wide cranium
+        q += Vector((0, -0.016, 0)) * g(q, Vector((0, -0.10, 0.058)), 0.045) * (1 if q.y < 0 else 0)   # brow ridge
+        for c, r in SOCKETS:
+            q += Vector((0, 0.05, 0)) * g(q, c, r)                            # deep sockets
         for sx in (-1, 1):
-            d = (q - Vector((0.07 * sx, -0.07, -0.01))).length
-            q += Vector((0.012 * sx, -0.006, 0)) * math.exp(-(d / 0.03) ** 2)
-        # sunken sockets
-        for c, r in sockets:
-            d = (q - c).length
-            q += (c - q).normalized() * 0.0 + Vector((0, 0.035, 0)) * math.exp(-(d / r) ** 2)
-        # sunken temples and cheeks
-        for sx in (-1, 1):
-            d = (q - Vector((0.08 * sx, -0.045, -0.06))).length
-            q += Vector((-0.02 * sx, 0, 0)) * math.exp(-(d / 0.04) ** 2)
-        # skin noise / healed lumps
-        q += q.normalized() * 0.003 * noise.noise(q * 40)
+            q += Vector((0.010 * sx, -0.010, 0)) * g(q, Vector((0.060 * sx, -0.070, -0.010)), 0.025)   # cheekbones
+            q += Vector((-0.020 * sx, 0.012, 0)) * g(q, Vector((0.055 * sx, -0.055, -0.060)), 0.035)   # sucked-in cheeks
+            q += Vector((-0.012 * sx, 0, 0)) * g(q, Vector((0.085 * sx, -0.030, 0.040)), 0.03)         # hollow temples
+        q += Vector((0, 0.03, 0)) * g(q, Vector((0, -0.105, -0.020)), 0.016)                           # no nose
+        q += q.normalized() * (0.002 * noise.noise(q * 60) + 0.004 * max(0, noise.noise(q * 9 + Vector((3, 1, 2)))))
         v.co = q
-    return hd, sockets
-skull, SOCKETS = make_head()
-# mouth: cut a horizontal slit that runs past the cheeks
+    for f in hd.data.polygons: f.use_smooth = True
+    return hd
+skull = make_head()
 CUTTERS = []
-bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24, radius=1, location=(0, -0.10, -0.075))
+bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24, radius=1, location=(0, -0.09, -0.068))
 cutter = bpy.context.active_object; CUTTERS.append(cutter)
-cutter.scale = (0.115, 0.07, 0.022)
+cutter.scale = (0.105, 0.075, 0.016)                                        # splits the cheeks open
 b = skull.modifiers.new("mouth", 'BOOLEAN'); b.object = cutter; b.operation = 'DIFFERENCE'
-for c, r in SOCKETS:
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=16, radius=r * 0.62, location=c + Vector((0, -0.012, 0)))
-    sc = bpy.context.active_object; CUTTERS.append(sc)
-    bb = skull.modifiers.new("socket", 'BOOLEAN'); bb.object = sc; bb.operation = 'DIFFERENCE'
 apply_mods(skull)
 for o in CUTTERS: bpy.data.objects.remove(o)
 
-# split skull into cranium and jaw at the mouth line (jaw hinge near the ears)
-JAW_PIVOT = Vector((0, -0.005, -0.07))
+JAW_PIVOT = Vector((0, 0.01, -0.06))
 bm = bmesh.new(); bm.from_mesh(skull.data)
-res = bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, -0.075), plane_no=(0, 0, 1))
-jaw_faces = [f for f in bm.faces if f.calc_center_median().z < -0.075]
-jaw_bm = bmesh.new()
-vmap = {}
+bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, -0.068), plane_no=(0, 0, 1))
+jaw_faces = [f for f in bm.faces if f.calc_center_median().z < -0.068]
+jaw_bm = bmesh.new(); vmap = {}
 for f in jaw_faces:
     nv = []
     for v in f.verts:
@@ -198,56 +190,56 @@ bm.to_mesh(skull.data); bm.free()
 jme = bpy.data.meshes.new("jaw"); jaw_bm.to_mesh(jme); jaw_bm.free()
 jaw = link(bpy.data.objects.new("jaw", jme))
 for ob in (skull, jaw):
-    sol = ob.modifiers.new("solid", 'SOLIDIFY'); sol.thickness = 0.006
+    sol = ob.modifiers.new("solid", 'SOLIDIFY'); sol.thickness = 0.005
     apply_mods(ob)
     for p in ob.data.polygons: p.use_smooth = True
-# mouth cavity (dark wet throat)
-bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=1, location=(0, -0.045, -0.08))
-throat = bpy.context.active_object; throat.name = "throat"; throat.scale = (0.08, 0.07, 0.03)
+bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=1, location=(0, -0.04, -0.072))
+throat = bpy.context.active_object; throat.name = "throat"; throat.scale = (0.07, 0.065, 0.028)
 apply_mods(throat)
 
-# human teeth: too many of them, rows along upper and lower gum
 def tooth(loc, h, w, up):
-    bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
+    bpy.ops.mesh.primitive_cone_add(vertices=7, radius1=w, radius2=w * 0.3, depth=h, location=(0, 0, 0))
     t = bpy.context.active_object
-    t.scale = (w, w * 0.8, h)
-    bev = t.modifiers.new("bev", 'BEVEL'); bev.width = w * 0.35; bev.segments = 2
-    apply_mods(t)
-    for v in t.data.vertices:   # taper toward the bite
-        k = (v.co.z * (1 if up else -1)) / h + 0.5
-        v.co.x *= 1 - 0.45 * k; v.co.y *= 1 - 0.35 * k
+    for v in t.data.vertices:
+        v.co.y *= 0.75
+        if not up: v.co.z = -v.co.z
+        v.co += Vector(loc)
     for p in t.data.polygons: p.use_smooth = True
     return t
 upper, lower = [], []
-for i in range(22):
-    a = math.radians(-82 + i * (164 / 21))
-    rx, ry = 0.078, 0.062
-    x = math.sin(a) * rx; y = -0.042 - math.cos(a) * ry
-    h = random.uniform(0.012, 0.024) * (1.25 if abs(i - 10.5) < 3 else 1)
-    upper.append(tooth((x, y, -0.056 - h / 2), h, random.uniform(0.006, 0.009), False))
-    h2 = random.uniform(0.010, 0.020)
-    lower.append(tooth((x * 0.97, y * 0.98, -0.094 + h2 / 2), h2, random.uniform(0.005, 0.008), True))
+NT = 26
+for i in range(NT):
+    a = math.radians(-80 + i * (160 / (NT - 1)))
+    rx, ry = 0.072, 0.058
+    x = math.sin(a) * rx; y = -0.04 - math.cos(a) * ry
+    h = random.uniform(0.010, 0.020) * (1.3 if abs(i - (NT - 1) / 2) < 3 else 1)
+    upper.append(tooth((x, y, -0.056 - h / 2), h, random.uniform(0.0035, 0.0055), False))
+    if i % 7 != 3:
+        h2 = random.uniform(0.009, 0.017)
+        lower.append(tooth((x * 0.96, y * 0.97, -0.080 + h2 / 2), h2, random.uniform(0.003, 0.005), True))
 
-# bone growths from the skull (asymmetric, the right one snapped off)
 def growth(base, dirs, radii):
     vs = [base]; rs = [radii[0]]; es = []
     p = base.copy()
     for k, d in enumerate(dirs):
         p = p + d; vs.append(p.copy()); rs.append(radii[min(k + 1, len(radii) - 1)]); es.append((k, k + 1))
     return skin_object("growth", vs, es, rs, 0, 2)
-gL = growth(Vector((-0.05, 0.02, 0.13)), [Vector((-0.06, 0.03, 0.10)), Vector((-0.08, 0.06, 0.10)), Vector((-0.04, 0.09, 0.12)), Vector((0.01, 0.07, 0.10))], [0.022, 0.018, 0.013, 0.009, 0.004])
-gL2 = growth(Vector((-0.17, 0.11, 0.33)), [Vector((-0.07, -0.02, 0.06)), Vector((-0.05, -0.03, 0.03))], [0.009, 0.006, 0.003])
-gR = growth(Vector((0.05, 0.02, 0.13)), [Vector((0.07, 0.04, 0.09)), Vector((0.05, 0.05, 0.05))], [0.024, 0.02, 0.019])   # broken stump
-for g in (gL, gL2, gR): apply_mods(g)
-# pinpoint glints deep in the sockets (the only light on it)
+gL = growth(Vector((-0.06, -0.02, 0.10)), [Vector((-0.05, 0.05, 0.06)), Vector((-0.07, 0.10, 0.05)), Vector((-0.05, 0.12, 0.09)), Vector((-0.01, 0.10, 0.12)), Vector((0.02, 0.06, 0.10))],
+            [0.016, 0.013, 0.010, 0.008, 0.005, 0.002])
+gL2 = growth(Vector((-0.18, 0.17, 0.21)), [Vector((-0.08, 0.02, 0.07)), Vector((-0.05, -0.02, 0.06))], [0.007, 0.005, 0.002])
+gL3 = growth(Vector((-0.11, 0.07, 0.16)), [Vector((-0.07, -0.03, 0.05)), Vector((-0.03, -0.04, 0.03))], [0.008, 0.005, 0.002])
+gR = growth(Vector((0.06, -0.02, 0.10)), [Vector((0.06, 0.06, 0.05)), Vector((0.05, 0.07, 0.02))], [0.017, 0.015, 0.014])
+gR2 = growth(Vector((0.04, 0.03, 0.14)), [Vector((0.02, 0.05, 0.06)), Vector((0.0, 0.05, 0.04))], [0.008, 0.006, 0.002])
+for g_ in (gL, gL2, gL3, gR, gR2): apply_mods(g_)
 glints = []
 for c, r in SOCKETS:
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.0042, location=c + Vector((0.004, 0.012, -0.002)))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.0035, location=c + Vector((0.003, 0.034, -0.002)))
     glints.append(bpy.context.active_object)
 
-HEAD_PARTS = {"head": [skull, gL, gL2, gR] + upper + glints, "jaw": [jaw] + lower}
+HEAD_PARTS = {"head": [skull, gL, gL2, gL3, gR, gR2] + upper + glints, "jaw": [jaw] + lower}
 # place head on the neck
-head_xf = Matrix.Translation(HEAD_C) @ Matrix.Rotation(math.radians(8), 4, 'X')
+head_xf = Matrix.Translation(HEAD_C) @ Matrix.Rotation(math.radians(-6), 4, 'X')
+head_inv = head_xf.inverted()
 for objs in HEAD_PARTS.values():
     for o in objs: o.matrix_world = head_xf @ o.matrix_world
 throat.matrix_world = head_xf @ throat.matrix_world
@@ -258,8 +250,8 @@ HEAD_PARTS["head"].append(throat)
 def mat_color(kind, co):
     n = noise.noise(co * 18) * 0.5 + noise.noise(co * 70) * 0.25
     if kind == "skin":   return Vector((0.055, 0.050, 0.055)) * (1 + 0.5 * n)
-    if kind == "face":   return Vector((0.60, 0.565, 0.52)) * (1 + 0.25 * n)
-    if kind == "bone":   return Vector((0.52, 0.48, 0.40)) * (1 + 0.3 * n)
+    if kind == "face":   return Vector((0.46, 0.44, 0.41)) * (1 + 0.3 * n)
+    if kind == "bone":   return Vector((0.30, 0.27, 0.22)) * (1 + 0.4 * n)
     if kind == "tooth":  return Vector((0.70, 0.64, 0.48)) * (1 + 0.15 * n)
     if kind == "throat": return Vector((0.10, 0.008, 0.012))
     if kind == "glint":  return Vector((1.0, 0.95, 0.85))
@@ -268,11 +260,11 @@ def mat_color(kind, co):
 KIND = {}
 for o in [body] + extra: KIND[o.name] = "skin"
 KIND[skull.name] = "face"; KIND[jaw.name] = "face"; KIND[throat.name] = "throat"
-for o in (gL, gL2, gR): KIND[o.name] = "bone"
+for o in (gL, gL2, gL3, gR, gR2): KIND[o.name] = "bone"
 for o in upper + lower: KIND[o.name] = "tooth"
 for o in glints: KIND[o.name] = "glint"
 
-ALL = [body] + extra + [skull, jaw, throat, gL, gL2, gR] + upper + lower + glints
+ALL = [body] + extra + [skull, jaw, throat, gL, gL2, gL3, gR, gR2] + upper + lower + glints
 # join a temporary copy of everything for AO ray casts
 def world_tris(objs):
     vs, fs = [], []
@@ -305,8 +297,13 @@ for o in ALL:
         p = m @ v.co; n = (nm @ v.normal).normalized()
         c = mat_color(kind, p)
         occ = 1.0 if kind in ("glint",) else (0.25 + 0.75 * ao(p, n))
-        if kind == "face":   # darken around sockets & mouth edge (grime)
-            c = c * (0.55 + 0.45 * min(1, max(0, (p - (head_xf @ Vector((0, -0.1, -0.075)))).length / 0.06)))
+        if kind == "face":
+            lp = head_inv @ p
+            for sc_, sr_ in SOCKETS:
+                c = c * (1 - 0.95 * g(lp, sc_ + Vector((0, 0.02, 0)), sr_ * 1.1))      # pitch-black sockets
+            c = c * (1 - 0.6 * g(lp, Vector((0, -0.09, -0.068)), 0.05))               # filth around the mouth
+            c = c * (1 - 0.7 * g(lp, Vector((0, -0.105, -0.02)), 0.02))               # nose cavity
+            c = c * (0.75 + 0.25 * max(0, min(1, (lp.z + 0.17) / 0.3)))              # darker toward the chin
         attr.data[i].color = (c.x * occ, c.y * occ, c.z * occ, 1.0)
 
 # ------------------------------------------------------------------ materials for Blender renders
@@ -442,8 +439,8 @@ def preview():
     fm.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.03, 0.03, 0.03, 1)
     floor.data.materials.append(fm)
     tgt = empty("tgt", (0, -0.1, 1.35))
-    light("key", 'AREA', (-2.5, -3.0, 3.2), 900, (0.75, 0.82, 1.0), 1.5, tgt)
-    light("rim", 'AREA', (2.0, 2.5, 3.0), 1300, (1.0, 0.85, 0.75), 1.0, tgt)
+    light("key", 'AREA', (-2.5, -3.0, 3.2), 220, (0.75, 0.82, 1.0), 1.5, tgt)
+    light("rim", 'AREA', (2.0, 2.5, 3.0), 450, (1.0, 0.85, 0.75), 1.0, tgt)
     light("under", 'POINT', (0, -1.3, 1.2), 25, (1.0, 0.6, 0.45), 0.2)
     shots = {"front": (0, -6.0, 1.6), "three_quarter": (-3.8, -4.6, 1.8), "side": (-6.0, -0.3, 1.5)}
     for nm, loc in shots.items():
@@ -458,29 +455,29 @@ def preview():
     bpy.ops.render.render(write_still=True)
 
 def jumpscare(frames=26):
-    """camera dolly / head lunge with the jaw dropping open - rendered as frames for the in-game overlay"""
+    """dolly into the face while the jaw unhinges - rendered as frames for the in-game overlay"""
     setup_render(960, 540, 40)
     for o in list(scene.objects):
         if o.type in ('LIGHT', 'CAMERA'): bpy.data.objects.remove(o)
-    ft = empty("ft2", HEAD_C + Vector((0, -0.06, -0.05)))
-    cam = camera(HEAD_C + Vector((0, -0.9, -0.12)), ft, 32)
-    under = light("flash", 'SPOT', HEAD_C + Vector((0.05, -0.45, -0.35)), 60, (1.0, 0.92, 0.82), 0.05, ft)
-    rim = light("rimj", 'AREA', HEAD_C + Vector((0.4, 0.4, 0.3)), 30, (0.6, 0.7, 1.0), 0.3, ft)
-    base_head = head_rig.matrix_world.copy()
+    face = head_xf @ Vector((0, -0.09, -0.02))
+    ft = empty("ft2", face)
+    cam = camera(face + Vector((0, -0.75, 0.0)), ft, 35)
+    under = light("flash", 'SPOT', face + Vector((0.04, -0.35, -0.30)), 22, (1.0, 0.9, 0.78), 0.03, ft)
+    rim = light("rimj", 'AREA', face + Vector((0.35, 0.35, 0.25)), 12, (0.55, 0.65, 1.0), 0.3, ft)
     for f in range(frames):
         t = f / (frames - 1)
-        lunge = min(1, t / 0.35) ** 2
-        jaw_open = min(1, max(0, (t - 0.1) / 0.45))
-        twitch = math.sin(f * 2.7) * (0.06 if t > 0.4 else 0.0)
-        head_rig.matrix_world = base_head @ Matrix.Translation((0, -0.42 * lunge, -0.02 * lunge)) \
-            @ Matrix.Rotation(twitch, 4, 'Y') @ Matrix.Rotation(-0.25 * lunge, 4, 'X')
-        jaw_rig.rotation_euler = (0, 0, 0)
-        jaw_rig.rotation_euler.x = math.radians(55) * (1 - (1 - jaw_open) ** 3)
-        under.data.energy = 60 * (0.35 if (f % 5 == 3) else 1.0)        # flicker
+        push = 1 - (1 - min(1, t / 0.4)) ** 3
+        dist = 0.75 - 0.52 * push
+        shake = Vector(((random.random() - 0.5) * 0.012, 0, (random.random() - 0.5) * 0.012)) * (1 if t > 0.3 else 0.2)
+        cam.location = face + Vector((0, -dist, 0.01)) + shake
+        jaw_open = 1 - (1 - min(1, max(0, (t - 0.05) / 0.5))) ** 2
+        jaw_rig.rotation_euler = (math.radians(8 + 62 * jaw_open), 0, 0)
+        head_rig.rotation_euler = (0, math.sin(f * 2.3) * (0.05 if t > 0.35 else 0), math.sin(f * 1.7) * (0.06 if t > 0.35 else 0))
+        under.data.energy = 22 * (0.3 if (f % 6 == 4) else 1.0)
         bpy.context.view_layer.update()
         scene.render.filepath = os.path.join(OUT, "js_%02d.png" % f)
         bpy.ops.render.render(write_still=True)
-    head_rig.matrix_world = base_head
+    jaw_rig.rotation_euler = (0, 0, 0); head_rig.rotation_euler = (0, 0, 0)
 
 if WHAT in ("export", "all"): export()
 if WHAT in ("preview", "all"): preview()
