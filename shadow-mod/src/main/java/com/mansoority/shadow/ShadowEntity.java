@@ -1,6 +1,8 @@
 package com.mansoority.shadow;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -51,6 +53,9 @@ public class ShadowEntity extends PathfinderMob {
     private int life;
     private int unseen;
     private boolean seenThisStage;
+    /** the black ring: everyone inside it is hunted too */
+    public static final double ZONE_RADIUS = 14.0;
+    private final Set<UUID> zone = new HashSet<>();
 
     public ShadowEntity(EntityType<? extends ShadowEntity> type, Level level) {
         super(type, level);
@@ -133,16 +138,20 @@ public class ShadowEntity extends PathfinderMob {
             return;
         }
 
-        if (isWatchedBy(player)) {
+        List<ServerPlayer> inside = zoneMembers(player);
+        if (stage >= 0) tickZone(player, inside);
+        ServerPlayer watcher = null;
+        for (ServerPlayer m : inside) if (isWatchedBy(m)) { watcher = m; break; }
+        if (watcher != null) {
             this.getNavigation().stop();
             unseen = 0;
             int stare = getStare() + 1;
             this.entityData.set(DATA_STARE, stare);
-            onStare(player, stare);
+            onStare(watcher, stare);
         } else {
             if (getStare() > 0) {
                 this.entityData.set(DATA_STARE, 0);
-                calm(player);
+                for (ServerPlayer m : inside) calm(m);
             }
             unseen++;
             creep(player);
@@ -151,6 +160,41 @@ public class ShadowEntity extends PathfinderMob {
         if (life % 160 == 20) soundAround(ShadowRegistry.DRONE, 2.2F, 0.85F);
         if (life % 400 == 200) soundAround(ShadowRegistry.WHISPER, 1.6F, 0.6F);
         if (life > 20 * 120 || unseen > 20 * 50 || (stage < 0 && life > 20 * 12)) startVanish();
+    }
+
+    /** players inside the ring around the victim (the victim always counts) */
+    private List<ServerPlayer> zoneMembers(ServerPlayer target) {
+        List<ServerPlayer> list = target.serverLevel().getEntitiesOfClass(ServerPlayer.class,
+                target.getBoundingBox().inflate(ZONE_RADIUS, 8, ZONE_RADIUS),
+                o -> !o.isSpectator() && o.distanceToSqr(target) <= ZONE_RADIUS * ZONE_RADIUS);
+        if (!list.contains(target)) list.add(target);
+        return list;
+    }
+
+    /** a wall of black smoke in a circle around the victim; walking into it gets you hunted too */
+    private void tickZone(ServerPlayer target, List<ServerPlayer> inside) {
+        ServerLevel sl = target.serverLevel();
+        if (life % 3 == 0) {
+            int n = 44;
+            double off = (life * 0.013) % (Math.PI * 2);
+            for (int i = 0; i < n; i++) {
+                double a = off + i * Math.PI * 2 / n;
+                double x = target.getX() + Math.cos(a) * ZONE_RADIUS, z = target.getZ() + Math.sin(a) * ZONE_RADIUS;
+                double y = target.getY() + this.random.nextDouble() * 2.5;
+                sl.sendParticles(ParticleTypes.LARGE_SMOKE, x, y, z, 1, 0.25, 0.4, 0.25, 0.01);
+                if (i % 2 == 0) sl.sendParticles(ParticleTypes.SQUID_INK, x, y + 0.5, z, 1, 0.2, 0.6, 0.2, 0.0);
+            }
+            sl.sendParticles(ParticleTypes.ASH, target.getX(), target.getY() + 2, target.getZ(), 30, ZONE_RADIUS * 0.6, 2.0, ZONE_RADIUS * 0.6, 0.0);
+        }
+        for (ServerPlayer m : inside) {
+            if (zone.add(m.getUUID()) && m != target) {      // someone just walked in
+                ui(m, ShadowRegistry.STINGER, 1F, 0.95F);
+                ui(m, ShadowRegistry.HEARTBEAT, 1F, 0.9F);
+                m.displayClientMessage(net.minecraft.network.chat.Component.literal("You shouldn't have come here.")
+                        .withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), true);
+            }
+            if (life % 140 == 70) ui(m, ShadowRegistry.HEARTBEAT, 0.8F, 0.85F);
+        }
     }
 
     private void faceTowards(Player player) {
@@ -280,8 +324,10 @@ public class ShadowEntity extends PathfinderMob {
         double dz = p.getZ() - this.getZ();
         double d = Math.sqrt(dx * dx + dz * dz);
         if (d < 2.4 || r > 80) {
-            jumpscare(p, true);
-            if (d < 3.5) bite(p);
+            for (ServerPlayer m : zoneMembers(p)) {      // it gets everyone inside the ring
+                ShadowNet.send(m, FxPacket.of(FxPacket.JUMPSCARE_NOW));
+                if (m == p ? d < 3.5 : true) bite(m);
+            }
             this.discard();
             return;
         }

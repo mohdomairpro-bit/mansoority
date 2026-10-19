@@ -98,7 +98,7 @@ public final class ClientFx {
         float target = 0F;
         rushing = false;
         for (Entity e : mc.level.entitiesForRendering()) {
-            if (e instanceof ShadowEntity s && s.getTargetEntityId() == mc.player.getId()) {
+            if (e instanceof ShadowEntity s && (s.getTargetEntityId() == mc.player.getId() || inZone(mc, s))) {
                 target = Math.max(target, Math.min(1F, s.getStare() / (float) ShadowEntity.STARE_LIMIT));
                 if (s.getRush() > 0) { target = 1F; rushing = true; }
             }
@@ -276,6 +276,12 @@ public final class ClientFx {
     }
 
     public static int jumpscareTick() { return js; }
+
+    /** am I standing inside the black ring around its victim? */
+    private static boolean inZone(Minecraft mc, ShadowEntity s) {
+        Entity t = mc.level.getEntity(s.getTargetEntityId());
+        return t != null && t.distanceToSqr(mc.player) <= ShadowEntity.ZONE_RADIUS * ShadowEntity.ZONE_RADIUS;
+    }
 
     /** GuiGraphics.fill() switches blending off when it flushes, so turn it back on before every textured draw */
     private static void blend() {
