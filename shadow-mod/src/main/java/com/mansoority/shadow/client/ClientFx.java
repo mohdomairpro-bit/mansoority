@@ -42,6 +42,7 @@ public final class ClientFx {
 
     private static int js = -1;                 // jumpscare timeline tick, -1 = off
     private static int seq = -1, seqTick;       // scripted sound event
+    private static boolean preloaded;
     private static float stare;                 // 0..1 how hard you're staring at it right now
     private static boolean rushing;             // it's running at you
     private static float lightsOut;             // 0..1 extra darkness for the 'lights out' event
@@ -88,6 +89,10 @@ public final class ClientFx {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) { js = -1; seq = -1; stare = 0; lightsOut = 0; return; }
         if (mc.isPaused()) return;
+        if (!preloaded) {   // load the jumpscare frames up front so the first playback doesn't stutter
+            for (ResourceLocation f : JS_FRAME) mc.getTextureManager().getTexture(f);
+            preloaded = true;
+        }
 
         // how hard is it being stared at (only the shadow that is after *me*)
         float target = 0F;
