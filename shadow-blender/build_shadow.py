@@ -109,9 +109,55 @@ for s, sx in (("L", -1), ("R", 1)):
             verts.append(p.copy()); radii.append(0.016 - seg * 0.003)
             edges.append((prev, len(verts) - 1)); prev = len(verts) - 1
             BONES.append(("hand" + s, None, None))
-        FINGER_TIPS.append(p.copy())
-body = skin_object("body", verts, edges, radii, root=idx["pelvis"], subdiv=2)
+        FINGER_TIPS.append((p.copy(), (p - verts[-2]).normalized()))
+body = skin_object("body", verts, edges, radii, root=idx["pelvis"], subdiv=3)
 apply_mods(body)
+
+# ------------------------------------------------------------------ starved anatomy carved into the skin
+def g(q, c, r):
+    return math.exp(-((q - c).length / r) ** 2)
+def seg_t(p, a, b):
+    ab = b - a; t = max(0.0, min(1.0, (p - a).dot(ab) / ab.length_squared))
+    return t, (a + ab * t - p).length
+def sculpt_body(ob):
+    me = ob.data
+    S1, S2, S3 = J["spine1"][0], J["spine2"][0], J["spine3"][0]
+    knobs = [J[n][0] for n in J if n[:-1] in ("elbow", "knee", "joint2", "wrist", "ankle")]
+    for v in me.vertices:
+        p = v.co; n = v.normal.normalized(); d = 0.0
+        t, dist = seg_t(p, S2 + Vector((0, 0, -0.12)), S3)
+        on_torso = abs(p.x) < 0.27 and dist < 0.32
+        front = max(0.0, -n.y + 0.35); back = max(0.0, n.y - 0.2)
+        if on_torso:
+            if 0.0 < t < 0.92:                                                    # ribs: hard ridges, deep gaps
+                ph = math.sin(t * math.pi * 7.0 - abs(p.x) * 9.0)
+                d += (0.016 * max(0.0, ph) ** 0.6 - 0.010 * max(0.0, -ph)) * min(1.0, front * 1.4) * (1 - t * 0.4)
+            if t <= 0.0 and p.z > S1.z - 0.04:                                     # stomach sucked in under the ribs
+                d -= 0.030 * min(1.0, front * 1.6)
+            if back > 0 and abs(p.x) < 0.04:                                       # vertebrae like knuckles down the back
+                tt, dd = seg_t(p, S1, S3)
+                d += 0.018 * max(0.0, math.sin(tt * math.pi * 11.0)) ** 2 * back * (1 - abs(p.x) / 0.04)
+            for sx in (-1, 1):
+                d += 0.028 * g(p, Vector((0.14 * sx, 0.07, 1.93)), 0.06) * back     # shoulder blades
+        for sx in (-1, 1):
+            t2, d2 = seg_t(p, Vector((0.03 * sx, -0.26, 2.07)), Vector((0.27 * sx, -0.14, 2.05)))
+            d += 0.016 * math.exp(-(d2 / 0.018) ** 2)                               # collarbones
+            d += 0.022 * g(p, Vector((0.11 * sx, -0.05, 1.33)), 0.035)               # hip bones
+        for k in knobs:
+            d += 0.016 * g(p, k, 0.045)                                              # swollen knuckly joints
+        d += 0.004 * noise.noise(p * 40) + 0.006 * noise.noise(Vector((p.x * 9, p.y * 9, p.z * 2.5)))   # stringy tendons
+        v.co = p + n * d
+sculpt_body(body)
+
+claws = []
+for tip, dirn in FINGER_TIPS:
+    bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.011, radius2=0.0008, depth=0.075, location=(0, 0, 0))
+    c_ = bpy.context.active_object; c_.name = "claw"
+    rot = Vector((0, 0, 1)).rotation_difference((dirn + Vector((0, 0, -0.6))).normalized()).to_matrix()
+    for v in c_.data.vertices:
+        v.co = rot @ (v.co + Vector((0, 0, 0.032))) + tip
+    for p_ in c_.data.polygons: p_.use_smooth = True
+    claws.append(c_)
 
 # ribs pushing through the skin + spine ridge
 extra = []
@@ -134,8 +180,7 @@ def ribs():
         r = bpy.context.active_object; r.name = "ridge%d" % i
         objs.append(r)
     return objs
-for o in ribs():
-    apply_mods(o); extra.append(o)
+# (ribs and spine are carved into the body mesh now)
 
 # ------------------------------------------------------------------ head: gaunt skull under stretched skin, no eyes, no nose.
 # the whole lower face is two halves that split down the middle and swing open sideways
@@ -193,7 +238,7 @@ jaw = take(fl, "jaw"); jawR = take(fr, "jawR")
 bmesh.ops.delete(bm, geom=pet, context='FACES')
 bm.to_mesh(skull.data); bm.free()
 for ob in (skull, jaw, jawR):
-    sol = ob.modifiers.new("solid", 'SOLIDIFY'); sol.thickness = 0.006
+    sol = ob.modifiers.new("solid", 'SOLIDIFY'); sol.thickness = 0.018 if ob is not skull else 0.006
     apply_mods(ob)
     for p in ob.data.polygons: p.use_smooth = True
 PETALS = (jaw, jawR)
@@ -314,6 +359,7 @@ def mat_color(kind, co):
     if kind == "tooth":  return Vector((0.55, 0.48, 0.32)) * (0.6 + 0.5 * (noise.noise(co * 300) * 0.5 + 0.5))
     if kind == "throat": return Vector((0.035, 0.002, 0.004))
     if kind == "glint":  return Vector((1.0, 0.95, 0.85))
+    if kind == "claw":   return Vector((0.05, 0.04, 0.035))
     return Vector((0.5, 0.5, 0.5))
 
 KIND = {}
@@ -323,9 +369,10 @@ for o in hair: KIND[o.name] = "hair"
 for o in drips: KIND[o.name] = "saliva"
 for o in upper + lower + lowerR: KIND[o.name] = "tooth"
 for o in glints: KIND[o.name] = "glint"
+for o in claws: KIND[o.name] = "claw"
 for o in eyes: KIND[o.name] = "eye"
 
-ALL = [body] + extra + [skull, void, jaw, jawR, throat] + hair + eyes + upper + lower + lowerR + glints + drips
+ALL = [body] + extra + [skull, void, jaw, jawR, throat] + hair + eyes + upper + lower + lowerR + glints + drips + claws
 # join a temporary copy of everything for AO ray casts
 def world_tris(objs):
     vs, fs = [], []
@@ -363,7 +410,7 @@ for o in ALL:
             fwd = (head_xf.to_3x3() @ Vector((0, -1, 0))).normalized()
             ang = math.acos(max(-1, min(1, d.dot(fwd))))
             c = Vector((0.004, 0.003, 0.003))                                         # all-black eyes
-        occ = 1.0 if kind in ("glint",) else (0.25 + 0.75 * ao(p, n))
+        occ = 1.0 if kind in ("glint", "skin", "claw", "hair") else (0.25 + 0.75 * ao(p, n))   # skin gets AO from the bake
         if kind == "face":
             lp = head_inv @ p
             ln = (head_inv.to_3x3() @ n).normalized()
@@ -449,7 +496,7 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     return mt
 MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.6, 0.3, sss=0.05), "hair": make_mat("hair", 0.5, 0.4), "saliva": make_mat("saliva", 0.02, 1.0), "void": make_mat("void", 1.0, 0.0),
        "bone": make_mat("bone", 0.7, 0.3), "tooth": make_mat("tooth", 0.25, 0.7),
-       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=12)}
+       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=12), "claw": make_mat("claw", 0.3, 0.6)}
 for o in ALL:
     o.data.materials.clear(); o.data.materials.append(MAT[KIND[o.name]])
 
@@ -505,9 +552,9 @@ def bake_atlas(objs, size=2048):
     print("[SHADOW] atlas baked")
 
 # small/flat-coloured parts don't waste atlas space: they sample a painted swatch
-SOLID = {"glint": (1, 1, 1), "hair": (0.025, 0.02, 0.022), "void": (0, 0, 0), "throat": (0.14, 0.01, 0.01), "eye": (0.004, 0.004, 0.004)}
+SOLID = {"glint": (1, 1, 1), "hair": (0.025, 0.02, 0.022), "void": (0, 0, 0), "throat": (0.14, 0.01, 0.01), "eye": (0.004, 0.004, 0.004), "claw": (0.06, 0.05, 0.045)}
 SWATCH = {k: (0.002 + i * 0.004, 0.998) for i, k in enumerate(SOLID)}
-DECIMATE = {"skin": 0.45, "face": 0.22, "void": 0.15, "hair": 0.5, "throat": 0.3, "eye": 0.5}
+DECIMATE = {"skin": 0.18, "face": 0.22, "void": 0.15, "hair": 0.5, "throat": 0.3, "eye": 0.5}
 
 def export():
     # part per face: body faces go to nearest bone segment
@@ -544,7 +591,7 @@ def export():
                 uv = SWATCH[kind] if kind in SOLID else uvl[lt.loops[k]].uv
                 tris[part].append((ws[k], n, uv, emis))
         if src is not o: bpy.data.objects.remove(src)
-    for o in [body] + extra: add_obj(o)
+    for o in [body] + extra + claws: add_obj(o)
     for o in HEAD_PARTS["head"]: add_obj(o, "head")
     for o in HEAD_PARTS["jaw"]: add_obj(o, "jaw")
     for o in HEAD_PARTS["jawR"]: add_obj(o, "jawR")
@@ -644,7 +691,7 @@ def jumpscare(frames=26):
         for o_ in strands: bpy.data.objects.remove(o_)
         strands.clear()
         if open_amt < 0.05: return
-        for k in range(16):
+        for k in range(7):
             zz = random.uniform(-0.20, MOUTH_Z - 0.01); yy = (front_y(0.0, zz) or -0.08) + random.uniform(0.004, 0.02)
             a_ = on(jaw_rig, Vector((-0.004, yy, zz))); b_ = on(jawR_rig, Vector((0.004, yy, zz)))
             cd = bpy.data.curves.new("strand", 'CURVE'); cd.dimensions = '3D'
@@ -653,7 +700,7 @@ def jumpscare(frames=26):
             for i_, pt in enumerate((a_, b_)):
                 bp = sp.bezier_points[i_]; bp.co = pt
                 bp.handle_left_type = bp.handle_right_type = 'AUTO'
-            mid_sag = Vector((0, random.uniform(-0.01, 0.01), -0.01 - 0.04 * open_amt * random.random()))
+            mid_sag = Vector((0, random.uniform(-0.01, 0.01), -0.03 - 0.07 * open_amt * random.random()))
             sp.bezier_points[0].handle_right_type = 'FREE'; sp.bezier_points[0].handle_right = a_.lerp(b_, 0.33) + mid_sag
             sp.bezier_points[1].handle_left_type = 'FREE'; sp.bezier_points[1].handle_left = a_.lerp(b_, 0.66) + mid_sag
             ob = link(bpy.data.objects.new("strand", cd)); ob.data.materials.append(sinew_mat)
