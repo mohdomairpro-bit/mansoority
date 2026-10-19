@@ -1,0 +1,45 @@
+name: Render The Shadow (Blender)
+on:
+  push:
+    branches: [shadow-mod]
+    paths: ['shadow-blender/**', '.github/workflows/shadow-blender.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender 4.2 LTS
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 libice6 > /dev/null
+          curl -sL -o blender.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz
+          tar -xf blender.tar.xz && mv blender-4.2.3-linux-x64 blender
+      - name: Build, export and render
+        run: |
+          set -o pipefail
+          mkdir -p out
+          ./blender/blender -b --python-exit-code 1 -P shadow-blender/build_shadow.py -- "$PWD/out" ${{ github.event.inputs.what || 'all' }} 2>&1 | tee out/blender.log
+      - name: Post-process jumpscare frames
+        if: always()
+        run: |
+          pip install -q pillow numpy
+          python3 shadow-blender/post.py out || true
+          ls -la out
+      - name: Publish
+        if: always()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: shadow-blender-build
+          name: The Shadow model renders (auto)
+          prerelease: true
+          make_latest: false
+          body: "Blender build from commit ${{ github.sha }}"
+          files: |
+            out/*.png
+            out/*.jpg
+            out/shadow.mesh
+            out/blender.log
+            out/jumpscare_strip.jpg
