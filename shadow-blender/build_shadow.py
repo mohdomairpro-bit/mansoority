@@ -120,16 +120,17 @@ def ribs():
     for i in range(6):
         t = i / 5
         c = J["spine2"][0].lerp(J["spine3"][0], 0.15 + t * 0.7) + Vector((0, 0, -0.06))
-        w = 0.16 + 0.03 * math.sin(t * math.pi)
-        vs = []; rs = []
-        for a in range(9):
-            ang = math.radians(-80 + a * 20)
-            vs.append(c + Vector((math.sin(ang) * w, -math.cos(ang) * w * 0.95, -0.02 * abs(math.sin(ang)))))
-            rs.append(0.016)
-        objs.append(skin_object("rib%d" % i, vs, [(k, k + 1) for k in range(8)], rs, 0, 1))
+        w = 0.135 + 0.035 * math.sin(t * math.pi)
+        for side in (-1, 1):
+            vs = []; rs = []
+            for a in range(6):
+                ang = math.radians(side * (14 + a * 15))
+                vs.append(c + Vector((math.sin(ang) * w, -math.cos(ang) * w * 0.9, -0.03 * abs(math.sin(ang)))))
+                rs.append(0.011 - a * 0.0008)
+            objs.append(skin_object("rib%d%d" % (i, side), vs, [(k, k + 1) for k in range(5)], rs, 0, 1))
     for i in range(9):
         c = J["spine1"][0].lerp(J["spine3"][0], i / 8) + Vector((0, 0.14 + 0.05 * math.sin(i / 8 * math.pi), 0))
-        bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=0.03, location=c)
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=0.021, location=c)
         r = bpy.context.active_object; r.name = "ridge%d" % i
         objs.append(r)
     return objs
@@ -312,7 +313,7 @@ for o in ALL:
 def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     mt = bpy.data.materials.new(name); mt.use_nodes = True
     nt = mt.node_tree; bsdf = nt.nodes["Principled BSDF"]
-    a = nt.nodes.new("ShaderNodeVertexColor"); a.layer_name = "Col"
+    a = nt.nodes.new("ShaderNodeAttribute"); a.attribute_name = "Col"; a.attribute_type = 'GEOMETRY'
     nt.links.new(a.outputs["Color"], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = rough
     bsdf.inputs["Specular IOR Level"].default_value = spec
@@ -322,8 +323,9 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     if emit:
         nt.links.new(a.outputs["Color"], bsdf.inputs["Emission Color"])
         bsdf.inputs["Emission Strength"].default_value = emit
-    tex = nt.nodes.new("ShaderNodeTexNoise"); tex.inputs["Scale"].default_value = 180
-    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.25
+    tex = nt.nodes.new("ShaderNodeTexNoise"); tex.inputs["Scale"].default_value = 90
+    tex.inputs["Detail"].default_value = 6
+    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.07
     nt.links.new(tex.outputs["Fac"], bump.inputs["Height"]); nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mt
 MAT = {"skin": make_mat("skin", 0.55, 0.4), "face": make_mat("face", 0.42, 0.5, sss=0.15),
@@ -335,14 +337,21 @@ for o in ALL:
 # parenting for animation in renders
 def empty(name, loc, parent=None):
     e = link(bpy.data.objects.new(name, None)); e.location = loc
-    if parent: e.parent = parent; e.matrix_parent_inverse = parent.matrix_world.inverted()
+    bpy.context.view_layer.update()
+    if parent:
+        e.parent = parent; e.matrix_parent_inverse = parent.matrix_world.inverted()
+        e.location = loc
+    bpy.context.view_layer.update()
     return e
 head_rig = empty("head_rig", J["head0"][0])
 jaw_rig = empty("jaw_rig", JAW_PIVOT_W, head_rig)
-for o in HEAD_PARTS["head"]:
-    o.parent = head_rig; o.matrix_parent_inverse = head_rig.matrix_world.inverted()
-for o in HEAD_PARTS["jaw"]:
-    o.parent = jaw_rig; o.matrix_parent_inverse = jaw_rig.matrix_world.inverted()
+for rig, objs in ((head_rig, HEAD_PARTS["head"]), (jaw_rig, HEAD_PARTS["jaw"])):
+    for o in objs:
+        mw = o.matrix_world.copy()
+        o.parent = rig
+        o.matrix_parent_inverse = rig.matrix_world.inverted()
+        o.matrix_world = mw
+bpy.context.view_layer.update()
 
 print("[SHADOW] tris:", sum(len(o.data.polygons) for o in ALL))
 
