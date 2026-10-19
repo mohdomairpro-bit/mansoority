@@ -258,9 +258,10 @@ for k in range(110):
     if root.y < -0.05 and abs(root.x) < 0.055 and root.z < 0.10: continue     # keep the face uncovered... mostly
     L = random.uniform(0.25, 0.6)
     pts = [root]
-    p_ = root.copy(); d_ = (root * Vector((1.2, 1.0, 0.3))).normalized() * 0.03
-    for sgm in range(7):
-        d_ = (d_ + Vector((0, 0, -0.022)) + Vector((random.uniform(-1, 1), random.uniform(-1, 1), 0)) * 0.004).normalized() * (L / 7)
+    p_ = root.copy(); d_ = (root * Vector((1.0, 1.0, 0.0))).normalized() * 0.012
+    for sgm in range(9):
+        d_ = (d_ * 0.6 + Vector((0, 0, -1.0)) * 0.03 + root.normalized() * Vector((1, 1, 0)) * (0.006 if sgm < 2 else 0.0)
+              + Vector((random.uniform(-1, 1), random.uniform(-1, 1), 0)) * 0.003).normalized() * (L / 9)
         p_ = p_ + d_; pts.append(p_.copy())
     cd = bpy.data.curves.new("hair", 'CURVE'); cd.dimensions = '3D'; cd.bevel_depth = random.uniform(0.0025, 0.0045); cd.bevel_resolution = 1
     sp = cd.splines.new('POLY'); sp.points.add(len(pts) - 1)
@@ -356,13 +357,7 @@ for o in ALL:
             d = (v.co - centre).normalized()
             fwd = (head_xf.to_3x3() @ Vector((0, -1, 0))).normalized()
             ang = math.acos(max(-1, min(1, d.dot(fwd))))
-            c = Vector((0.006, 0.004, 0.004))                                         # all-black eyes
-            if False: pass
-            elif ang < 0.55: c = Vector((0.20, 0.02, 0.015)) * (0.5 + 0.5 * (ang / 0.55))  # dark red iris
-            else:
-                vein = 1 - abs(noise.noise(d * 14))
-                c = Vector((0.80, 0.72, 0.62)) * (1 - 0.35 * (ang / 1.6))
-                if vein > 0.82 or ang > 1.05: c = c.lerp(Vector((0.55, 0.04, 0.03)), 0.75)   # bloodshot
+            c = Vector((0.004, 0.003, 0.003))                                         # all-black eyes
         occ = 1.0 if kind in ("glint",) else (0.25 + 0.75 * ao(p, n))
         if kind == "face":
             lp = head_inv @ p
