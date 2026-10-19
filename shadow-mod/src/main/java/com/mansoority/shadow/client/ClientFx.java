@@ -27,8 +27,11 @@ import net.minecraftforge.event.TickEvent;
 
 /** everything the victim sees and hears. Nothing here touches the world. */
 public final class ClientFx {
-    private static final ResourceLocation FACE = new ResourceLocation(TheShadow.MODID, "textures/gui/jumpscare.png");
-    private static final ResourceLocation FACE_RED = new ResourceLocation(TheShadow.MODID, "textures/gui/jumpscare_red.png");
+    private static final int JS_FRAMES = 26;
+    private static final ResourceLocation[] JS_FRAME = new ResourceLocation[JS_FRAMES];
+    static {
+        for (int i = 0; i < JS_FRAMES; i++) JS_FRAME[i] = new ResourceLocation(TheShadow.MODID, String.format("textures/gui/js/f%02d.png", i));
+    }
     private static final ResourceLocation VIGNETTE = new ResourceLocation(TheShadow.MODID, "textures/gui/vignette.png");
     private static final ResourceLocation STATIC = new ResourceLocation(TheShadow.MODID, "textures/gui/static.png");
     private static final Random R = new Random();
@@ -245,20 +248,18 @@ public final class ClientFx {
             if (t >= SCARE_AT && t < SCARE_AT + SCARE_LEN) {
                 float k = (t - SCARE_AT) + partialTick;
                 g.fill(0, 0, w, h, 0xFF000000);
-                float scale = k < 3F ? 0.35F + 0.85F * (k / 3F) : 1.15F + R.nextFloat() * 0.18F;
-                int size = (int) (h * 1.6F * scale);
-                int cx = w / 2 + (int) ((R.nextFloat() - 0.5F) * 30F);
-                int cy = h / 2 + h / 10 + (int) ((R.nextFloat() - 0.5F) * 30F);
-                boolean red = t < SCARE_AT + 18 && (t % 4 == 3);
-                g.pose().pushPose();
-                g.pose().translate(cx, cy, 0);
-                g.pose().mulPose(Axis.ZP.rotationDegrees((R.nextFloat() - 0.5F) * 14F));
-                blend(); g.blit(red ? FACE_RED : FACE, -size / 2, -size / 2, size, size, 0F, 0F, 512, 512, 512, 512);
-                g.pose().popPose();
-                g.setColor(1F, 1F, 1F, 0.6F);
+                // rendered frames of its face lunging at you (Blender), then it thrashes on the last frames
+                int frame = (int) k;
+                if (frame >= JS_FRAMES) frame = JS_FRAMES - 4 + ((t + R.nextInt(2)) % 4);
+                float zoom = 1.04F + R.nextFloat() * (k > 6 ? 0.08F : 0.03F);
+                int dw = (int) (Math.max(w, h * 16F / 9F) * zoom), dh = (int) (dw * 9F / 16F);
+                int ox = (w - dw) / 2 + (int) ((R.nextFloat() - 0.5F) * 24F);
+                int oy = (h - dh) / 2 + (int) ((R.nextFloat() - 0.5F) * 24F);
+                blend(); g.blit(JS_FRAME[Math.max(0, Math.min(JS_FRAMES - 1, frame))], ox, oy, dw, dh, 0F, 0F, 960, 540, 960, 540);
+                g.setColor(1F, 1F, 1F, 0.22F);
                 blend(); g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
                 g.setColor(1F, 1F, 1F, 1F);
-                if (red) g.fill(0, 0, w, h, 0x30FF0000);
+                if (t == SCARE_AT + 1 || t == SCARE_AT + 2) g.fill(0, 0, w, h, 0x50FFFFFF);   // flash
             }
         }
         RenderSystem.disableBlend();
