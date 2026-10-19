@@ -29,10 +29,29 @@ public class ShadowEvents {
     private static final TagKey<EntityType<?>> BOSSES = TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation(TheShadow.MODID, "bosses"));
 
     // ------------------------------------------------------------------ random encounters (rare)
+    /** AFK detection: when each player last moved or turned */
+    private static final java.util.Map<java.util.UUID, double[]> LAST = new java.util.HashMap<>();
+    private static final java.util.Map<java.util.UUID, Integer> ACTIVE_AT = new java.util.HashMap<>();
+
+    private static void trackActivity(ServerPlayer p) {
+        double[] now = {p.getX(), p.getY(), p.getZ(), p.getYRot(), p.getXRot()};
+        double[] was = LAST.put(p.getUUID(), now);
+        if (was == null || Math.abs(now[0] - was[0]) + Math.abs(now[2] - was[2]) > 0.5
+                || Math.abs(now[3] - was[3]) > 8 || Math.abs(now[4] - was[4]) > 8) {
+            ACTIVE_AT.put(p.getUUID(), p.tickCount);
+        }
+    }
+
+    public static boolean isAfk(ServerPlayer p) {
+        Integer at = ACTIVE_AT.get(p.getUUID());
+        return at == null || p.tickCount - at > 20 * 90;      // nothing for 90 seconds = afk
+    }
+
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || event.side != LogicalSide.SERVER) return;
         if (!(event.player instanceof ServerPlayer p)) return;
+        if (p.tickCount % 20 == 0) trackActivity(p);
         if (p.tickCount % 1200 != 600) return; // once a minute
         if (!ShadowConfig.ENABLED.get()) return;
 
@@ -45,16 +64,19 @@ public class ShadowEvents {
         }
         if (now < data.getLong(KEY_NEXT)) return;
         if (!eligible(p)) return;
-        if (p.getRandom().nextDouble() >= ShadowConfig.CHANCE.get()) return;
+        double chance = ShadowConfig.CHANCE.get();
+        if (ShadowEntity.isDaytimeFor(p)) chance *= 0.35;          // daytime: much rarer
+        if (p.getRandom().nextDouble() >= chance) return;
 
         data.putLong(KEY_NEXT, now + cooldown + p.getRandom().nextInt(20 * 60 * 20));
         double roll = p.getRandom().nextDouble();
         warnAll(p);
-        if (roll < 0.65) {
+        boolean day = ShadowEntity.isDaytimeFor(p);
+        if (roll < 0.50) {                                          // stalked (only ends in a chase at night)
             if (ShadowEntity.spawnAround(p, 0, 180, 28) == null) soundEvent(p);
-        } else if (roll < 0.93) {
+        } else if (day || roll < 0.96) {                            // just sounds / something wrong
             soundEvent(p);
-        } else {
+        } else {                                                    // very rare: straight jumpscare, night only
             ShadowEntity.jumpscare(p, false);
         }
     }
@@ -63,7 +85,7 @@ public class ShadowEvents {
     @SubscribeEvent
     public void onWake(PlayerWakeUpEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer p) || event.wakeImmediately()) return;
-        if (!ShadowConfig.ENABLED.get() || p.isCreative() || p.isSpectator()) return;
+        if (!ShadowConfig.ENABLED.get() || p.isCreative() || p.isSpectator() || isAfk(p)) return;
         CompoundTag data = p.getPersistentData();
         long now = p.level().getGameTime();
         if (data.contains(KEY_NEXT) && now < data.getLong(KEY_NEXT)) return;
@@ -89,13 +111,12 @@ public class ShadowEvents {
 
     private static boolean eligible(ServerPlayer p) {
         if (p.isCreative() || p.isSpectator() || p.isSleeping()) return false;
-        boolean spooky = !p.level().isDay() || p.getY() < 40 || !p.level().canSeeSky(p.blockPosition());
-        if (!spooky) return false;
-        if (p.tickCount - p.getLastHurtByMobTimestamp() < 1200) return false;  // was hit in the last minute
-        if (p.tickCount - p.getLastHurtMobTimestamp() < 1200) return false;    // hit something in the last minute
+        if (isAfk(p)) return false;                                            // you have to actually be playing
         if (p.tickCount < 2400) return false;                                  // just joined
-        boolean boss = !p.serverLevel().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(64),
-                e -> e instanceof EnderDragon || e instanceof WitherBoss || e.getType().is(BOSSES)).isEmpty();
+        // big fights only (normal mobs are fine): vanilla bosses, the boss tag, or anything with a huge health pool
+        boolean boss = !p.serverLevel().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(80),
+                e -> !(e instanceof ShadowEntity) && e.isAlive() && (e instanceof EnderDragon || e instanceof WitherBoss
+                        || e.getType().is(BOSSES) || e.getMaxHealth() >= 150F)).isEmpty();
         if (boss) return false;
         int players = p.serverLevel().getEntitiesOfClass(Player.class, p.getBoundingBox().inflate(32), pl -> !pl.isSpectator()).size();
         if (players > ShadowConfig.MAX_WITNESSES.get()) return false;

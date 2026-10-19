@@ -181,10 +181,9 @@ public class ShadowEntity extends PathfinderMob {
                 double a = off + i * Math.PI * 2 / n;
                 double x = target.getX() + Math.cos(a) * ZONE_RADIUS, z = target.getZ() + Math.sin(a) * ZONE_RADIUS;
                 double y = target.getY() + this.random.nextDouble() * 2.5;
-                sl.sendParticles(ParticleTypes.LARGE_SMOKE, x, y, z, 1, 0.25, 0.4, 0.25, 0.01);
-                if (i % 2 == 0) sl.sendParticles(ParticleTypes.SQUID_INK, x, y + 0.5, z, 1, 0.2, 0.6, 0.2, 0.0);
+                sl.sendParticles(ShadowRegistry.WISP.get(), x, y, z, 1, 0.3, 0.5, 0.3, 0.0);
             }
-            sl.sendParticles(ParticleTypes.ASH, target.getX(), target.getY() + 2, target.getZ(), 30, ZONE_RADIUS * 0.6, 2.0, ZONE_RADIUS * 0.6, 0.0);
+            sl.sendParticles(ParticleTypes.ASH, target.getX(), target.getY() + 2, target.getZ(), 20, ZONE_RADIUS * 0.6, 2.0, ZONE_RADIUS * 0.6, 0.0);
         }
         for (ServerPlayer m : inside) {
             if (zone.add(m.getUUID()) && m != target) {      // someone just walked in
@@ -296,6 +295,11 @@ public class ShadowEntity extends PathfinderMob {
         this.entityData.set(DATA_STARE, 0);
         burst();
         if (stage >= 3) {
+            if (isDaytimeFor(p)) {          // in daylight it gives up: one last look and it's gone
+                ui(p, ShadowRegistry.STATIC, 1F, 0.7F);
+                startVanish();
+                return;
+            }
             startRush(p);
             return;
         }
@@ -340,6 +344,7 @@ public class ShadowEntity extends PathfinderMob {
 
     /** a little damage when it catches you. never lethal: always leaves at least one heart */
     private void bite(ServerPlayer p) {
+        if (isDaytimeFor(p)) return;
         float dmg = ShadowConfig.CATCH_DAMAGE.get().floatValue();
         if (dmg <= 0F || p.isCreative() || p.isSpectator()) return;
         float allowed = Math.min(dmg, p.getHealth() - 2.0F);
@@ -352,6 +357,11 @@ public class ShadowEntity extends PathfinderMob {
         ShadowEntity e = spawnAround(p, 2, 0, dist);
         if (e != null) { e.stage = 3; e.startRush(p); }
         return e;
+    }
+
+    /** daylight with open sky = gentler: no chase, no damage */
+    public static boolean isDaytimeFor(ServerPlayer p) {
+        return p.level().isDay() && p.level().canSeeSky(p.blockPosition()) && p.getY() > 50;
     }
 
     public void startVanish() {
@@ -367,8 +377,7 @@ public class ShadowEntity extends PathfinderMob {
     private void burst() {
         if (this.level() instanceof ServerLevel sl) {
             double h = this.getBbHeight();
-            sl.sendParticles(ParticleTypes.LARGE_SMOKE, this.getX(), this.getY() + h / 2, this.getZ(), 60, 0.4, h / 3, 0.4, 0.02);
-            sl.sendParticles(ParticleTypes.SQUID_INK, this.getX(), this.getY() + h / 2, this.getZ(), 60, 0.4, h / 3, 0.4, 0.02);
+            sl.sendParticles(ShadowRegistry.WISP.get(), this.getX(), this.getY() + h / 2, this.getZ(), 70, 0.7, h / 3, 0.7, 0.0);
         }
     }
 

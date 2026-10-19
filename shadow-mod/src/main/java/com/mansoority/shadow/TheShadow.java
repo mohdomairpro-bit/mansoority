@@ -22,6 +22,7 @@ public class TheShadow {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         ShadowRegistry.ENTITIES.register(bus);
         ShadowRegistry.SOUNDS.register(bus);
+        ShadowRegistry.PARTICLES.register(bus);
         bus.addListener(this::onAttributes);
         bus.addListener(this::onSetup);
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ShadowConfig.SPEC);

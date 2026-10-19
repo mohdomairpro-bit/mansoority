@@ -10,6 +10,7 @@ public final class ClientSetup {
     public static void init(IEventBus modBus) {
         modBus.addListener(ClientSetup::onRenderers);
         modBus.addListener(ClientSetup::onOverlays);
+        modBus.addListener(ClientSetup::onParticles);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onClientTick);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onCamera);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onFov);
@@ -23,6 +24,10 @@ public final class ClientSetup {
 
     private static void onOverlays(RegisterGuiOverlaysEvent event) {
         event.registerAboveAll("theshadow_fx", ClientFx::renderOverlay);
+    }
+
+    private static void onParticles(net.minecraftforge.client.event.RegisterParticleProvidersEvent event) {
+        event.registerSpriteSet(ShadowRegistry.WISP.get(), WispParticle.Provider::new);
     }
 
     private ClientSetup() {}
