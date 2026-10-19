@@ -1,52 +1,246 @@
 {
- "breath": {
-  "sounds": [
-   "theshadow:breath"
-  ]
- },
- "drone": {
-  "sounds": [
-   "theshadow:drone"
-  ]
- },
- "heartbeat": {
-  "sounds": [
-   "theshadow:heartbeat"
-  ]
- },
- "hit": {
-  "sounds": [
-   "theshadow:hit"
-  ]
- },
- "riser": {
-  "sounds": [
-   "theshadow:riser"
-  ]
- },
  "scream": {
   "sounds": [
-   "theshadow:scream"
-  ]
- },
- "snap": {
-  "sounds": [
-   "theshadow:snap"
-  ]
- },
- "static": {
-  "sounds": [
-   "theshadow:static"
+   {
+    "name": "minecraft:mob/warden/roar_1",
+    "pitch": 0.75
+   },
+   {
+    "name": "minecraft:mob/warden/roar_2",
+    "pitch": 0.75
+   },
+   {
+    "name": "minecraft:mob/warden/roar_3",
+    "pitch": 0.75
+   },
+   {
+    "name": "minecraft:mob/warden/roar_4",
+    "pitch": 0.75
+   },
+   {
+    "name": "minecraft:mob/warden/roar_5",
+    "pitch": 0.75
+   },
+   {
+    "name": "minecraft:mob/endermen/scream1",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:mob/endermen/scream2",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:mob/endermen/scream3",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:mob/endermen/scream4",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:mob/ghast/affectionate_scream",
+    "pitch": 0.45
+   }
   ]
  },
  "stinger": {
   "sounds": [
-   "theshadow:stinger"
+   {
+    "name": "minecraft:block/sculk_shrieker/shriek1",
+    "pitch": 0.55
+   },
+   {
+    "name": "minecraft:block/sculk_shrieker/shriek2",
+    "pitch": 0.55
+   },
+   {
+    "name": "minecraft:block/sculk_shrieker/shriek3",
+    "pitch": 0.55
+   },
+   {
+    "name": "minecraft:block/sculk_shrieker/shriek4",
+    "pitch": 0.55
+   },
+   {
+    "name": "minecraft:block/sculk_shrieker/shriek5",
+    "pitch": 0.55
+   },
+   {
+    "name": "minecraft:mob/guardian/curse",
+    "pitch": 0.55
+   }
+  ]
+ },
+ "hit": {
+  "sounds": [
+   {
+    "name": "minecraft:mob/warden/attack_impact_1",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:mob/warden/attack_impact_2",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:mob/warden/emerge",
+    "pitch": 0.8
+   }
+  ]
+ },
+ "drone": {
+  "sounds": [
+   {
+    "name": "minecraft:ambient/nether/soulsand_valley/mood1",
+    "pitch": 0.6
+   },
+   {
+    "name": "minecraft:ambient/nether/soulsand_valley/mood2",
+    "pitch": 0.6
+   },
+   {
+    "name": "minecraft:ambient/nether/soulsand_valley/mood3",
+    "pitch": 0.6
+   },
+   {
+    "name": "minecraft:ambient/nether/soulsand_valley/mood4",
+    "pitch": 0.6
+   },
+   {
+    "name": "minecraft:ambient/nether/crimson_forest/mood1",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:ambient/nether/crimson_forest/mood2",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:ambient/nether/crimson_forest/mood3",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:ambient/nether/crimson_forest/mood4",
+    "pitch": 0.5
+   }
   ]
  },
  "whisper": {
   "sounds": [
-   "theshadow:whisper"
+   {
+    "name": "minecraft:mob/vex/idle1",
+    "pitch": 0.42
+   },
+   {
+    "name": "minecraft:mob/vex/idle2",
+    "pitch": 0.42
+   },
+   {
+    "name": "minecraft:mob/vex/idle3",
+    "pitch": 0.42
+   },
+   {
+    "name": "minecraft:mob/vex/idle4",
+    "pitch": 0.42
+   },
+   {
+    "name": "minecraft:ambient/nether/soulsand_valley/mood1",
+    "pitch": 0.9
+   },
+   {
+    "name": "minecraft:ambient/nether/soulsand_valley/mood2",
+    "pitch": 0.9
+   }
+  ]
+ },
+ "heartbeat": {
+  "sounds": [
+   {
+    "name": "minecraft:mob/warden/heartbeat_1",
+    "pitch": 0.85
+   },
+   {
+    "name": "minecraft:mob/warden/heartbeat_2",
+    "pitch": 0.85
+   },
+   {
+    "name": "minecraft:mob/warden/heartbeat_3",
+    "pitch": 0.85
+   },
+   {
+    "name": "minecraft:mob/warden/heartbeat_4",
+    "pitch": 0.85
+   }
+  ]
+ },
+ "breath": {
+  "sounds": [
+   {
+    "name": "minecraft:mob/warden/sniff_1",
+    "pitch": 0.7
+   },
+   {
+    "name": "minecraft:mob/warden/sniff_2",
+    "pitch": 0.7
+   },
+   {
+    "name": "minecraft:mob/warden/sniff_3",
+    "pitch": 0.7
+   },
+   {
+    "name": "minecraft:mob/warden/sniff_4",
+    "pitch": 0.7
+   }
+  ]
+ },
+ "snap": {
+  "sounds": [
+   {
+    "name": "minecraft:block/bone_block/break1",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:block/bone_block/break2",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:block/bone_block/break3",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:block/bone_block/break4",
+    "pitch": 0.5
+   },
+   {
+    "name": "minecraft:block/bone_block/break5",
+    "pitch": 0.5
+   }
+  ]
+ },
+ "riser": {
+  "sounds": [
+   {
+    "name": "minecraft:mob/warden/sonic_charge1",
+    "pitch": 0.7
+   },
+   {
+    "name": "minecraft:mob/warden/sonic_charge2",
+    "pitch": 0.7
+   },
+   {
+    "name": "minecraft:mob/warden/sonic_charge3",
+    "pitch": 0.7
+   },
+   {
+    "name": "minecraft:mob/warden/sonic_charge4",
+    "pitch": 0.7
+   }
+  ]
+ },
+ "static": {
+  "sounds": [
+   {
+    "name": "theshadow:static",
+    "pitch": 1.0
+   }
   ]
  }
 }

@@ -15,7 +15,7 @@ final class ShadowPose {
         return ((h ^ (h >>> 16)) & 0xFFFF) / 65535F;
     }
 
-    static void apply(ShadowMesh m, ShadowEntity e, float age, float pt) {
+    static void apply(ShadowMesh m, ShadowEntity e, float age, float pt, net.minecraft.world.phys.Vec3 cam) {
         for (ShadowMesh.Part p : m.parts) p.reset();
         ShadowMesh.Part head = m.get("head"), jaw = m.get("jaw"), neck = m.get("neck"), chest = m.get("chest");
         ShadowMesh.Part armL = m.get("armL"), armR = m.get("armR"), foreL = m.get("foreL"), foreR = m.get("foreR");
@@ -23,6 +23,14 @@ final class ShadowPose {
         ShadowMesh.Part legL = m.get("legL"), legR = m.get("legR"), shinL = m.get("shinL"), shinR = m.get("shinR");
         int id = e.getId();
         float stare = Math.min(1F, e.getStare() / (float) ShadowEntity.STARE_LIMIT);
+
+        // it always looks AT you: the head tips down/up toward the camera
+        double headY = e.getY() + 2.15 * ShadowEntity.MODEL_SCALE;
+        double horiz = Math.max(1.0, Math.sqrt((cam.x - e.getX()) * (cam.x - e.getX()) + (cam.z - e.getZ()) * (cam.z - e.getZ())));
+        float look = (float) Math.atan2(headY - cam.y, horiz);           // + = you are below it
+        look = Mth.clamp(look, -0.5F, 1.25F);
+        neck.xRot += look * 0.45F;
+        head.xRot += look * 0.55F;
 
         // slow, laboured breathing; the jaw hangs slightly open
         float breathe = Mth.sin(age * 0.06F);
@@ -47,10 +55,9 @@ final class ShadowPose {
             float s = stare;
             // first it goes completely still and leans in to look at you, then the head slowly rolls over
             float lean = Math.min(1F, s * 2.5F);
-            chest.xRot += lean * 0.35F;
-            neck.xRot += lean * 0.45F;
-            head.xRot -= lean * 0.5F;
-            head.zRot += Math.max(0F, s - 0.25F) * 2.1F;
+            chest.xRot += lean * 0.15F;
+            neck.xRot += lean * 0.15F;
+            head.zRot += Math.max(0F, s - 0.25F) * 1.1F;
             jaw.xRot += s * s * 1.6F;   // unhinges far past what a jaw should do
             // arms creep up and forward toward you, fingers opening
             armL.xRot -= s * 1.1F; armR.xRot -= s * 1.1F;

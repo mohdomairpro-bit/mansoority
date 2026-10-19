@@ -42,6 +42,9 @@ public class ShadowEntity extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DATA_TARGET = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_VANISH = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_RUSH = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> DATA_HIDDEN = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_STAGE = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
+    private int peek, hiddenFor;
 
     public static final int STARE_LIMIT = 60;
     /** Blender metres -> blocks for the mesh model (about 8 blocks tall) */
@@ -80,17 +83,24 @@ public class ShadowEntity extends PathfinderMob {
         this.entityData.define(DATA_TARGET, -1);
         this.entityData.define(DATA_VANISH, 0);
         this.entityData.define(DATA_RUSH, 0);
+        this.entityData.define(DATA_HIDDEN, false);
+        this.entityData.define(DATA_STAGE, 0);
     }
 
     public int getStare() { return this.entityData.get(DATA_STARE); }
     public int getTargetEntityId() { return this.entityData.get(DATA_TARGET); }
     public int getVanish() { return this.entityData.get(DATA_VANISH); }
     public int getRush() { return this.entityData.get(DATA_RUSH); }
+    public boolean isHidden() { return this.entityData.get(DATA_HIDDEN); }
+    /** the black ring is up once it has started closing in */
+    public boolean ringActive() { return getRush() > 0 || this.entityData.get(DATA_STAGE) >= 1; }
 
     public void setTarget(ServerPlayer player, int stage) {
         this.targetId = player.getUUID();
         this.entityData.set(DATA_TARGET, player.getId());
         this.stage = stage;
+        this.entityData.set(DATA_STAGE, stage);
+        if (stage == 0) { this.entityData.set(DATA_HIDDEN, true); hiddenFor = 60; }
     }
 
     // ---------------------------------------------------------------- harmless & unkillable
@@ -138,8 +148,9 @@ public class ShadowEntity extends PathfinderMob {
             return;
         }
 
+        if (stage == 0 && stalkTick(player)) return;
         List<ServerPlayer> inside = zoneMembers(player);
-        if (stage >= 0) tickZone(player, inside);
+        if (stage >= 1) tickZone(player, inside);
         ServerPlayer watcher = null;
         for (ServerPlayer m : inside) if (isWatchedBy(m)) { watcher = m; break; }
         if (watcher != null) {
@@ -159,7 +170,32 @@ public class ShadowEntity extends PathfinderMob {
 
         if (life % 160 == 20) soundAround(ShadowRegistry.DRONE, 2.2F, 0.85F);
         if (life % 400 == 200) soundAround(ShadowRegistry.WHISPER, 1.6F, 0.6F);
-        if (life > 20 * 120 || unseen > 20 * 50 || (stage < 0 && life > 20 * 12)) startVanish();
+        if ((stage == 0 && life > 20 * 300) || (stage > 0 && (life > 20 * 420 || unseen > 20 * 60)) || (stage < 0 && life > 20 * 12)) startVanish();
+    }
+
+    /**
+     * stage 0: for ~5 minutes it only shows itself in brief glimpses - far away, mostly behind you,
+     * for a few seconds - then it's gone again. returns true while it's hidden (nothing else to do)
+     */
+    private boolean stalkTick(ServerPlayer p) {
+        if (isHidden()) {
+            if (--hiddenFor > 0) return true;
+            double angle = 110 + this.random.nextDouble() * 140;
+            BlockPos spot = spotAround(p, angle, 30 + this.random.nextDouble() * 16);
+            if (spot == null) { hiddenFor = 100; return true; }
+            this.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+            faceTowards(p);
+            this.entityData.set(DATA_HIDDEN, false);
+            peek = 70 + this.random.nextInt(90);
+            if (this.random.nextFloat() < 0.4F) ui(p, ShadowRegistry.HEARTBEAT, 0.35F, 0.8F);
+            return false;
+        }
+        if (getStare() == 0 && --peek <= 0) {        // nobody noticed: slip away quietly
+            this.entityData.set(DATA_HIDDEN, true);
+            hiddenFor = 220 + this.random.nextInt(380);
+            return true;
+        }
+        return false;
     }
 
     /** players inside the ring around the victim (the victim always counts) */
@@ -174,16 +210,10 @@ public class ShadowEntity extends PathfinderMob {
     /** a wall of black smoke in a circle around the victim; walking into it gets you hunted too */
     private void tickZone(ServerPlayer target, List<ServerPlayer> inside) {
         ServerLevel sl = target.serverLevel();
-        if (life % 3 == 0) {
-            int n = 44;
-            double off = (life * 0.013) % (Math.PI * 2);
-            for (int i = 0; i < n; i++) {
-                double a = off + i * Math.PI * 2 / n;
-                double x = target.getX() + Math.cos(a) * ZONE_RADIUS, z = target.getZ() + Math.sin(a) * ZONE_RADIUS;
-                double y = target.getY() + this.random.nextDouble() * 2.5;
-                sl.sendParticles(ShadowRegistry.WISP.get(), x, y, z, 1, 0.3, 0.5, 0.3, 0.0);
-            }
-            sl.sendParticles(ParticleTypes.ASH, target.getX(), target.getY() + 2, target.getZ(), 20, ZONE_RADIUS * 0.6, 2.0, ZONE_RADIUS * 0.6, 0.0);
+        if (life % 10 == 0) {
+            double a = this.random.nextDouble() * Math.PI * 2;
+            sl.sendParticles(ShadowRegistry.WISP.get(), target.getX() + Math.cos(a) * ZONE_RADIUS * 0.95, target.getY() + 0.3,
+                    target.getZ() + Math.sin(a) * ZONE_RADIUS * 0.95, 2, 0.5, 0.2, 0.5, 0.0);
         }
         for (ServerPlayer m : inside) {
             if (zone.add(m.getUUID()) && m != target) {      // someone just walked in
@@ -214,6 +244,7 @@ public class ShadowEntity extends PathfinderMob {
     }
 
     public boolean isWatchedBy(Player player) {
+        if (isHidden()) return false;
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getViewVector(1.0F);
         Vec3 end = eye.add(look.scale(96));
@@ -291,6 +322,8 @@ public class ShadowEntity extends PathfinderMob {
     private void advance(ServerPlayer p) {
         calm(p);
         stage++;
+        this.entityData.set(DATA_STAGE, stage);
+        this.entityData.set(DATA_HIDDEN, false);
         seenThisStage = false;
         this.entityData.set(DATA_STARE, 0);
         burst();

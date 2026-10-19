@@ -98,7 +98,7 @@ public final class ClientFx {
         float target = 0F;
         rushing = false;
         for (Entity e : mc.level.entitiesForRendering()) {
-            if (e instanceof ShadowEntity s && (s.getTargetEntityId() == mc.player.getId() || inZone(mc, s))) {
+            if (e instanceof ShadowEntity s && !s.isHidden() && (s.getTargetEntityId() == mc.player.getId() || inZone(mc, s))) {
                 target = Math.max(target, Math.min(1F, s.getStare() / (float) ShadowEntity.STARE_LIMIT));
                 if (s.getRush() > 0) { target = 1F; rushing = true; }
             }
@@ -237,7 +237,7 @@ public final class ClientFx {
             blend(); g.blit(VIGNETTE, 0, 0, w, h, 0F, 0F, 256, 256, 256, 256);
             if (stare > 0.35F) {
                 g.setColor(1F, 1F, 1F, Math.min(1F, (stare - 0.35F) * 1.5F));
-                blend(); g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
+                blend(); g.blit(STATIC, 0, 0, w, h, R.nextInt(1024 - w / 2 > 0 ? 1024 - w / 2 : 1), R.nextInt(1024 - h / 2 > 0 ? 1024 - h / 2 : 1), w / 2, h / 2, 1024, 1024);
             }
             g.setColor(1F, 1F, 1F, 1F);
         }
@@ -267,7 +267,7 @@ public final class ClientFx {
                 int oy = (h - dh) / 2 + (int) ((R.nextFloat() - 0.5F) * 24F);
                 blend(); g.blit(JS_FRAME[Math.max(0, Math.min(JS_FRAMES - 1, frame))], ox, oy, dw, dh, 0F, 0F, 768, 432, 768, 432);
                 g.setColor(1F, 1F, 1F, 0.22F);
-                blend(); g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
+                blend(); g.blit(STATIC, 0, 0, w, h, R.nextInt(1024 - w / 2 > 0 ? 1024 - w / 2 : 1), R.nextInt(1024 - h / 2 > 0 ? 1024 - h / 2 : 1), w / 2, h / 2, 1024, 1024);
                 g.setColor(1F, 1F, 1F, 1F);
                 if (t == SCARE_AT + 1 || t == SCARE_AT + 2) g.fill(0, 0, w, h, 0x50FFFFFF);   // flash
             }

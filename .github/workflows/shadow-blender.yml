@@ -39,6 +39,7 @@ jobs:
           body: "Blender build from commit ${{ github.sha }}"
           files: |
             out/*.png
+            out/shadow_atlas.png
             out/*.jpg
             out/shadow.mesh
             out/blender.log

@@ -18,6 +18,7 @@ import org.joml.Quaternionf;
 
 public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     private static final ResourceLocation WHITE = new ResourceLocation(TheShadow.MODID, "textures/entity/white.png");
+    private static final ResourceLocation ATLAS = new ResourceLocation(TheShadow.MODID, "textures/entity/shadow_atlas.png");
     /** blender metres -> blocks. the model is ~2.6 m tall, so this makes it ~8 blocks */
     public static final float SCALE = ShadowEntity.MODEL_SCALE;
 
@@ -28,21 +29,21 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
 
     @Override
     public ResourceLocation getTextureLocation(ShadowEntity entity) {
-        return WHITE;
+        return ATLAS;
     }
 
     @Override
     public void render(ShadowEntity e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         ShadowMesh mesh = ShadowMesh.get();
-        if (mesh == null) return;
+        if (mesh == null || e.isHidden()) return;
         float age = e.tickCount + partialTick;
-        ShadowPose.apply(mesh, e, age, partialTick);
+        ShadowPose.apply(mesh, e, age, partialTick, net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition());
         float bodyYaw = Mth.rotLerp(partialTick, e.yBodyRotO, e.yBodyRot);
         float grow = 1F + Math.min(1F, e.getStare() / (float) ShadowEntity.STARE_LIMIT) * 0.12F;
         pose.pushPose();
         pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw));
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);
-        VertexConsumer solid = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
+        VertexConsumer solid = buffers.getBuffer(RenderType.entityCutoutNoCull(ATLAS));
         for (ShadowMesh.Part root : mesh.roots) draw(root, pose, solid, light, false);
         VertexConsumer glow = buffers.getBuffer(RenderType.eyes(WHITE));
         for (ShadowMesh.Part root : mesh.roots) draw(root, pose, glow, 0xF000F0, true);
@@ -59,15 +60,13 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         }
         Matrix4f m = pose.last().pose();
         Matrix3f n = pose.last().normal();
-        int tris = p.triangles();
-        for (int t = 0; t < tris; t++) {
-            if (p.glow[t] != glowPass) continue;
+        int[] list = glowPass ? p.glowTris : p.solidTris;
+        for (int t : list) {
             for (int k = 0; k < 4; k++) {
                 int v = t * 3 + Math.min(k, 2);      // triangle sent as a quad with the last corner repeated
-                int c = p.rgb[v];
                 vc.vertex(m, p.pos[v * 3], p.pos[v * 3 + 1], p.pos[v * 3 + 2])
-                        .color((c >> 16) & 255, (c >> 8) & 255, c & 255, 255)
-                        .uv(0.5F, 0.5F)
+                        .color(255, 255, 255, 255)
+                        .uv(glowPass ? 0.5F : p.uv[v * 2], glowPass ? 0.5F : p.uv[v * 2 + 1])
                         .overlayCoords(OverlayTexture.NO_OVERLAY)
                         .uv2(light)
                         .normal(n, p.nrm[v * 3], p.nrm[v * 3 + 1], p.nrm[v * 3 + 2])

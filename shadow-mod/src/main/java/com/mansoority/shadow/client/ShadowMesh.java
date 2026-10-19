@@ -22,15 +22,16 @@ public final class ShadowMesh {
         public final float px, py, pz;
         public final float[] pos;      // xyz per vertex, 3 vertices per triangle
         public final float[] nrm;
-        public final int[] rgb;        // packed 0xRRGGBB per vertex
+        public final float[] uv;       // atlas uv per vertex
         public final boolean[] glow;   // per triangle
+        public int[] solidTris, glowTris;
         public final List<Part> children = new ArrayList<>();
         public float xRot, yRot, zRot; // animated each frame
 
         Part(String name, int parent, float px, float py, float pz, int tris) {
             this.name = name; this.parent = parent; this.px = px; this.py = py; this.pz = pz;
             this.pos = new float[tris * 9]; this.nrm = new float[tris * 9];
-            this.rgb = new int[tris * 3]; this.glow = new boolean[tris];
+            this.uv = new float[tris * 6]; this.glow = new boolean[tris];
         }
         public int triangles() { return glow.length; }
         public void reset() { xRot = yRot = zRot = 0F; }
@@ -64,7 +65,7 @@ public final class ShadowMesh {
     static ShadowMesh read(byte[] data) throws IOException {
         ByteBuffer b = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         byte[] magic = new byte[4]; b.get(magic);
-        if (!"SHDW".equals(new String(magic, StandardCharsets.US_ASCII))) throw new IOException("bad mesh header");
+        if (!"SHD2".equals(new String(magic, StandardCharsets.US_ASCII))) throw new IOException("bad mesh header");
         ShadowMesh mesh = new ShadowMesh();
         int count = b.getInt();
         for (int i = 0; i < count; i++) {
@@ -76,10 +77,13 @@ public final class ShadowMesh {
             for (int v = 0; v < tris * 3; v++) {
                 p.pos[v * 3] = b.getFloat(); p.pos[v * 3 + 1] = b.getFloat(); p.pos[v * 3 + 2] = b.getFloat();
                 p.nrm[v * 3] = b.get() / 127F; p.nrm[v * 3 + 1] = b.get() / 127F; p.nrm[v * 3 + 2] = b.get() / 127F;
-                int r = b.get() & 255, g = b.get() & 255, bl = b.get() & 255, e = b.get() & 255;
-                p.rgb[v] = (r << 16) | (g << 8) | bl;
-                if (e != 0) p.glow[v / 3] = true;
+                p.uv[v * 2] = b.getFloat(); p.uv[v * 2 + 1] = b.getFloat();
+                if ((b.get() & 255) != 0) p.glow[v / 3] = true;
             }
+            int g = 0; for (boolean x : p.glow) if (x) g++;
+            p.glowTris = new int[g]; p.solidTris = new int[tris - g];
+            int gi = 0, si = 0;
+            for (int t = 0; t < tris; t++) { if (p.glow[t]) p.glowTris[gi++] = t; else p.solidTris[si++] = t; }
             mesh.parts.add(p);
         }
         for (Part p : mesh.parts) {

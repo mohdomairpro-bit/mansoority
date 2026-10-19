@@ -14,6 +14,9 @@ public final class ClientSetup {
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onClientTick);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onCamera);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onFov);
+        MinecraftForge.EVENT_BUS.addListener(RingRenderer::onRenderLevel);
+        MinecraftForge.EVENT_BUS.addListener(RingRenderer::onFog);
+        MinecraftForge.EVENT_BUS.addListener(RingRenderer::onFogColor);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onLogout);
         if (AutoTest.enabled()) MinecraftForge.EVENT_BUS.addListener(AutoTest::onClientTick);
     }

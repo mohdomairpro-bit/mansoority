@@ -281,7 +281,7 @@ for k in range(110):
         d_ = (d_ * 0.6 + Vector((0, 0, -1.0)) * 0.03 + root.normalized() * Vector((1, 1, 0)) * (0.006 if sgm < 2 else 0.0)
               + Vector((random.uniform(-1, 1), random.uniform(-1, 1), 0)) * 0.003).normalized() * (L / 9)
         p_ = p_ + d_; pts.append(p_.copy())
-    cd = bpy.data.curves.new("hair", 'CURVE'); cd.dimensions = '3D'; cd.bevel_depth = random.uniform(0.0025, 0.0045); cd.bevel_resolution = 1
+    cd = bpy.data.curves.new("hair", 'CURVE'); cd.dimensions = '3D'; cd.bevel_depth = random.uniform(0.0025, 0.0045); cd.bevel_resolution = 0
     sp = cd.splines.new('POLY'); sp.points.add(len(pts) - 1)
     for i_, q_ in enumerate(pts): sp.points[i_].co = (q_.x, q_.y, q_.z, 1); sp.points[i_].radius = 1.0 - i_ / (len(pts) + 1)
     ho = link(bpy.data.objects.new("hair", cd))
@@ -405,7 +405,27 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     mt = bpy.data.materials.new(name); mt.use_nodes = True
     nt = mt.node_tree; bsdf = nt.nodes["Principled BSDF"]
     a = nt.nodes.new("ShaderNodeAttribute"); a.attribute_name = "Col"; a.attribute_type = 'GEOMETRY'
-    nt.links.new(a.outputs["Color"], bsdf.inputs["Base Color"])
+    base_out = a.outputs["Color"]
+    if name in ("skin", "face", "hair", "bone"):
+        nz = nt.nodes.new("ShaderNodeTexNoise"); nz.inputs["Scale"].default_value = 35; nz.inputs["Detail"].default_value = 10
+        nz.inputs["Roughness"].default_value = 0.65
+        rmp = nt.nodes.new("ShaderNodeMapRange"); rmp.inputs["To Min"].default_value = 0.45; rmp.inputs["To Max"].default_value = 1.6
+        nt.links.new(nz.outputs["Fac"], rmp.inputs["Value"])
+        vor = nt.nodes.new("ShaderNodeTexVoronoi"); vor.feature = 'DISTANCE_TO_EDGE'; vor.inputs["Scale"].default_value = 18 if name == "skin" else 30
+        vein = nt.nodes.new("ShaderNodeMapRange"); vein.inputs["From Min"].default_value = 0.0; vein.inputs["From Max"].default_value = 0.035
+        vein.inputs["To Min"].default_value = 0.25; vein.inputs["To Max"].default_value = 1.0
+        nt.links.new(vor.outputs["Distance"], vein.inputs["Value"])
+        m1 = nt.nodes.new("ShaderNodeMix"); m1.data_type = 'RGBA'; m1.blend_type = 'MULTIPLY'; m1.inputs["Factor"].default_value = 1.0
+        nt.links.new(base_out, m1.inputs[6]); nt.links.new(rmp.outputs["Result"], m1.inputs[7])
+        m2 = nt.nodes.new("ShaderNodeMix"); m2.data_type = 'RGBA'; m2.blend_type = 'MULTIPLY'; m2.inputs["Factor"].default_value = 1.0
+        nt.links.new(m1.outputs[2], m2.inputs[6]); nt.links.new(vein.outputs["Result"], m2.inputs[7])
+        if name == "skin":     # lift the near-black body a little so the detail reads in game
+            m3 = nt.nodes.new("ShaderNodeMix"); m3.data_type = 'RGBA'; m3.blend_type = 'ADD'; m3.inputs["Factor"].default_value = 1.0
+            m3.inputs[7].default_value = (0.028, 0.022, 0.022, 1)
+            nt.links.new(m2.outputs[2], m3.inputs[6]); base_out = m3.outputs[2]
+        else:
+            base_out = m2.outputs[2]
+    nt.links.new(base_out, bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = rough
     bsdf.inputs["Specular IOR Level"].default_value = spec
     if sss:
@@ -447,6 +467,29 @@ bpy.context.view_layer.update()
 print("[SHADOW] tris:", sum(len(o.data.polygons) for o in ALL))
 
 # ------------------------------------------------------------------ export for the mod
+def bake_atlas(objs, size=2048):
+    img = bpy.data.images.new("atlas", size, size, alpha=False)
+    for o in objs:
+        for mt in o.data.materials:
+            nt = mt.node_tree
+            if "BakeTarget" not in nt.nodes:
+                n = nt.nodes.new("ShaderNodeTexImage"); n.name = "BakeTarget"; n.image = img
+            nt.nodes.active = nt.nodes["BakeTarget"]
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in objs: o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.002)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    scene.render.engine = 'CYCLES'; scene.cycles.device = 'CPU'; scene.cycles.samples = 8
+    scene.render.bake.margin = 4
+    bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'}, use_clear=True)
+    img.filepath_raw = os.path.join(OUT, "shadow_atlas.png"); img.file_format = 'PNG'; img.save()
+    print("[SHADOW] atlas baked")
+
+DECIMATE = {"skin": 0.45, "face": 0.22, "void": 0.15, "hair": 0.5, "throat": 0.3, "eye": 0.5}
+
 def export():
     # part per face: body faces go to nearest bone segment
     segs = []
@@ -460,21 +503,28 @@ def export():
             d = (a + ab * t - p).length
             if d < best: best, bp = d, part
         return bp
+    bake_atlas([o for o in ALL if KIND[o.name] != "glint"])
     tris = {k: [] for k in PARTS}
     def add_obj(o, force=None):
-        me = o.data; me.calc_loop_triangles()
-        m = o.matrix_world; nm = m.to_3x3().inverted().transposed()
-        col = me.color_attributes["Col"].data
-        emis = 1 if KIND[o.name] == "glint" else 0
+        kind = KIND[o.name]
+        src = o
+        if kind in DECIMATE:                       # lighter copy for the game, same UVs
+            cp = o.copy(); cp.data = o.data.copy(); link(cp)
+            dm = cp.modifiers.new("dec", 'DECIMATE'); dm.ratio = DECIMATE[kind]
+            apply_mods(cp); src = cp
+        me = src.data; me.calc_loop_triangles()
+        m = src.matrix_world; nm = m.to_3x3().inverted().transposed()
+        uvl = me.uv_layers.active.data if me.uv_layers.active else None
+        emis = 1 if kind == "glint" else 0
         for lt in me.loop_triangles:
             ws = [m @ me.vertices[i].co for i in lt.vertices]
             part = force or nearest_part((ws[0] + ws[1] + ws[2]) / 3)
             if part not in tris: part = "chest"
-            # fingers: nearest is the hand bone group anyway
             for k, vi in enumerate(lt.vertices):
                 n = (nm @ me.vertices[vi].normal).normalized()
-                c = col[vi].color
-                tris[part].append((ws[k], n, c, emis))
+                uv = uvl[lt.loops[k]].uv if (uvl and not emis) else (0.0, 0.0)
+                tris[part].append((ws[k], n, uv, emis))
+        if src is not o: bpy.data.objects.remove(src)
     for o in [body] + extra: add_obj(o)
     for o in HEAD_PARTS["head"]: add_obj(o, "head")
     for o in HEAD_PARTS["jaw"]: add_obj(o, "jaw")
@@ -482,7 +532,7 @@ def export():
     def mc(v): return (v.x, v.z, -v.y)        # blender -> minecraft (y up, faces +z)
     piv = {k: (JAW_PIVOT_W if k == "jaw" else J[PARTS[k][1]][0]) for k in order}
     with open(os.path.join(OUT, "shadow.mesh"), "wb") as f:
-        f.write(b"SHDW"); f.write(struct.pack("<i", len(order)))
+        f.write(b"SHD2"); f.write(struct.pack("<i", len(order)))
         for k in order:
             nb = k.encode(); f.write(struct.pack("<h", len(nb))); f.write(nb)
             par = PARTS[k][0]; f.write(struct.pack("<i", order.index(par) if par else -1))
@@ -491,7 +541,8 @@ def export():
             for (p, n, c, e) in tris[k]:
                 f.write(struct.pack("<3f", *mc(p)))
                 nn = mc(n); f.write(struct.pack("<3b", *[max(-127, min(127, int(round(x * 127)))) for x in nn]))
-                f.write(struct.pack("<4B", *[max(0, min(255, int(round((max(0, x) ** (1 / 2.2)) * 255)))) for x in c[:3]], e))
+                f.write(struct.pack("<2f", c[0], 1.0 - c[1]))
+                f.write(struct.pack("<B", e))
     hc = head_xf @ Vector((0, -0.05, 0))
     print("[SHADOW] head centre (mc coords, unscaled):", mc(hc))
     print("[SHADOW] height:", max(v.z for v in wv))
