@@ -44,6 +44,8 @@ public class ShadowEntity extends PathfinderMob {
     public static final int STARE_LIMIT = 60;
     /** Blender metres -> blocks for the mesh model (about 8 blocks tall) */
     public static final float MODEL_SCALE = 3.0F;
+    /** head centre in model metres (from the Blender export log) */
+    private static final double HEAD_UP = 2.145, HEAD_FWD = 0.71;
     private UUID targetId;
     private int stage;
     private int life;
@@ -162,10 +164,10 @@ public class ShadowEntity extends PathfinderMob {
 
     /** where the head is in the world (it hangs out in front of the body) */
     public Vec3 headPos() {
-        float s = 1.8F + Math.min(1F, getStare() / (float) STARE_LIMIT) * 0.45F;
-        double fwd = 19.6 / 16.0 * s;
+        float s = MODEL_SCALE * (1F + Math.min(1F, getStare() / (float) STARE_LIMIT) * 0.25F);
+        double fwd = HEAD_FWD * s;
         double rad = Math.toRadians(this.yBodyRot);
-        return new Vec3(this.getX() - Math.sin(rad) * fwd, this.getY() + 51.4 / 16.0 * s, this.getZ() + Math.cos(rad) * fwd);
+        return new Vec3(this.getX() - Math.sin(rad) * fwd, this.getY() + HEAD_UP * s, this.getZ() + Math.cos(rad) * fwd);
     }
 
     public boolean isWatchedBy(Player player) {
