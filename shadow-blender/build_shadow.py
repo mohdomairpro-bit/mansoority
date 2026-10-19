@@ -439,14 +439,14 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
         elif name == "bone":
             pale, rot = (0.36, 0.33, 0.27, 1), (0.12, 0.10, 0.07, 1)
         else:
-            pale, rot = (0.20, 0.165, 0.15, 1), (0.045, 0.03, 0.032, 1)
+            pale, rot = (0.78, 0.76, 0.70, 1), (0.42, 0.39, 0.35, 1)   # corpse-white, grey rot
         c = mix(pale, rot, ramp(big.outputs["Fac"], 0.38, 0.66))                         # big rotting blotches
-        c = mix(c, (0.0, 0.0, 0.0, 1), ramp(mid.outputs["Fac"], 0.5, 0.8), 'MIX')        # dark pores / grime
-        c = mix(c, (0.09, 0.01, 0.02, 1), ramp(vor.outputs["Distance"], 0.03, 0.0))      # dark red veins
+        c = mix(c, (0.18, 0.16, 0.15, 1), ramp(mid.outputs["Fac"], 0.55, 0.85), 'MIX')   # grime
+        c = mix(c, (0.30, 0.16, 0.22, 1), ramp(vor.outputs["Distance"], 0.025, 0.0))    # purple-grey veins under white skin
         c = mix(c, ramp(wave.outputs["Fac"], 0.0, 1.0), 0.35, 'MULTIPLY')                # stretched wrinkles
         if name == "skin":                                                               # old blood / dirt pooling low
             dirt = node("ShaderNodeTexNoise", Scale=11.0, Detail=5.0); L(co, dirt.inputs["Vector"])
-            c = mix(c, (0.13, 0.02, 0.015, 1), ramp(dirt.outputs["Fac"], 0.62, 0.72))
+            c = mix(c, (0.35, 0.05, 0.04, 1), ramp(dirt.outputs["Fac"], 0.64, 0.72))
         c = mix(c, ramp(ao.outputs["AO"], 0.0, 1.0), 0.8, 'MULTIPLY')                   # baked cavity shading
         base_out = c
     nt.links.new(base_out, bsdf.inputs["Base Color"])

@@ -89,7 +89,7 @@ public class ShadowEvents {
         CompoundTag data = p.getPersistentData();
         long now = p.level().getGameTime();
         if (data.contains(KEY_NEXT) && now < data.getLong(KEY_NEXT)) return;
-        if (p.getRandom().nextFloat() > 0.10F || ShadowEntity.anyNear(p, 160)) return;
+        if (p.getRandom().nextFloat() > 0.04F || ShadowEntity.anyNear(p, 160)) return;
         p.server.execute(() -> {
             ShadowEntity e = ShadowEntity.spawnAround(p, -1, p.getRandom().nextBoolean() ? 60 : -60, 3.5);
             if (e != null) warnAll(p);
@@ -112,7 +112,7 @@ public class ShadowEvents {
     private static boolean eligible(ServerPlayer p) {
         if (p.isCreative() || p.isSpectator() || p.isSleeping()) return false;
         if (isAfk(p)) return false;                                            // you have to actually be playing
-        if (p.tickCount < 2400) return false;                                  // just joined
+        if (p.tickCount < 24000) return false;                                 // first 20 min after joining: nothing
         // big fights only (normal mobs are fine): vanilla bosses, the boss tag, or anything with a huge health pool
         boolean boss = !p.serverLevel().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(80),
                 e -> !(e instanceof ShadowEntity) && e.isAlive() && (e instanceof EnderDragon || e instanceof WitherBoss
