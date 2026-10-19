@@ -255,7 +255,7 @@ public final class ClientFx {
                 int dw = (int) (Math.max(w, h * 16F / 9F) * zoom), dh = (int) (dw * 9F / 16F);
                 int ox = (w - dw) / 2 + (int) ((R.nextFloat() - 0.5F) * 24F);
                 int oy = (h - dh) / 2 + (int) ((R.nextFloat() - 0.5F) * 24F);
-                blend(); g.blit(JS_FRAME[Math.max(0, Math.min(JS_FRAMES - 1, frame))], ox, oy, dw, dh, 0F, 0F, 960, 540, 960, 540);
+                blend(); g.blit(JS_FRAME[Math.max(0, Math.min(JS_FRAMES - 1, frame))], ox, oy, dw, dh, 0F, 0F, 768, 432, 768, 432);
                 g.setColor(1F, 1F, 1F, 0.22F);
                 blend(); g.blit(STATIC, 0, 0, w, h, R.nextInt(128), R.nextInt(128), 128, 128, 256, 256);
                 g.setColor(1F, 1F, 1F, 1F);

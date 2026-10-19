@@ -246,7 +246,7 @@ gR = growth(Vector((0.06, -0.02, 0.10)), [Vector((0.06, 0.06, 0.05)), Vector((0.
 gR2 = growth(Vector((0.04, 0.03, 0.14)), [Vector((0.02, 0.05, 0.06)), Vector((0.0, 0.05, 0.04))], [0.008, 0.006, 0.002])
 for g_ in (gL, gL2, gL3, gR, gR2): apply_mods(g_)
 eyes = []
-EYE_R = [0.0165, 0.019]                          # uneven
+EYE_R = [0.0128, 0.0152]                          # uneven
 for (c, r), er in zip(SOCKETS, EYE_R):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=24, radius=er, location=c + Vector((0, 0.006, 0)))
     e_ = bpy.context.active_object; e_.name = "eye"
@@ -275,7 +275,7 @@ def mat_color(kind, co):
     if kind == "face":
         blot = 0.7 + 0.6 * (noise.noise(co * 9 + Vector((5, 2, 1))) * 0.5 + 0.5)
         vein = 1 - abs(noise.noise(co * 32))
-        c = Vector((0.36, 0.335, 0.30)) * blot * (1 + 0.2 * n)
+        c = Vector((0.25, 0.23, 0.20)) * blot * (1 + 0.2 * n)
         if vein > 0.94: c = c * 0.45 + Vector((0.05, 0.0, 0.02))
         return c
     if kind == "bone":   return Vector((0.30, 0.27, 0.22)) * (1 + 0.4 * n)
@@ -329,8 +329,8 @@ for o in ALL:
             d = (v.co - centre).normalized()
             fwd = (head_xf.to_3x3() @ Vector((0, -1, 0))).normalized()
             ang = math.acos(max(-1, min(1, d.dot(fwd))))
-            if ang < 0.16: c = Vector((0.0, 0.0, 0.0))                              # pinpoint pupil
-            elif ang < 0.42: c = Vector((0.22, 0.03, 0.02)) * (0.6 + 0.4 * (ang / 0.42))  # dark red iris
+            if ang < 0.30: c = Vector((0.0, 0.0, 0.0))                              # pinpoint pupil
+            elif ang < 0.55: c = Vector((0.20, 0.02, 0.015)) * (0.5 + 0.5 * (ang / 0.55))  # dark red iris
             else:
                 vein = 1 - abs(noise.noise(d * 14))
                 c = Vector((0.80, 0.72, 0.62)) * (1 - 0.35 * (ang / 1.6))
@@ -378,7 +378,7 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     return mt
 MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.32, 0.55, sss=0.08), "void": make_mat("void", 1.0, 0.0),
        "bone": make_mat("bone", 0.7, 0.3), "tooth": make_mat("tooth", 0.25, 0.7),
-       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.05, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=12)}
+       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.22, 0.6), "glint": make_mat("glint", 0.1, 0.5, emit=12)}
 for o in ALL:
     o.data.materials.clear(); o.data.materials.append(MAT[KIND[o.name]])
 
