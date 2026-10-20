@@ -5,9 +5,9 @@ license="All rights reserved"
 [[mods]]
 modId="theshadow"
 version="1.0.0"
-displayName="The Shadow"
+displayName="Mansoority"
 authors="Mansoority"
-description='''Something watches you on Mansoority. It can't hurt you. Don't look at it.'''
+description='''Mansoority is watching. Don't look at it.'''
 
 [[dependencies.theshadow]]
     modId="forge"

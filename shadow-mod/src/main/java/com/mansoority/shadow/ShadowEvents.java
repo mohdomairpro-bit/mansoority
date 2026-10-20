@@ -136,7 +136,8 @@ public class ShadowEvents {
     @SubscribeEvent
     public void onCommands(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> d = event.getDispatcher();
-        d.register(Commands.literal("shadow").requires(s -> s.hasPermission(2))
+        for (String root : new String[]{"mansoority", "shadow"})
+        d.register(Commands.literal(root).requires(s -> s.hasPermission(2))
                 .then(Commands.argument("action", StringArgumentType.word())
                         .suggests((c, b) -> {
                             for (String a : new String[]{"test", "stalk", "mimic", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
