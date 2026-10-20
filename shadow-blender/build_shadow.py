@@ -306,6 +306,14 @@ for i in range(22):
     yb = front_y(x, MOUTH_Z - 0.006)
     if yb is not None and abs(x) > 0.006:
         (lower if x < 0 else lowerR).append(tooth((x, yb + 0.009, MOUTH_Z - 0.004), random.uniform(0.008, 0.016), 0.0028, (0, -0.1, 1)))
+for sx in (-1, 1):
+    for k_ in range(3, 22, 2):
+        t_ = k_ / 23
+        gx = sx * (0.012 + 0.07 * t_); gz = MOUTH_Z + 0.002 + 0.05 * t_ ** 2.2
+        yf = front_y(gx, gz)
+        if yf is None: continue
+        upper.append(tooth((gx, yf + 0.005, gz + 0.0025), 0.006, 0.0022, (0, -0.2, -1)))
+        upper.append(tooth((gx, yf + 0.005, gz - 0.0025), 0.005, 0.002, (0, -0.2, 1)))
 # rings of teeth down the gullet
 for ring in range(4):
     zc = -0.055 - ring * 0.035; rr = 0.036 - ring * 0.004
@@ -354,7 +362,7 @@ for k in range(150):
 eyes, glints = [], []
 for c, r in SOCKETS:                                   # tiny pale points of light far back in the sockets
     yb = front_y(c.x, c.z)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=0.0017, location=(c.x, (yb if yb is not None else c.y) + 0.004, c.z - 0.003))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=0.0027, location=(c.x, (yb if yb is not None else c.y) + 0.0035, c.z - 0.003))
     glints.append(bpy.context.active_object)
 # branching spines sweeping up and back off the skull
 tendrils = []
@@ -410,7 +418,7 @@ def mat_color(kind, co):
     if kind == "bone":   return Vector((0.30, 0.27, 0.22)) * (1 + 0.4 * n)
     if kind == "tooth":  return Vector((0.55, 0.48, 0.32)) * (0.6 + 0.5 * (noise.noise(co * 300) * 0.5 + 0.5))
     if kind == "throat": return Vector((0.035, 0.002, 0.004))
-    if kind == "glint":  return Vector((1.0, 0.95, 0.85))
+    if kind == "glint":  return Vector((1.0, 0.88, 0.55))
     if kind == "claw":   return Vector((0.05, 0.04, 0.035))
     return Vector((0.5, 0.5, 0.5))
 
@@ -470,6 +478,19 @@ for o in ALL:
             for sc_, sr_ in SOCKETS:
                 c = c * (1 - 0.92 * g(lp, sc_ + Vector((0, 0.02, 0)), sr_ * 1.05))     # pitch-dark sockets
             c = c * (1 - 0.35 * g(lp, Vector((0, -0.105, -0.01)), 0.022))              # flat dip, no nose
+            for sc_, sr_ in SOCKETS:                                                   # raw red rims, tear-tracks of old blood
+                rim = g(lp, sc_, sr_ * 1.5) - g(lp, sc_, sr_ * 0.9)
+                c = c.lerp(Vector((0.20, 0.02, 0.03)), max(0.0, min(1.0, rim * 1.6)))
+                if lp.z < sc_.z and abs(lp.x - sc_.x - 0.004 * math.sin(lp.z * 80)) < 0.0035 * (1 + (sc_.z - lp.z) * 8) and sc_.z - lp.z < 0.07 and lp.y < 0:
+                    c = c.lerp(Vector((0.14, 0.004, 0.008)), 0.85 * (1 - (sc_.z - lp.z) / 0.07))
+            # closed mouth: a lipless grin carved far too wide, the corners hooking up toward the sockets
+            for sx in (-1, 1):
+                for k_ in range(24):
+                    t_ = k_ / 23
+                    gx = sx * (0.012 + 0.07 * t_); gz = MOUTH_Z + 0.002 + 0.05 * t_ ** 2.2
+                    dd = math.hypot(lp.x - gx, lp.z - gz)
+                    if dd < 0.0045 and lp.y < -0.01:
+                        c = c.lerp(Vector((0.03, 0.0, 0.004)), (1 - dd / 0.0045) * 0.95)
             c = c * (0.75 + 0.25 * max(0, min(1, (lp.z + 0.2) / 0.3)))
             front = 1 if lp.y < -0.02 else 0
             seam = max(max(0, 1 - abs(lp.x) / 0.006) * (1 if lp.z < MOUTH_Z else 0), max(0, 1 - abs(lp.z - MOUTH_Z) / 0.005)) * front
@@ -549,7 +570,7 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     return mt
 MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.6, 0.3, sss=0.05), "hair": make_mat("hair", 0.5, 0.4), "saliva": make_mat("saliva", 0.02, 1.0), "void": make_mat("void", 1.0, 0.0),
        "bone": make_mat("bone", 0.7, 0.3), "tooth": make_mat("tooth", 0.25, 0.7),
-       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=3), "claw": make_mat("claw", 0.3, 0.6)}
+       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=6), "claw": make_mat("claw", 0.3, 0.6)}
 for o in ALL:
     o.data.materials.clear(); o.data.materials.append(MAT[KIND[o.name]])
 
@@ -605,7 +626,7 @@ def bake_atlas(objs, size=2048):
     print("[SHADOW] atlas baked")
 
 # small/flat-coloured parts don't waste atlas space: they sample a painted swatch
-SOLID = {"glint": (1, 1, 1), "hair": (0.025, 0.02, 0.022), "void": (0, 0, 0), "throat": (0.14, 0.01, 0.01), "eye": (0.004, 0.004, 0.004), "claw": (0.06, 0.05, 0.045)}
+SOLID = {"glint": (1.0, 0.86, 0.5), "hair": (0.025, 0.02, 0.022), "void": (0, 0, 0), "throat": (0.14, 0.01, 0.01), "eye": (0.004, 0.004, 0.004), "claw": (0.06, 0.05, 0.045)}
 SWATCH = {k: (0.002 + i * 0.004, 0.998) for i, k in enumerate(SOLID)}
 DECIMATE = {"bone": 0.5, "skin": 0.13, "face": 0.16, "void": 0.1, "hair": 0.3, "throat": 0.25, "eye": 0.5, "tooth": 0.6, "claw": 0.6}
 
