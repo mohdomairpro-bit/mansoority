@@ -95,7 +95,17 @@ public final class AutoTest {
         if (t == 445) lookNear(mc, 28F);
         if (t == 455) shot(mc, "15_bedside");
         if (t == 470) { mc.options.hideGui = false; ClientFx.handle(FxPacket.of(FxPacket.SEQUENCE)); }
-        if (t == 560) { log("done"); mc.stop(); }
+        if (t == 560) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.serverLevel().getEntities(ShadowRegistry.SHADOW.get(), x -> true).forEach(Entity::discard);
+            sp.serverLevel().setDayTime(17000);
+            com.mansoority.shadow.ShadowCinematic.start(sp);
+            log("cinematic started");
+        });
+        int c = t - 560;
+        int[] at = {40, 120, 230, 300, 420, 470, 560, 640, 700, 780, 860, 960, 1060, 1200, 1300, 1420, 1500};
+        for (int i = 0; i < at.length; i++) if (c == at[i]) shot(mc, String.format("c%02d_cinematic", i));
+        if (t == 2200) { log("done"); mc.stop(); }
     }
 
     /** aim at the shadow's head, offset sideways by 'offset' degrees */
