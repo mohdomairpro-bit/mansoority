@@ -261,7 +261,7 @@ apply_mods(void)
 
 def tooth(loc, h, w, d):
     """needle tooth from loc pointing along d"""
-    bpy.ops.mesh.primitive_cone_add(vertices=7, radius1=w, radius2=w * random.uniform(0.08, 0.35), depth=h, location=(0, 0, 0))
+    bpy.ops.mesh.primitive_cone_add(vertices=5, radius1=w, radius2=w * random.uniform(0.08, 0.35), depth=h, location=(0, 0, 0))
     t = bpy.context.active_object
     d = (Vector(d).normalized() + Vector((random.uniform(-0.25, 0.25), random.uniform(-0.25, 0.25), random.uniform(-0.25, 0.25)))).normalized()
     rot = Vector((0, 0, 1)).rotation_difference(d).to_matrix()
@@ -563,7 +563,7 @@ def bake_atlas(objs, size=2048):
 # small/flat-coloured parts don't waste atlas space: they sample a painted swatch
 SOLID = {"glint": (1, 1, 1), "hair": (0.025, 0.02, 0.022), "void": (0, 0, 0), "throat": (0.14, 0.01, 0.01), "eye": (0.004, 0.004, 0.004), "claw": (0.06, 0.05, 0.045)}
 SWATCH = {k: (0.002 + i * 0.004, 0.998) for i, k in enumerate(SOLID)}
-DECIMATE = {"skin": 0.18, "face": 0.22, "void": 0.15, "hair": 0.5, "throat": 0.3, "eye": 0.5}
+DECIMATE = {"skin": 0.13, "face": 0.16, "void": 0.1, "hair": 0.3, "throat": 0.25, "eye": 0.5, "tooth": 0.6, "claw": 0.6}
 
 def export():
     # part per face: body faces go to nearest bone segment

@@ -39,6 +39,25 @@ final class ShadowPose {
         mouth += (breathe * 0.5F + 0.5F) * 0.035F;   // barely parts as it breathes
         armL.zRot += Mth.sin(age * 0.045F) * 0.03F;
         armR.zRot -= Mth.sin(age * 0.045F + 1.3F) * 0.03F;
+        // never quite still: weight shifts, the head drifts like it's listening, fingers curl and uncurl one hand at a time
+        ShadowMesh.Part hips = m.get("hips");
+        float sway = Mth.sin(age * 0.021F + id);
+        hips.zRot += sway * 0.035F; legL.zRot -= sway * 0.03F; legR.zRot -= sway * 0.03F;
+        head.zRot += Mth.sin(age * 0.013F + id * 0.7F) * 0.22F;
+        head.yRot += Mth.sin(age * 0.009F + id) * 0.15F;
+        handL.xRot += (Mth.sin(age * 0.05F) * 0.5F + 0.5F) * 0.35F;
+        handR.xRot += (Mth.sin(age * 0.037F + 2F) * 0.5F + 0.5F) * 0.35F;
+
+        // glimpse: half behind cover, leaning out, head tipped all the way over sideways to look at you
+        if (e.getStage() == 0 && stare <= 0F && e.getRush() <= 0) {
+            float side = (id & 1) == 0 ? 1F : -1F;
+            chest.zRot += 0.32F * side; neck.zRot += 0.25F * side; head.zRot += 0.95F * side;
+            hips.zRot -= 0.08F * side;
+            ShadowMesh.Part grip = side > 0 ? armR : armL;     // one long arm up, fingers wrapped round the cover
+            grip.xRot -= 1.5F; grip.zRot += 0.55F * side;
+            (side > 0 ? foreR : foreL).xRot -= 0.6F;
+            (side > 0 ? handR : handL).xRot += 0.9F;
+        }
 
         // twitches: head snaps sideways, fingers spasm, jaw clacks
         int win = (int) (age / 6F);
@@ -76,17 +95,26 @@ final class ShadowPose {
         // the chase: arms thrown forward, head down, jaw wide, legs pumping
         int rush = e.getRush();
         if (rush > 0) {
-            float k = Math.min(1F, rush / 5F);
-            head.xRot += 0.3F * k;
+            // drops onto all fours and comes at you - long arms as front legs, head level and locked on, horribly fast
+            float k = Math.min(1F, rush / 6F);
+            ShadowMesh.Part hips2 = m.get("hips");
+            float run = age * (1.2F + Math.min(1F, rush / 40F) * 0.9F);
+            hips2.xRot += 0.55F * k;
+            chest.xRot += 0.85F * k;
+            neck.xRot -= 0.9F * k;
+            head.xRot -= 0.55F * k;
             mouth += 1.4F * k;
-            armL.xRot -= 1.3F * k; armR.xRot -= 1.3F * k;
-            handL.xRot -= 0.6F * k; handR.xRot -= 0.6F * k;
-            float run = age * 1.5F;
-            legL.xRot += Mth.cos(run) * 0.9F * k;
-            legR.xRot += Mth.cos(run + Mth.PI) * 0.9F * k;
-            shinL.xRot += Math.max(0F, Mth.sin(run)) * 0.7F * k;
-            shinR.xRot += Math.max(0F, Mth.sin(run + Mth.PI)) * 0.7F * k;
-            head.zRot += (hash((int) age, id) - 0.5F) * 0.35F;
+            armL.xRot -= (1.25F + Mth.cos(run) * 0.75F) * k;
+            armR.xRot -= (1.25F + Mth.cos(run + Mth.PI) * 0.75F) * k;
+            foreL.xRot += Math.max(0F, Mth.sin(run)) * 0.6F * k;
+            foreR.xRot += Math.max(0F, Mth.sin(run + Mth.PI)) * 0.6F * k;
+            handL.xRot += 0.5F * k; handR.xRot += 0.5F * k;
+            legL.xRot += (0.35F + Mth.cos(run + Mth.PI) * 0.8F) * k;
+            legR.xRot += (0.35F + Mth.cos(run) * 0.8F) * k;
+            shinL.xRot += Math.max(0F, Mth.sin(run + Mth.PI)) * 0.8F * k;
+            shinR.xRot += Math.max(0F, Mth.sin(run)) * 0.8F * k;
+            chest.zRot += Mth.sin(run) * 0.08F * k;
+            head.zRot += (hash((int) age, id) - 0.5F) * 0.3F;
         }
 
         // the lower face splits down the middle and both halves swing out sideways

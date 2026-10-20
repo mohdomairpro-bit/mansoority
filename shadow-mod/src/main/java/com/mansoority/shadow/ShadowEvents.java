@@ -72,7 +72,9 @@ public class ShadowEvents {
         double roll = p.getRandom().nextDouble();
         warnAll(p);
         boolean day = ShadowEntity.isDaytimeFor(p);
-        if (roll < 0.50) {                                          // stalked (only ends in a chase at night)
+        if (roll < 0.14) {                                          // a familiar face where it shouldn't be
+            if (ShadowEntity.mimicFor(p) == null) soundEvent(p);
+        } else if (roll < 0.55) {                                   // stalked (only ends in a chase at night)
             if (ShadowEntity.spawnAround(p, 0, 180, 28) == null) soundEvent(p);
         } else if (day || roll < 0.96) {                            // just sounds / something wrong
             soundEvent(p);
@@ -137,7 +139,7 @@ public class ShadowEvents {
         d.register(Commands.literal("shadow").requires(s -> s.hasPermission(2))
                 .then(Commands.argument("action", StringArgumentType.word())
                         .suggests((c, b) -> {
-                            for (String a : new String[]{"test", "stalk", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
+                            for (String a : new String[]{"test", "stalk", "mimic", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
                             return b.buildFuture();
                         })
                         .executes(c -> run(c, c.getSource().getPlayerOrException()))
@@ -156,6 +158,10 @@ public class ShadowEvents {
             case "stalk" -> {
                 ShadowEntity e = ShadowEntity.spawnAround(p, 0, 180, 28);
                 reply(src, e != null ? "It's watching " + p.getScoreboardName() + " from behind." : "No room to spawn it there.");
+            }
+            case "mimic" -> {
+                ShadowEntity e = ShadowEntity.mimicFor(p);
+                reply(src, e != null ? "Someone's out there." : "No room to spawn it there.");
             }
             case "rush" -> {
                 ShadowEntity e = ShadowEntity.rushFrom(p, 24);

@@ -5,6 +5,12 @@ import com.mansoority.shadow.TheShadow;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.geom.ModelLayers;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.resources.DefaultPlayerSkin;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -22,9 +28,34 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     /** blender metres -> blocks. the model is ~2.6 m tall, so this makes it ~8 blocks */
     public static final float SCALE = ShadowEntity.MODEL_SCALE;
 
+    private final PlayerModel<ShadowEntity> wide, slim;
+
     public ShadowRenderer(EntityRendererProvider.Context ctx) {
         super(ctx);
         this.shadowRadius = 0F;
+        this.wide = new PlayerModel<>(ctx.bakeLayer(ModelLayers.PLAYER), false);
+        this.slim = new PlayerModel<>(ctx.bakeLayer(ModelLayers.PLAYER_SLIM), true);
+    }
+
+    /** wearing someone's skin. looks right at a distance. the head turns further than a neck should */
+    private void renderMimic(ShadowEntity e, float pt, PoseStack pose, MultiBufferSource buffers, int light) {
+        java.util.UUID id = e.getMimicId();
+        PlayerInfo info = Minecraft.getInstance().getConnection() != null ? Minecraft.getInstance().getConnection().getPlayerInfo(id) : null;
+        ResourceLocation skin = info != null ? info.getSkinLocation() : DefaultPlayerSkin.getDefaultSkin(id);
+        boolean isSlim = info != null ? "slim".equals(info.getModelName()) : "slim".equals(DefaultPlayerSkin.getSkinModelName(id));
+        PlayerModel<ShadowEntity> m = isSlim ? slim : wide;
+        float bodyYaw = Mth.rotLerp(pt, e.yBodyRotO, e.yBodyRot);
+        float headYaw = Mth.wrapDegrees(Mth.rotLerp(pt, e.yHeadRotO, e.yHeadRot) - bodyYaw);
+        float pos = e.walkAnimation.position(pt), spd = Math.min(1F, e.walkAnimation.speed(pt));
+        pose.pushPose();
+        pose.mulPose(Axis.YP.rotationDegrees(180F - bodyYaw));
+        pose.scale(-0.9375F, -0.9375F, 0.9375F);
+        pose.translate(0F, -1.501F, 0F);
+        m.young = false; m.riding = false; m.crouching = false; m.attackTime = 0F;
+        m.setupAnim(e, pos, spd, e.tickCount + pt, headYaw, 0F);
+        m.renderToBuffer(pose, buffers.getBuffer(RenderType.entityTranslucent(skin)), light, OverlayTexture.NO_OVERLAY, 1F, 1F, 1F, 1F);
+        pose.popPose();
+        if (!e.getMimicName().isEmpty()) this.renderNameTag(e, Component.literal(e.getMimicName()), pose, buffers, light);
     }
 
     @Override
@@ -34,6 +65,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
 
     @Override
     public void render(ShadowEntity e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+        if (e.isMimic()) { renderMimic(e, partialTick, pose, buffers, light); return; }
         ShadowMesh mesh = ShadowMesh.get();
         if (mesh == null || e.isHidden()) return;
         float age = e.tickCount + partialTick;

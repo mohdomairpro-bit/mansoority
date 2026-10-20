@@ -44,7 +44,10 @@ public class ShadowEntity extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DATA_RUSH = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> DATA_HIDDEN = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> DATA_STAGE = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
-    private int peek, hiddenFor;
+    private static final EntityDataAccessor<String> DATA_MIMIC = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<String> DATA_MIMIC_NAME = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.STRING);
+    public static final int STAGE_MIMIC = -2;
+    private int peek, hiddenFor, mimicStare;
 
     public static final int STARE_LIMIT = 60;
     /** Blender metres -> blocks for the mesh model (about 8 blocks tall) */
@@ -63,7 +66,7 @@ public class ShadowEntity extends PathfinderMob {
     public ShadowEntity(EntityType<? extends ShadowEntity> type, Level level) {
         super(type, level);
         this.xpReward = 0;
-        this.noCulling = true;
+        this.noCulling = false;        // frustum-culled: costs nothing while it's behind you
         this.setInvulnerable(true);
         this.setPersistenceRequired();
     }
@@ -85,6 +88,74 @@ public class ShadowEntity extends PathfinderMob {
         this.entityData.define(DATA_RUSH, 0);
         this.entityData.define(DATA_HIDDEN, false);
         this.entityData.define(DATA_STAGE, 0);
+        this.entityData.define(DATA_MIMIC, "");
+        this.entityData.define(DATA_MIMIC_NAME, "");
+    }
+
+    // ---------------------------------------------------------------- mimic: wears a player's face and walks around
+    public boolean isMimic() { return !this.entityData.get(DATA_MIMIC).isEmpty(); }
+    public UUID getMimicId() { try { return UUID.fromString(this.entityData.get(DATA_MIMIC)); } catch (Exception ex) { return new UUID(0, 0); } }
+    public String getMimicName() { return this.entityData.get(DATA_MIMIC_NAME); }
+    @Override
+    public AABB getBoundingBoxForCulling() { return this.getBoundingBox().inflate(5.0, 2.0, 5.0); }
+
+    public int getStage() { return this.entityData.get(DATA_STAGE); }
+
+    @Override
+    public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
+        return isMimic() ? net.minecraft.world.entity.EntityDimensions.scalable(0.6F, 1.8F) : super.getDimensions(pose);
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_MIMIC.equals(key)) this.refreshDimensions();
+    }
+
+    /** someone you know, standing somewhere they can't be. gone the moment anyone gets close */
+    public static ShadowEntity mimicFor(ServerPlayer p) {
+        ServerLevel level = p.serverLevel();
+        ServerPlayer copy = p;                                      // default: yourself
+        List<ServerPlayer> others = p.server.getPlayerList().getPlayers().stream()
+                .filter(o -> o != p && (o.level() != p.level() || o.distanceToSqr(p) > 150 * 150)).toList();
+        if (!others.isEmpty() && p.getRandom().nextFloat() < 0.8F) copy = others.get(p.getRandom().nextInt(others.size()));
+        BlockPos spot = spotAround(p, (p.getRandom().nextBoolean() ? 1 : -1) * (45 + p.getRandom().nextDouble() * 70), 26 + p.getRandom().nextDouble() * 10);
+        if (spot == null) return null;
+        ShadowEntity e = ShadowRegistry.SHADOW.get().create(level);
+        if (e == null) return null;
+        e.entityData.set(DATA_MIMIC, copy.getUUID().toString());
+        e.entityData.set(DATA_MIMIC_NAME, copy.getGameProfile().getName());
+        e.refreshDimensions();
+        e.moveTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, p.getRandom().nextFloat() * 360F, 0);
+        e.setTarget(p, STAGE_MIMIC);
+        level.addFreshEntity(e);
+        return e;
+    }
+
+    private void mimicTick(ServerPlayer p) {
+        ServerLevel sl = (ServerLevel) this.level();
+        for (ServerPlayer o : sl.players()) {
+            if (!o.isSpectator() && o.distanceToSqr(this) < 11 * 11) {   // too close: it's simply not there anymore
+                ui(o, ShadowRegistry.WHISPER, 0.45F, 0.7F);
+                this.discard();
+                return;
+            }
+        }
+        if (life > 20 * 150 || p.distanceToSqr(this) > 80 * 80) { this.discard(); return; }
+        if (mimicStare > 0) {                                     // stops dead. only the head turns. all the way round.
+            mimicStare--;
+            this.getNavigation().stop();
+            double dx = p.getX() - this.getX(), dz = p.getZ() - this.getZ();
+            this.yHeadRot = (float) (Mth.atan2(dz, dx) * (180F / Math.PI)) - 90F;
+            this.setXRot(0F);
+            return;
+        }
+        if (this.getNavigation().isDone() && life % 10 == 0) {
+            if (this.random.nextFloat() < 0.3F) { mimicStare = 60 + this.random.nextInt(120); return; }
+            double a = this.random.nextDouble() * Math.PI * 2, r = 5 + this.random.nextDouble() * 10;
+            BlockPos s = findStand(sl, this.getX() + Math.cos(a) * r, this.getY(), this.getZ() + Math.sin(a) * r, 5);
+            if (s != null) this.getNavigation().moveTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5, 0.42);
+        }
     }
 
     public int getStare() { return this.entityData.get(DATA_STARE); }
@@ -141,6 +212,7 @@ public class ShadowEntity extends PathfinderMob {
             this.discard();
             return;
         }
+        if (stage == STAGE_MIMIC) { mimicTick(player); return; }
         faceTowards(player);
 
         if (getRush() > 0) {
@@ -180,13 +252,18 @@ public class ShadowEntity extends PathfinderMob {
     private boolean stalkTick(ServerPlayer p) {
         if (isHidden()) {
             if (--hiddenFor > 0) return true;
-            double angle = 110 + this.random.nextDouble() * 140;
-            BlockPos spot = spotAround(p, angle, 30 + this.random.nextDouble() * 16);
+            BlockPos spot = null; int best = -1;
+            for (int i = 0; i < 5; i++) {                  // pick the darkest spot with the most cover (trees, walls)
+                BlockPos c = spotAround(p, 110 + this.random.nextDouble() * 140, 30 + this.random.nextDouble() * 16);
+                if (c == null) continue;
+                int sc = coverScore((ServerLevel) this.level(), c);
+                if (sc > best) { best = sc; spot = c; }
+            }
             if (spot == null) { hiddenFor = 100; return true; }
             this.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
             faceTowards(p);
             this.entityData.set(DATA_HIDDEN, false);
-            peek = 70 + this.random.nextInt(90);
+            peek = 50 + this.random.nextInt(70);
             if (this.random.nextFloat() < 0.4F) ui(p, ShadowRegistry.HEARTBEAT, 0.35F, 0.8F);
             return false;
         }
@@ -196,6 +273,15 @@ public class ShadowEntity extends PathfinderMob {
             return true;
         }
         return false;
+    }
+
+    private static int coverScore(ServerLevel level, BlockPos s) {
+        int cover = 0;
+        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) for (int dy = 1; dy <= 7; dy += 2) {
+            BlockPos q = s.offset(dx, dy, dz);
+            if (!level.getBlockState(q).isAir()) cover++;
+        }
+        return cover * 2 + (15 - level.getMaxLocalRawBrightness(s)) * 3;
     }
 
     /** players inside the ring around the victim (the victim always counts) */
