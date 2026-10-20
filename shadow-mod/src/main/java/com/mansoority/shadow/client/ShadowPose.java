@@ -15,6 +15,30 @@ final class ShadowPose {
         return ((h ^ (h >>> 16)) & 0xFFFF) / 65535F;
     }
 
+    /** the spider crouch: k = how far folded down, sc = scuttle amount */
+    static void spider(ShadowMesh m, float k, float sc, float age, int id) {
+        ShadowMesh.Part hips = m.get("hips"), chest = m.get("chest"), neck = m.get("neck"), head = m.get("head");
+        ShadowMesh.Part armL = m.get("armL"), armR = m.get("armR"), foreL = m.get("foreL"), foreR = m.get("foreR");
+        ShadowMesh.Part legL = m.get("legL"), legR = m.get("legR"), shinL = m.get("shinL"), shinR = m.get("shinR");
+        hips.ty -= 0.55F * k;
+        hips.xRot += 0.85F * k; chest.xRot += 0.45F * k;
+        neck.xRot -= 1.05F * k; head.xRot -= 0.85F * k;
+        legL.xRot -= 0.85F * k; legR.xRot -= 0.85F * k;
+        legL.zRot -= 0.95F * k; legR.zRot += 0.95F * k;
+        shinL.zRot += 0.9F * k; shinR.zRot -= 0.9F * k;
+        armL.zRot -= 0.75F * k; armR.zRot += 0.75F * k;
+        armL.xRot += 0.35F * k; armR.xRot += 0.35F * k;
+        foreL.zRot += 0.5F * k; foreR.zRot -= 0.5F * k;
+        if (sc > 0F) {
+            float run = age * 2.6F;
+            legL.xRot += Mth.sin(run) * 0.45F * sc;  armR.xRot += Mth.sin(run) * 0.45F * sc;
+            legR.xRot += Mth.sin(run + Mth.PI) * 0.45F * sc; armL.xRot += Mth.sin(run + Mth.PI) * 0.45F * sc;
+            shinL.xRot += Math.max(0F, Mth.cos(run)) * 0.5F * sc; shinR.xRot += Math.max(0F, Mth.cos(run + Mth.PI)) * 0.5F * sc;
+            hips.zRot += Mth.sin(run * 2F) * 0.05F * sc;
+            head.zRot += (hash((int) age, id) - 0.5F) * 0.2F * sc;
+        }
+    }
+
     static void apply(ShadowMesh m, ShadowEntity e, float age, float pt, net.minecraft.world.phys.Vec3 cam) {
         for (ShadowMesh.Part p : m.parts) p.reset();
         ShadowMesh.Part head = m.get("head"), jaw = m.get("jaw"), jawR = m.get("jawR"), neck = m.get("neck"), chest = m.get("chest");
@@ -50,10 +74,27 @@ final class ShadowPose {
 
         // glimpse: half behind cover, leaning out, head tipped all the way over sideways to look at you
         if (e.getStage() == 0 && e.getRush() <= 0) {
+            // lurking: folded low to the ground like it's trying to hide, only the head lifted to watch you
             float side = (id & 1) == 0 ? 1F : -1F;
-            float w = Math.min(1F, e.tickCount / 30F) * (1F - stare);
-            chest.zRot += 0.16F * side * w; neck.zRot += 0.14F * side * w; head.zRot += 0.6F * side * w;
-            hips.zRot -= 0.05F * side * w;
+            float w = 0.65F * (1F - stare * 0.6F);
+            spider(m, w, 0F, age, id);
+            head.zRot += 0.45F * side * (1F - stare);
+        }
+        // flee / drag: down on all fours, scuttling
+        if (e.getScuttle() > 0) spider(m, Math.min(1F, e.getScuttle() / 8F), 1F, age, id);
+        // the grab: one long arm reaching forward with you in its fingers; licking = head bent down to you, face splitting
+        int gr = e.getGrab();
+        if (gr > 0) {
+            float reach = Math.min(1F, (gr + pt) / 20F);
+            armR.xRot -= 1.35F * reach; foreR.xRot -= 0.35F * reach; handR.xRot += 0.9F * reach;
+            armR.zRot += 0.2F * reach;
+            if (e.getGrabMode() == ShadowEntity.GRAB_LICK) {
+                float lick = gr < 55 ? 0F : gr < 125 ? 1F : Math.max(0F, 1F - (gr - 125) / 20F);
+                armR.xRot -= 0.9F * Mth.clamp((gr - 22) / 33F, 0F, 1F) * (gr < 125 ? 1F : lick);
+                neck.xRot += 0.35F * lick; head.xRot += 0.35F * lick;
+                mouth += lick * (0.7F + 0.6F * Math.abs(Mth.sin((gr + pt) * 0.21F)));
+                head.zRot += Mth.sin((gr + pt) * 0.21F) * 0.25F * lick;
+            }
         }
 
         // twitches: head snaps sideways, fingers spasm, jaw clacks
@@ -136,7 +177,7 @@ final class ShadowPose {
         // vanishing: everything spasms
         int vanish = e.getVanish();
         if (vanish > 0) {
-            float v = vanish / 12F;
+            float v = Math.min(1F, vanish / 12F);
             ShadowMesh.Part[] all = {head, jaw, armL, armR, foreL, foreR, chest, neck};
             for (int i = 0; i < all.length; i++) {
                 all[i].xRot += (hash((int) age, i * 31 + id) - 0.5F) * 1.1F * v;

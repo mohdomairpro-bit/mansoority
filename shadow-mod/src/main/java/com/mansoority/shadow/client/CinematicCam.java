@@ -32,7 +32,8 @@ public final class CinematicCam {
             {"III.  DON'T LOOK AT IT", "the longer you stare, the closer it gets"},
             {"IV.  RUN", ""},
             {"V.  YOU SHOULD SLEEP", ""},
-            {"M A N S O O R I T Y", "it could be anyone"}};
+            {"M A N S O O R I T Y", "it could be anyone"},
+            {"VI.  IT WANTS A TASTE", "it always puts you back. mostly"}};
 
     public static boolean active() { return active; }
 

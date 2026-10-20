@@ -29,6 +29,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     public static final float SCALE = ShadowEntity.MODEL_SCALE;
 
     private final Mimic wide, slim;
+    private static int tint = 255;
 
     public ShadowRenderer(EntityRendererProvider.Context ctx) {
         super(ctx);
@@ -97,8 +98,16 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         ShadowPose.apply(mesh, e, age, partialTick, net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition());
         float bodyYaw = Mth.rotLerp(partialTick, e.yBodyRotO, e.yBodyRot);
         float grow = 1F + Math.min(1F, e.getStare() / (float) ShadowEntity.STARE_LIMIT) * 0.12F;
+        // pulled into the portal: shrinks and twists away
+        float vt = e.getVanish() > 0 ? Mth.clamp((e.getVanish() + partialTick - 8F) / 18F, 0F, 1F) : 0F;
+        grow *= 1F - vt * vt * (3F - 2F * vt) * 0.97F;
+        // while it's lurking it's a pale shape in the dark, not a lit-up white statue
+        float wantTint = e.getStage() == 0 && e.getRush() <= 0 ? 0.38F + e.smoothStare * 0.62F : 1F;
+        e.tint += (wantTint - e.tint) * 0.1F;
+        tint = (int) (255 * e.tint);
         pose.pushPose();
-        pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw));
+        pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw + vt * vt * 540F));
+        if (vt > 0F) pose.translate(0F, e.getBbHeight() * 0.5F * vt, 0F);
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);
         VertexConsumer solid = buffers.getBuffer(RenderType.entityCutoutNoCull(ATLAS));
         for (ShadowMesh.Part root : mesh.roots) draw(root, pose, solid, light, false);
@@ -123,7 +132,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
             for (int k = 0; k < 4; k++) {
                 int v = t * 3 + Math.min(k, 2);      // triangle sent as a quad with the last corner repeated
                 vc.vertex(m, p.pos[v * 3], p.pos[v * 3 + 1], p.pos[v * 3 + 2])
-                        .color(255, 255, 255, 255)
+                        .color(glowPass ? 255 : tint, glowPass ? 255 : tint, glowPass ? 255 : tint, 255)
                         .uv(glowPass ? 0.5F : p.uv[v * 2], glowPass ? 0.5F : p.uv[v * 2 + 1])
                         .overlayCoords(OverlayTexture.NO_OVERLAY)
                         .uv2(light)

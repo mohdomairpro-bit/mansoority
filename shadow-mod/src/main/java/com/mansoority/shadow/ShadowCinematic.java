@@ -114,7 +114,16 @@ public final class ShadowCinematic {
                 if (t == 140 && r.cur != null) { r.cur.scriptStare(0); r.cur.startVanish(); }
                 if (t >= 170) { r.cur = null; next(r); }
             }
-            case 7 -> {                                   // ending: crane up over the black trails
+            case 7 -> {                                   // VI. it wants a taste: lifted up to its face
+                if (t == 0) {
+                    r.cur = ShadowEntity.grab(p, ShadowEntity.GRAB_LICK);
+                    cam(p, WIDE, 9, 2.0, 0, r.cur, 7);
+                }
+                if (t == 60) cam(p, ORBIT, 9, 6.5, 0.012, null, -1);
+                if ((r.cur == null || !r.cur.isAlive()) && t > 10) { r.cur = null; next(r); }
+                if (t > 400) next(r);
+            }
+            case 8 -> {                                   // ending: crane up over the black trails
                 if (t == 0) { cam(p, CRANE, 3, 22, 0, null, 6); ShadowEntity.ui(p, ShadowRegistry.DRONE, 1F, 0.55F); }
                 if (t >= 200) { stop(p); }
             }

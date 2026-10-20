@@ -47,6 +47,11 @@ public final class ClientFx {
     private static float stare;                 // 0..1 how hard you're staring at it right now
     private static boolean rushing;             // it's running at you
     private static float lightsOut;             // 0..1 extra darkness for the 'lights out' event
+    private static final ResourceLocation HAND = new ResourceLocation(TheShadow.MODID, "textures/gui/hand.png");
+    private static final ResourceLocation DROOL = new ResourceLocation(TheShadow.MODID, "textures/gui/drool.png");
+    private static int turnT = -1, turnId = -1;  // a hand turning your head
+    private static boolean turnLeft;
+    private static float drool;                  // 0..1 wet smear on the screen
 
     // ------------------------------------------------------------------ packets
     public static void handle(FxPacket p) {
@@ -58,6 +63,16 @@ public final class ClientFx {
             case FxPacket.SOUND_AT -> at(sound(p.sound), p.x, p.y, p.z, p.volume, p.pitch);
             case FxPacket.SEQUENCE -> { seq = p.sound; seqTick = 0; }
             case FxPacket.CAM -> CinematicCam.handle(p);
+            case FxPacket.TURN -> {
+                turnT = 0; turnId = (int) p.volume;
+                Minecraft mc = Minecraft.getInstance();
+                Entity t = mc.level != null ? mc.level.getEntity(turnId) : null;
+                if (t != null && mc.player != null) {
+                    float want = (float) (Mth.atan2(t.getZ() - mc.player.getZ(), t.getX() - mc.player.getX()) * (180F / Math.PI)) - 90F;
+                    turnLeft = Mth.wrapDegrees(want - mc.player.getYRot()) < 0;
+                }
+            }
+            case FxPacket.LICK -> drool = 1F;
             default -> {}
         }
         if (p.kind == FxPacket.JUMPSCARE || p.kind == FxPacket.JUMPSCARE_NOW) mc.getSoundManager().stop();
@@ -83,6 +98,18 @@ public final class ClientFx {
         if (pl == null) return;
         double a = Math.toRadians(pl.getYRot() + angle);
         at(s, pl.getX() - Math.sin(a) * dist, pl.getEyeY() + up, pl.getZ() + Math.cos(a) * dist, volume, pitch);
+    }
+
+    private static void lockGrab(Minecraft mc, ShadowEntity s) {
+        net.minecraft.world.phys.Vec3 eye = mc.player.getEyePosition();
+        double hy = s.getY() + s.getBbHeight() * 0.72;
+        double dx = s.getX() - eye.x, dz = s.getZ() - eye.z, dy = hy - eye.y;
+        float want = (float) (Mth.atan2(dz, dx) * (180F / Math.PI)) - 90F;
+        float wantP = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * (180F / Math.PI));
+        float d = Mth.wrapDegrees(mc.player.getYRot() - want);
+        if (Math.abs(d) > 25F) mc.player.setYRot(want + Math.copySign(25F, d));
+        float pd = mc.player.getXRot() - wantP;
+        if (Math.abs(pd) > 25F) mc.player.setXRot(Mth.clamp(wantP + Math.copySign(25F, pd), -90F, 90F));
     }
 
     /** during the rush you can't look away: your view is held within 45 degrees of it */
@@ -130,6 +157,23 @@ public final class ClientFx {
         stare += (target - stare) * 0.25F;
 
         CinematicCam.tick();
+        if (drool > 0F) drool = Math.max(0F, drool - 0.008F);
+        if (turnT >= 0) {
+            turnT++;
+            Entity t = mc.level.getEntity(turnId);
+            if (t != null && turnT >= 6 && turnT < 28) {          // the hand pulls your head round to face it
+                net.minecraft.world.phys.Vec3 eye = mc.player.getEyePosition();
+                double dx = t.getX() - eye.x, dz = t.getZ() - eye.z, dy = t.getY() + t.getBbHeight() * 0.7 - eye.y;
+                float want = (float) (Mth.atan2(dz, dx) * (180F / Math.PI)) - 90F;
+                float wantP = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * (180F / Math.PI));
+                float ny = mc.player.getYRot() + Mth.wrapDegrees(want - mc.player.getYRot()) * 0.28F;
+                float np = mc.player.getXRot() + (wantP - mc.player.getXRot()) * 0.28F;
+                mc.player.setYRot(ny); mc.player.setXRot(np);
+            }
+            if (turnT > 34) turnT = -1;
+        }
+        // being held: you can only look at its face
+        if (mc.player.getVehicle() instanceof ShadowEntity holder) lockGrab(mc, holder);
         if (js >= 0) tickJumpscare(mc);
         if (seq >= 0) tickSequence(mc);
     }
@@ -226,7 +270,7 @@ public final class ClientFx {
     }
 
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
-        js = -1; seq = -1; stare = 0; lightsOut = 0; rushing = false;
+        js = -1; seq = -1; stare = 0; lightsOut = 0; rushing = false; turnT = -1; drool = 0F;
         CinematicCam.onLogout();
     }
 
@@ -297,6 +341,26 @@ public final class ClientFx {
                 g.setColor(1F, 1F, 1F, 1F);
                 if (t == SCARE_AT + 1 || t == SCARE_AT + 2) g.fill(0, 0, w, h, 0x50FFFFFF);   // flash
             }
+        }
+        // the wet smear after it licks you
+        if (drool > 0F) {
+            g.setColor(1F, 1F, 1F, Math.min(1F, drool * 1.3F));
+            int slide = (int) ((1F - drool) * h * 0.25F);
+            blend(); g.blit(DROOL, 0, slide, w, h, 0F, 0F, 512, 288, 512, 288);
+            g.setColor(1F, 1F, 1F, 1F);
+        }
+        // a long pale hand reaches in from the side, takes your head, turns it
+        if (turnT >= 0) {
+            float t = turnT + partialTick;
+            float in = t < 6F ? t / 6F : t < 26F ? 1F : Math.max(0F, 1F - (t - 26F) / 8F);
+            in = in * in * (3F - 2F * in);
+            int hs = (int) (h * 1.15F);
+            int x = (int) (-hs + in * hs * 0.78F);
+            int y = (int) (h * 0.5F - hs * 0.5F + Mth.sin(t * 0.9F) * 3F);
+            g.pose().pushPose();
+            if (!turnLeft) { g.pose().translate(w, 0, 0); g.pose().scale(-1F, 1F, 1F); }
+            blend(); g.blit(HAND, x, y, hs, hs, 0F, 0F, 512, 512, 512, 512);
+            g.pose().popPose();
         }
         RenderSystem.disableBlend();
     }

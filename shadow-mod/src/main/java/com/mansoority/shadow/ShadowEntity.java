@@ -46,11 +46,20 @@ public class ShadowEntity extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DATA_STAGE = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<String> DATA_MIMIC = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<String> DATA_MIMIC_NAME = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.STRING);
-    public static final int STAGE_MIMIC = -2;
+    private static final EntityDataAccessor<Integer> DATA_GRAB = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_GRAB_MODE = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_SCUTTLE = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
+    public static final int STAGE_MIMIC = -2, STAGE_GRAB = -3, STAGE_FLEE = -4;
+    public static final int GRAB_LICK = 0, GRAB_DRAG = 1, VANISH_LEN = 34;
+    /** players currently in its hand: nothing can hurt them while it holds them */
+    public static final Set<UUID> GRABBED = new HashSet<>();
+    private Vec3 grabHome, fleeDir;
+    private int lastTurn = -9999;
+    private boolean seenPeek;
     private int peek, hiddenFor, mimicStare;
     private final java.util.List<Vec3> path = new java.util.ArrayList<>();
     /** client-side smoothed pose drivers (no snapping between states) */
-    public float smoothStare, smoothRush;
+    public float smoothStare, smoothRush, tint = 1F;
     /** driven by the /shadow cinematic script instead of its own brain */
     public boolean scripted, noHarm;
     public void scriptStare(int v) { this.entityData.set(DATA_STARE, v); }
@@ -96,6 +105,9 @@ public class ShadowEntity extends PathfinderMob {
         this.entityData.define(DATA_HIDDEN, false);
         this.entityData.define(DATA_STAGE, 0);
         this.entityData.define(DATA_MIMIC, "");
+        this.entityData.define(DATA_GRAB, 0);
+        this.entityData.define(DATA_GRAB_MODE, 0);
+        this.entityData.define(DATA_SCUTTLE, 0);
         this.entityData.define(DATA_MIMIC_NAME, "");
     }
 
@@ -105,6 +117,128 @@ public class ShadowEntity extends PathfinderMob {
     public String getMimicName() { return this.entityData.get(DATA_MIMIC_NAME); }
     @Override
     public AABB getBoundingBoxForCulling() { return this.getBoundingBox().inflate(5.0, 2.0, 5.0); }
+
+    public int getGrab() { return this.entityData.get(DATA_GRAB); }
+    public int getGrabMode() { return this.entityData.get(DATA_GRAB_MODE); }
+    public int getScuttle() { return this.entityData.get(DATA_SCUTTLE); }
+
+    // ---------------------------------------------------------------- the grab: picks you up, then licks you or drags you off
+    public static ShadowEntity grab(ServerPlayer p, int mode) {
+        ShadowEntity e = spawnAround(p, STAGE_GRAB, 180, 4.5);
+        if (e == null) return null;
+        e.entityData.set(DATA_GRAB_MODE, mode);
+        e.reveal();
+        e.noPhysics = true; e.setNoGravity(true);
+        if (mode == GRAB_DRAG) {
+            double a = Math.toRadians(p.getYRot() + 180 + (e.random.nextDouble() - 0.5) * 90);
+            e.fleeDir = new Vec3(-Math.sin(a), 0, Math.cos(a));
+        }
+        return e;
+    }
+
+    /** where the victim hangs: in its hand, in front of it. same maths on both sides so the client sees it smoothly */
+    public Vec3 grabOffset() {
+        int g = getGrab();
+        double fwd, up;
+        if (getGrabMode() == GRAB_LICK) {
+            double lift = g < 22 ? 0 : g < 55 ? (g - 22) / 33.0 : g < 125 ? 1 : Math.max(0, 1 - (g - 125) / 25.0);
+            lift = lift * lift * (3 - 2 * lift);
+            fwd = 2.4 + lift * 0.6;
+            up = 1.0 + lift * 6.4 + (g >= 55 && g < 125 ? Math.sin(g * 0.25) * 0.15 : 0);
+        } else { fwd = 3.4; up = 0.5 + (g > 22 ? Math.abs(Math.sin(g * 0.45)) * 0.35 : 0); }
+        double yaw = Math.toRadians(this.getYRot());
+        return new Vec3(-Math.sin(yaw) * fwd, up, Math.cos(yaw) * fwd);
+    }
+
+    @Override
+    protected void positionRider(Entity passenger, Entity.MoveFunction move) {
+        if (getGrab() > 0) {
+            Vec3 o = grabOffset();
+            move.accept(passenger, this.getX() + o.x, this.getY() + o.y, this.getZ() + o.z);
+        } else super.positionRider(passenger, move);
+    }
+
+    @Override public boolean shouldRiderSit() { return false; }
+
+    private void grabTick(ServerPlayer p) {
+        int g = getGrab() + 1;
+        this.entityData.set(DATA_GRAB, g);
+        int mode = getGrabMode();
+        int end = mode == GRAB_LICK ? 150 : 170;
+        if (mode == GRAB_DRAG && g > 30 && fleeDir != null) {            // scuttles off with you
+            this.entityData.set(DATA_SCUTTLE, g);
+            double nx = this.getX() + fleeDir.x * 0.38, nz = this.getZ() + fleeDir.z * 0.38;
+            BlockPos s = findStand((ServerLevel) this.level(), nx, this.getY(), nz, 4);
+            double ny = s != null ? this.getY() + (s.getY() - this.getY()) * 0.3 : this.getY();
+            this.setPos(nx, ny, nz);
+            float yaw = (float) (Mth.atan2(fleeDir.z, fleeDir.x) * (180F / Math.PI)) - 90F;
+            this.setYRot(yaw); this.yBodyRot = yaw; this.yHeadRot = yaw;
+            if (g % 3 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.2F + this.random.nextFloat() * 0.4F);
+        } else faceTowards(p);
+        if (g == 1) { turnHead(p); ui(p, ShadowRegistry.BREATH, 1F, 0.6F); }
+        if (g == 22) {
+            grabHome = p.position();
+            GRABBED.add(p.getUUID());
+            p.startRiding(this, true);
+            ui(p, ShadowRegistry.HIT, 1F, 0.8F);
+            ui(p, ShadowRegistry.STINGER, 1F, 0.8F);
+        }
+        if (g > 22 && g < end && !p.isPassenger()) p.startRiding(this, true);   // you can't wriggle free
+        if (mode == GRAB_LICK && g >= 60 && g < 122 && (g - 60) % 15 == 0) {
+            this.level().playSound(null, p.getX(), p.getY(), p.getZ(), net.minecraft.sounds.SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 1.6F, 0.55F);
+            this.level().playSound(null, p.getX(), p.getY(), p.getZ(), net.minecraft.sounds.SoundEvents.HONEY_BLOCK_SLIDE, SoundSource.HOSTILE, 1.4F, 0.5F);
+            ShadowNet.send(p, FxPacket.of(FxPacket.LICK));
+            ((ServerLevel) this.level()).sendParticles(net.minecraft.core.particles.ParticleTypes.FALLING_WATER, p.getX(), p.getY() + 1.2, p.getZ(), 14, 0.4, 0.5, 0.4, 0);
+        }
+        if (mode == GRAB_LICK && g == 58) ui(p, ShadowRegistry.BREATH, 1F, 0.45F);
+        if (g >= end) {
+            p.stopRiding();
+            Vec3 drop = mode == GRAB_LICK && grabHome != null ? grabHome : p.position();
+            BlockPos s = findStand((ServerLevel) this.level(), drop.x, drop.y, drop.z, 8);
+            if (s != null) p.teleportTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5);
+            p.fallDistance = 0;
+            GRABBED.remove(p.getUUID());
+            if (mode == GRAB_DRAG) ui(p, ShadowRegistry.STATIC, 1F, 0.7F);
+            startVanish();
+        }
+    }
+
+    /** you weren't looking: a hand takes your head and turns it toward it */
+    public void turnHead(ServerPlayer p) {
+        lastTurn = life;
+        ShadowNet.send(p, new FxPacket(FxPacket.TURN, 0, 0, 0, 0, this.getId(), 0));
+        ui(p, ShadowRegistry.SNAP, 1F, 0.8F);
+    }
+
+    /** a mimic you walked up to: drops the act, turns back into itself and runs */
+    private void unmask(ServerPlayer near) {
+        this.entityData.set(DATA_MIMIC, "");
+        this.entityData.set(DATA_MIMIC_NAME, "");
+        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) this.setItemSlot(slot, net.minecraft.world.item.ItemStack.EMPTY);
+        this.refreshDimensions();
+        this.getNavigation().stop();
+        stage = STAGE_FLEE; this.entityData.set(DATA_STAGE, stage);
+        this.noPhysics = true; this.setNoGravity(true);
+        Vec3 away = this.position().subtract(near.position()).multiply(1, 0, 1);
+        fleeDir = away.lengthSqr() < 0.01 ? new Vec3(1, 0, 0) : away.normalize();
+        soundAround(ShadowRegistry.SCREAM, 3.0F, 0.9F);
+        soundAround(ShadowRegistry.SNAP, 3.0F, 0.5F);
+        ((ServerLevel) this.level()).sendParticles(ShadowRegistry.WISP.get(), this.getX(), this.getY() + 1, this.getZ(), 30, 0.6, 1, 0.6, 0);
+        life = 0;
+    }
+
+    private void fleeTick() {
+        this.entityData.set(DATA_SCUTTLE, life + 8);
+        if (life > 70) { startVanish(); return; }
+        double sp = Math.min(0.6, 0.15 + life * 0.02);
+        double nx = this.getX() + fleeDir.x * sp, nz = this.getZ() + fleeDir.z * sp;
+        BlockPos s = findStand((ServerLevel) this.level(), nx, this.getY(), nz, 4);
+        double ny = s != null ? this.getY() + (s.getY() - this.getY()) * 0.3 : this.getY();
+        this.setPos(nx, ny, nz);
+        float yaw = (float) (Mth.atan2(fleeDir.z, fleeDir.x) * (180F / Math.PI)) - 90F;
+        this.setYRot(yaw); this.yBodyRot = yaw; this.yHeadRot = yaw;
+        if (life % 3 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.4F);
+    }
 
     public int getStage() { return this.entityData.get(DATA_STAGE); }
 
@@ -146,9 +280,8 @@ public class ShadowEntity extends PathfinderMob {
     private void mimicTick(ServerPlayer p) {
         ServerLevel sl = (ServerLevel) this.level();
         for (ServerPlayer o : sl.players()) {
-            if (!o.isSpectator() && o.distanceToSqr(this) < 11 * 11) {   // too close: it's simply not there anymore
-                ui(o, ShadowRegistry.WHISPER, 0.45F, 0.7F);
-                this.discard();
+            if (!o.isSpectator() && o.distanceToSqr(this) < 11 * 11) {   // too close: the act drops
+                unmask(o);
                 return;
             }
         }
@@ -216,6 +349,8 @@ public class ShadowEntity extends PathfinderMob {
 
     @Override
     public void remove(RemovalReason reason) {
+        for (Entity pass : this.getPassengers()) { GRABBED.remove(pass.getUUID()); pass.fallDistance = 0; }
+        this.ejectPassengers();
         if (!this.level().isClientSide && this.level() instanceof ServerLevel sl && reason != RemovalReason.CHANGED_DIMENSION) {
             path.add(this.position());
             ShadowTrails.add(sl, path);
@@ -232,7 +367,7 @@ public class ShadowEntity extends PathfinderMob {
         int vanish = getVanish();
         if (vanish > 0) {
             this.entityData.set(DATA_VANISH, vanish + 1);
-            if (vanish >= 12) finishVanish();
+            if (vanish >= VANISH_LEN) finishVanish();
             return;
         }
         ServerPlayer player = targetId == null ? null : (ServerPlayer) this.level().getPlayerByUUID(targetId);
@@ -241,6 +376,8 @@ public class ShadowEntity extends PathfinderMob {
             this.discard();
             return;
         }
+        if (stage == STAGE_GRAB) { grabTick(player); return; }
+        if (stage == STAGE_FLEE) { fleeTick(); return; }
         if (scripted) { faceTowards(player); return; }
         if (stage == STAGE_MIMIC) { mimicTick(player); return; }
         faceTowards(player);
@@ -267,6 +404,7 @@ public class ShadowEntity extends PathfinderMob {
                 for (ServerPlayer m : inside) calm(m);
             }
             unseen++;
+            if (stage >= 1 && unseen > 20 * 7 && life - lastTurn > 20 * 25) turnHead(player);
             creep(player);
         }
 
@@ -293,9 +431,15 @@ public class ShadowEntity extends PathfinderMob {
             this.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
             faceTowards(p);
             this.entityData.set(DATA_HIDDEN, false);
-            peek = 50 + this.random.nextInt(70);
+            peek = 90 + this.random.nextInt(80);
+            seenPeek = false;
             if (this.random.nextFloat() < 0.4F) ui(p, ShadowRegistry.HEARTBEAT, 0.35F, 0.8F);
             return false;
+        }
+        if (getStare() > 0) seenPeek = true;
+        if (peek == 1 && !seenPeek && life - lastTurn > 20 * 60 && this.random.nextFloat() < 0.4F) {   // you never noticed it: it makes you
+            turnHead(p);
+            peek += 70;
         }
         if (getStare() == 0 && --peek <= 0) {        // nobody noticed: slip away quietly
             this.entityData.set(DATA_HIDDEN, true);
@@ -306,12 +450,13 @@ public class ShadowEntity extends PathfinderMob {
     }
 
     private static int coverScore(ServerLevel level, BlockPos s) {
-        int cover = 0;
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) for (int dy = 1; dy <= 7; dy += 2) {
-            BlockPos q = s.offset(dx, dy, dz);
-            if (!level.getBlockState(q).isAir()) cover++;
+        int side = 0, over = 0;
+        for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
+            boolean ring = Math.abs(dx) >= 2 || Math.abs(dz) >= 2;
+            for (int dy = 0; dy <= 3; dy++) if (ring && !level.getBlockState(s.offset(dx, dy, dz)).isAir()) side++;
         }
-        return cover * 2 + (15 - level.getMaxLocalRawBrightness(s)) * 3;
+        for (int dy = 2; dy <= 10; dy++) if (!level.getBlockState(s.above(dy)).isAir()) over++;
+        return side * 2 - over * 6 + (15 - level.getMaxLocalRawBrightness(s)) * 3;
     }
 
     /** players inside the ring around the victim (the victim always counts) */
@@ -541,7 +686,8 @@ public class ShadowEntity extends PathfinderMob {
     }
 
     private void finishVanish() {
-        burst();
+        if (this.level() instanceof ServerLevel sl)
+            sl.sendParticles(net.minecraft.core.particles.ParticleTypes.WHITE_ASH, this.getX(), this.getY() + this.getBbHeight() * 0.5, this.getZ(), 40, 1.2, this.getBbHeight() * 0.25, 1.2, 0.02);
         soundAround(ShadowRegistry.STATIC, 1.5F, 1.3F);
         this.discard();
     }

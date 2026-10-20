@@ -74,6 +74,10 @@ public class ShadowEvents {
         double roll = p.getRandom().nextDouble();
         warnAll(p);
         boolean day = ShadowEntity.isDaytimeFor(p);
+        if (roll >= 0.55 && roll < 0.63 && !day) {                  // rare, night only: it picks you up
+            if (ShadowEntity.grab(p, p.getRandom().nextBoolean() ? ShadowEntity.GRAB_LICK : ShadowEntity.GRAB_DRAG) == null) soundEvent(p);
+            return;
+        }
         if (roll < 0.14) {                                          // a familiar face where it shouldn't be
             if (ShadowEntity.mimicFor(p) == null) soundEvent(p);
         } else if (roll < 0.55) {                                   // stalked (only ends in a chase at night)
@@ -98,6 +102,12 @@ public class ShadowEvents {
         warnAll(p);
         data.putLong(KEY_NEXT, now + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
         return true;
+    }
+
+    /** nothing hurts you while it's holding you (falling, suffocating in a wall, mobs) */
+    @SubscribeEvent
+    public void onAttack(net.minecraftforge.event.entity.living.LivingAttackEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p && (ShadowEntity.GRABBED.contains(p.getUUID()) || ShadowCinematic.running(p))) event.setCanceled(true);
     }
 
     private static final String[] WARNINGS = {
@@ -142,7 +152,7 @@ public class ShadowEvents {
         d.register(Commands.literal(root).requires(s -> s.hasPermission(2))
                 .then(Commands.argument("action", StringArgumentType.word())
                         .suggests((c, b) -> {
-                            for (String a : new String[]{"cinematic", "test", "stalk", "mimic", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
+                            for (String a : new String[]{"cinematic", "test", "stalk", "mimic", "grab", "lick", "drag", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
                             return b.buildFuture();
                         })
                         .executes(c -> run(c, c.getSource().getPlayerOrException()))
@@ -165,6 +175,12 @@ public class ShadowEvents {
             case "cinematic" -> {
                 ShadowCinematic.start(p);
                 reply(src, "Lights down. Starring " + p.getScoreboardName() + ".");
+            }
+            case "grab", "lick", "drag" -> {
+                int mode = action.equals("drag") ? ShadowEntity.GRAB_DRAG : action.equals("lick") ? ShadowEntity.GRAB_LICK
+                        : (p.getRandom().nextBoolean() ? ShadowEntity.GRAB_LICK : ShadowEntity.GRAB_DRAG);
+                ShadowEntity e = ShadowEntity.grab(p, mode);
+                reply(src, e != null ? "Don't turn around." : "No room to spawn it there.");
             }
             case "mimic" -> {
                 ShadowEntity e = ShadowEntity.mimicFor(p);
