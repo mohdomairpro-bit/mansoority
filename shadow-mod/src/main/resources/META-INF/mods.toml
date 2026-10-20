@@ -6,6 +6,8 @@ license="All rights reserved"
 modId="theshadow"
 version="1.0.0"
 displayName="Mansoority"
+logoFile="mansoority_logo.png"
+logoBlur=false
 authors="Mansoority"
 description='''Mansoority is watching. Don't look at it.'''
 
@@ -22,3 +24,8 @@ description='''Mansoority is watching. Don't look at it.'''
     versionRange="[1.20.1,1.21)"
     ordering="NONE"
     side="BOTH"
+
+# Catalogue (Forge mod-menu) icon + banner
+[modproperties.theshadow]
+    catalogueImageIcon="mansoority_icon.png"
+    catalogueBackground="mansoority_logo.png"
