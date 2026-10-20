@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: shadow-blender
+  cancel-in-progress: true
 jobs:
   render:
     runs-on: ubuntu-latest
