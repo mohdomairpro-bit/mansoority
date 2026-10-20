@@ -122,30 +122,39 @@ def seg_t(p, a, b):
 def sculpt_body(ob):
     me = ob.data
     S1, S2, S3 = J["spine1"][0], J["spine2"][0], J["spine3"][0]
-    knobs = [J[n][0] for n in J if n[:-1] in ("elbow", "knee", "joint2", "wrist", "ankle")]
+    knobs = [(J[n][0], J[n][1]) for n in J if n[:-1] in ("elbow", "knee", "joint2", "wrist", "ankle", "shoulder")]
+    limbs = [(J[a][0], J[b][0], J[a][1]) for _, a, b in BONES if a and b and a[:-1] in ("shoulder", "elbow", "joint2", "hip", "knee")]
     for v in me.vertices:
         p = v.co; n = v.normal.normalized(); d = 0.0
-        t, dist = seg_t(p, S2 + Vector((0, 0, -0.12)), S3)
-        on_torso = abs(p.x) < 0.27 and dist < 0.32
-        front = max(0.0, -n.y + 0.35); back = max(0.0, n.y - 0.2)
+        t, dist = seg_t(p, S2 + Vector((0, 0, -0.14)), S3)
+        on_torso = abs(p.x) < 0.30 and dist < 0.34
+        front = max(0.0, -n.y + 0.3); back = max(0.0, n.y - 0.15)
         if on_torso:
-            if 0.0 < t < 0.92:                                                    # ribs: hard ridges, deep gaps
-                ph = math.sin(t * math.pi * 7.0 - abs(p.x) * 9.0)
-                d += (0.016 * max(0.0, ph) ** 0.6 - 0.010 * max(0.0, -ph)) * min(1.0, front * 1.4) * (1 - t * 0.4)
-            if t <= 0.0 and p.z > S1.z - 0.04:                                     # stomach sucked in under the ribs
-                d -= 0.030 * min(1.0, front * 1.6)
-            if back > 0 and abs(p.x) < 0.04:                                       # vertebrae like knuckles down the back
-                tt, dd = seg_t(p, S1, S3)
-                d += 0.018 * max(0.0, math.sin(tt * math.pi * 11.0)) ** 2 * back * (1 - abs(p.x) / 0.04)
+            if 0.0 < t < 0.95:                                                    # ribcage: hard bars, deep gaps
+                ph = math.sin(t * math.pi * 8.0 - abs(p.x) * 7.0)
+                fade = min(1.0, t / 0.12) * (1 - t * 0.35)
+                d += (0.034 * max(0.0, ph) ** 0.5 - 0.022 * max(0.0, -ph) ** 0.7) * min(1.0, front * 1.6 + abs(n.x) * 0.8) * fade
+                d += 0.016 * math.exp(-(p.x / 0.018) ** 2) * front * fade                  # sternum ridge
+            if back > 0:                                                           # spine bones punching out of the back
+                tt, dd = seg_t(p, S1 + Vector((0, 0, -0.1)), S3 + Vector((0, 0, 0.05)))
+                d += 0.045 * max(0.0, math.sin(tt * math.pi * 13.0)) ** 3 * back * math.exp(-(p.x / 0.03) ** 2)
             for sx in (-1, 1):
-                d += 0.028 * g(p, Vector((0.14 * sx, 0.07, 1.93)), 0.06) * back     # shoulder blades
+                q = p - Vector((0.13 * sx, 0.08, 1.92))
+                d += 0.05 * math.exp(-(q.x / 0.07) ** 2 - (q.z / 0.09) ** 2 - (q.y / 0.08) ** 2) * back      # shoulder blades
+        # starved belly: one smooth deep hollow under the ribs (no step)
+        q = p - Vector((0, -0.04, 1.58))
+        d -= 0.055 * math.exp(-(q.x / 0.11) ** 2 - (q.z / 0.13) ** 2) * min(1.0, front * 1.5)
         for sx in (-1, 1):
             t2, d2 = seg_t(p, Vector((0.03 * sx, -0.26, 2.07)), Vector((0.27 * sx, -0.14, 2.05)))
-            d += 0.016 * math.exp(-(d2 / 0.018) ** 2)                               # collarbones
-            d += 0.022 * g(p, Vector((0.11 * sx, -0.05, 1.33)), 0.035)               # hip bones
-        for k in knobs:
-            d += 0.016 * g(p, k, 0.045)                                              # swollen knuckly joints
-        d += 0.004 * noise.noise(p * 40) + 0.006 * noise.noise(Vector((p.x * 9, p.y * 9, p.z * 2.5)))   # stringy tendons
+            d += 0.022 * math.exp(-(d2 / 0.02) ** 2)                                 # collarbones
+            d += 0.034 * g(p, Vector((0.11 * sx, -0.05, 1.33)), 0.04)                 # hip bones
+        for a_, b_, r_ in limbs:                                                     # wasted limbs between swollen joints
+            tl, dl = seg_t(p, a_, b_)
+            if dl < r_ * 2.2 and 0.0 < tl < 1.0:
+                d -= r_ * 0.28 * math.sin(tl * math.pi) ** 1.5
+        for k, r_ in knobs:
+            d += max(0.022, r_ * 0.45) * g(p, k, 0.05)
+        d += 0.004 * noise.noise(p * 40) + 0.008 * noise.noise(Vector((p.x * 9, p.y * 9, p.z * 2.5)))   # stringy tendons
         v.co = p + n * d
 sculpt_body(body)
 
