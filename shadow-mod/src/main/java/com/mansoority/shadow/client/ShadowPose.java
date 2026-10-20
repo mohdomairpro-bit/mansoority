@@ -26,7 +26,7 @@ final class ShadowPose {
         float stare = Math.min(1F, e.getStare() / (float) ShadowEntity.STARE_LIMIT);
 
         // it always looks AT you: the head tips down/up toward the camera
-        double headY = e.getY() + 2.15 * ShadowEntity.MODEL_SCALE;
+        double headY = e.getY() + 1.905 * ShadowEntity.MODEL_SCALE;
         double horiz = Math.max(1.0, Math.sqrt((cam.x - e.getX()) * (cam.x - e.getX()) + (cam.z - e.getZ()) * (cam.z - e.getZ())));
         float look = (float) Math.atan2(headY - cam.y, horiz);           // + = you are below it
         look = Mth.clamp(look, -0.5F, 1.25F);

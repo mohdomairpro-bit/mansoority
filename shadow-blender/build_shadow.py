@@ -140,7 +140,7 @@ def sculpt_body(ob):
     for v in me.vertices:
         p = v.co; n = v.normal.normalized(); d = 0.0
         t, dist = seg_t(p, S2 + Vector((0, 0, -0.14)), S3)
-        on_torso = abs(p.x) < 0.30 and dist < 0.34
+        on_torso = abs(p.x) < 0.21 and dist < 0.34 and p.z < S3.z + 0.02
         front = max(0.0, -n.y + 0.3); back = max(0.0, n.y - 0.15)
         if on_torso:
             if 0.0 < t < 0.95:                                                    # ribcage: hard bars, deep gaps
@@ -354,7 +354,7 @@ for k in range(150):
 eyes, glints = [], []
 for c, r in SOCKETS:                                   # tiny pale points of light far back in the sockets
     yb = front_y(c.x, c.z)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.0052, location=(c.x, (yb if yb is not None else c.y) - 0.0015, c.z - 0.003))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=0.0017, location=(c.x, (yb if yb is not None else c.y) + 0.004, c.z - 0.003))
     glints.append(bpy.context.active_object)
 # branching spines sweeping up and back off the skull
 tendrils = []
@@ -549,7 +549,7 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     return mt
 MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.6, 0.3, sss=0.05), "hair": make_mat("hair", 0.5, 0.4), "saliva": make_mat("saliva", 0.02, 1.0), "void": make_mat("void", 1.0, 0.0),
        "bone": make_mat("bone", 0.7, 0.3), "tooth": make_mat("tooth", 0.25, 0.7),
-       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=12), "claw": make_mat("claw", 0.3, 0.6)}
+       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=3), "claw": make_mat("claw", 0.3, 0.6)}
 for o in ALL:
     o.data.materials.clear(); o.data.materials.append(MAT[KIND[o.name]])
 

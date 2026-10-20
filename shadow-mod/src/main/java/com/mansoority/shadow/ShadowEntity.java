@@ -53,7 +53,7 @@ public class ShadowEntity extends PathfinderMob {
     /** Blender metres -> blocks for the mesh model (about 8 blocks tall) */
     public static final float MODEL_SCALE = 4.6F;   // ~12 blocks tall
     /** head centre in model metres (from the Blender export log) */
-    private static final double HEAD_UP = 2.145, HEAD_FWD = 0.71;
+    private static final double HEAD_UP = 1.905, HEAD_FWD = 0.61;
     private UUID targetId;
     private int stage;
     private int life;
