@@ -65,11 +65,11 @@ public final class ClientFx {
             case FxPacket.CAM -> CinematicCam.handle(p);
             case FxPacket.TURN -> {
                 turnT = 0; turnId = (int) p.volume;
-                Minecraft mc = Minecraft.getInstance();
-                Entity t = mc.level != null ? mc.level.getEntity(turnId) : null;
-                if (t != null && mc.player != null) {
-                    float want = (float) (Mth.atan2(t.getZ() - mc.player.getZ(), t.getX() - mc.player.getX()) * (180F / Math.PI)) - 90F;
-                    turnLeft = Mth.wrapDegrees(want - mc.player.getYRot()) < 0;
+                Minecraft mcT = Minecraft.getInstance();
+                Entity t = mcT.level != null ? mcT.level.getEntity(turnId) : null;
+                if (t != null && mcT.player != null) {
+                    float want = (float) (Mth.atan2(t.getZ() - mcT.player.getZ(), t.getX() - mcT.player.getX()) * (180F / Math.PI)) - 90F;
+                    turnLeft = Mth.wrapDegrees(want - mcT.player.getYRot()) < 0;
                 }
             }
             case FxPacket.LICK -> drool = 1F;
