@@ -48,6 +48,9 @@ public class ShadowEntity extends PathfinderMob {
     private static final EntityDataAccessor<String> DATA_MIMIC_NAME = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.STRING);
     public static final int STAGE_MIMIC = -2;
     private int peek, hiddenFor, mimicStare;
+    private final java.util.List<Vec3> path = new java.util.ArrayList<>();
+    /** client-side smoothed pose drivers (no snapping between states) */
+    public float smoothStare, smoothRush;
 
     public static final int STARE_LIMIT = 60;
     /** Blender metres -> blocks for the mesh model (about 8 blocks tall) */
@@ -125,6 +128,10 @@ public class ShadowEntity extends PathfinderMob {
         if (e == null) return null;
         e.entityData.set(DATA_MIMIC, copy.getUUID().toString());
         e.entityData.set(DATA_MIMIC_NAME, copy.getGameProfile().getName());
+        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
+            e.setItemSlot(slot, copy.getItemBySlot(slot).copy());
+            e.setDropChance(slot, 0F);
+        }
         e.refreshDimensions();
         e.moveTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, p.getRandom().nextFloat() * 360F, 0);
         e.setTarget(p, STAGE_MIMIC);
@@ -196,10 +203,28 @@ public class ShadowEntity extends PathfinderMob {
     public void tick() {
         super.tick();
         if (!this.level().isClientSide) serverTick();
+        else {
+            float st = Math.min(1F, getStare() / (float) STARE_LIMIT);
+            smoothStare += (st - smoothStare) * (st > smoothStare ? 0.3F : 0.12F);
+            smoothRush = getRush();
+        }
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (!this.level().isClientSide && this.level() instanceof ServerLevel sl && reason != RemovalReason.CHANGED_DIMENSION) {
+            path.add(this.position());
+            ShadowTrails.add(sl, path);
+        }
+        super.remove(reason);
     }
 
     private void serverTick() {
         life++;
+        if (life % 10 == 0 && !isHidden() && (path.isEmpty() || path.get(path.size() - 1).distanceToSqr(this.position()) > 2.0)) {
+            path.add(this.position());
+            if (path.size() > 80) path.remove(0);
+        }
         int vanish = getVanish();
         if (vanish > 0) {
             this.entityData.set(DATA_VANISH, vanish + 1);
@@ -374,7 +399,7 @@ public class ShadowEntity extends PathfinderMob {
         if (s == 31) soundAround(ShadowRegistry.SNAP, 2.0F, 0.7F);
         if (s == 26) ui(p, ShadowRegistry.STATIC, 1F, 0.6F);
         if (s == 40) ui(p, ShadowRegistry.WHISPER, 1F, 0.6F);
-        if (stage >= 0 && (s == 20 || s == 40) && this.distanceTo(p) > 6) lurch(p);
+        if (stage >= 1 && (s == 20 || s == 40) && this.distanceTo(p) > 6) lurch(p);
         if (stage < 0 && s >= 10) { startVanish(); return; }   // bedside visit: one look and it's gone
         if (s >= STARE_LIMIT) advance(p);
     }
@@ -431,26 +456,44 @@ public class ShadowEntity extends PathfinderMob {
     }
 
     /** final stage: it sprints straight at you, through anything, screaming. it never touches you: the scare hits first */
+    public static final int RUSH_STILL = 70, RUSH_FOLD = 45, RUSH_GO = RUSH_STILL + RUSH_FOLD;
     public void startRush(ServerPlayer p) {
+        // it comes from the side, 90 degrees off where you're looking, far enough that you see it coming
+        double side = this.random.nextBoolean() ? 90 : -90;
+        BlockPos spot = spotAround(p, side, 30);
+        if (spot != null) this.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+        faceTowards(p);
+        this.entityData.set(DATA_HIDDEN, false);
+        this.entityData.set(DATA_STARE, 0);
         this.noPhysics = true;
         this.setNoGravity(true);
         this.entityData.set(DATA_RUSH, 1);
-        soundAround(ShadowRegistry.SCREAM, 3.0F, 0.65F);
-        ui(p, ShadowRegistry.STINGER, 1F, 0.9F);
-        ui(p, ShadowRegistry.RISER, 1F, 1.4F);
+        ui(p, ShadowRegistry.STINGER, 1F, 0.7F);
+        ui(p, ShadowRegistry.DRONE, 1F, 0.6F);
     }
 
     private void rushTick(ServerPlayer p) {
         int r = getRush();
         this.entityData.set(DATA_RUSH, r + 1);
+        faceTowards(p);
         double dx = p.getX() - this.getX();
         double dz = p.getZ() - this.getZ();
         double d = Math.sqrt(dx * dx + dz * dz);
-        if (r < 16) {                                   // folding down into the crouch: holds still, bones cracking
-            if (r % 3 == 0) soundAround(ShadowRegistry.SNAP, 2.6F, 0.5F + this.random.nextFloat() * 0.3F);
+        if (r < RUSH_STILL) {                           // 1) it just stands there, far off, looking at you. heartbeat climbs
+            int every = Math.max(5, 20 - r / 5);
+            if (r % every == 0) ui(p, ShadowRegistry.HEARTBEAT, 1F, 0.8F + r * 0.004F);
+            if (r == 20) ui(p, ShadowRegistry.BREATH, 1F, 0.55F);
+            if (r == 45) soundAround(ShadowRegistry.WHISPER, 2.5F, 0.5F);
             return;
         }
-        if (d < 2.4 || r > 96) {
+        if (r < RUSH_GO) {                              // 2) the turn: bones cracking as it folds down
+            if (r % 4 == 0) soundAround(ShadowRegistry.SNAP, 2.8F, 0.45F + this.random.nextFloat() * 0.35F);
+            if (r == RUSH_STILL) ui(p, ShadowRegistry.RISER, 1F, 0.9F);
+            if (r == RUSH_GO - 6) soundAround(ShadowRegistry.SCREAM, 3.2F, 0.6F);
+            return;
+        }
+        int g = r - RUSH_GO;                            // 3) the scuttle
+        if (d < 2.4 || g > 140) {
             for (ServerPlayer m : zoneMembers(p)) {      // it gets everyone inside the ring
                 ShadowNet.send(m, FxPacket.of(FxPacket.JUMPSCARE_NOW));
                 if (m == p ? d < 3.5 : true) bite(m);
@@ -458,11 +501,12 @@ public class ShadowEntity extends PathfinderMob {
             this.discard();
             return;
         }
-        double speed = Math.min(d, 0.35 + (r - 16) * 0.06);   // starts slow, gets horribly fast
+        boolean freeze = g > 18 && g < 30 && d > 12;    // halfway it stops dead for a moment... then comes faster
+        double speed = freeze ? 0 : Math.min(d, 0.3 + g * (g > 30 ? 0.05 : 0.025));
         double ny = this.getY() + (p.getY() - this.getY()) * 0.25;
         this.setPos(this.getX() + dx / d * speed, ny, this.getZ() + dz / d * speed);
-        if (r % 5 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.5F);
-        if (r == 12) soundAround(ShadowRegistry.SCREAM, 3.0F, 0.75F);
+        if (!freeze && g % 3 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.3F + this.random.nextFloat() * 0.4F);
+        if (g == 30) soundAround(ShadowRegistry.SCREAM, 3.2F, 0.75F);
     }
 
     /** a little damage when it catches you. never lethal: always leaves at least one heart */

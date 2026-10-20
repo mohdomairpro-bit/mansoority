@@ -28,34 +28,59 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     /** blender metres -> blocks. the model is ~2.6 m tall, so this makes it ~8 blocks */
     public static final float SCALE = ShadowEntity.MODEL_SCALE;
 
-    private final PlayerModel<ShadowEntity> wide, slim;
+    private final Mimic wide, slim;
 
     public ShadowRenderer(EntityRendererProvider.Context ctx) {
         super(ctx);
         this.shadowRadius = 0F;
-        this.wide = new PlayerModel<>(ctx.bakeLayer(ModelLayers.PLAYER), false);
-        this.slim = new PlayerModel<>(ctx.bakeLayer(ModelLayers.PLAYER_SLIM), true);
+        this.wide = new Mimic(ctx, false);
+        this.slim = new Mimic(ctx, true);
     }
 
-    /** wearing someone's skin. looks right at a distance. the head turns further than a neck should */
+    /** someone you know: their skin, their armour, whatever they're holding, their name */
+    static final class Mimic extends net.minecraft.client.renderer.entity.LivingEntityRenderer<ShadowEntity, PlayerModel<ShadowEntity>> {
+        Mimic(EntityRendererProvider.Context ctx, boolean slim) {
+            super(ctx, new PlayerModel<>(ctx.bakeLayer(slim ? ModelLayers.PLAYER_SLIM : ModelLayers.PLAYER), slim), 0.5F);
+            this.addLayer(new net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer<>(this,
+                    new net.minecraft.client.model.HumanoidModel<>(ctx.bakeLayer(slim ? ModelLayers.PLAYER_SLIM_INNER_ARMOR : ModelLayers.PLAYER_INNER_ARMOR)),
+                    new net.minecraft.client.model.HumanoidModel<>(ctx.bakeLayer(slim ? ModelLayers.PLAYER_SLIM_OUTER_ARMOR : ModelLayers.PLAYER_OUTER_ARMOR)),
+                    ctx.getModelManager()));
+            this.addLayer(new net.minecraft.client.renderer.entity.layers.ItemInHandLayer<>(this, ctx.getItemInHandRenderer()));
+        }
+
+        @Override
+        public ResourceLocation getTextureLocation(ShadowEntity e) {
+            java.util.UUID id = e.getMimicId();
+            PlayerInfo info = Minecraft.getInstance().getConnection() != null ? Minecraft.getInstance().getConnection().getPlayerInfo(id) : null;
+            return info != null ? info.getSkinLocation() : DefaultPlayerSkin.getDefaultSkin(id);
+        }
+
+        @Override
+        protected void scale(ShadowEntity e, PoseStack pose, float pt) { pose.scale(0.9375F, 0.9375F, 0.9375F); }
+
+        @Override
+        protected boolean shouldShowName(ShadowEntity e) { return !e.getMimicName().isEmpty(); }
+
+        @Override
+        protected void renderNameTag(ShadowEntity e, Component name, PoseStack pose, MultiBufferSource buf, int light) {
+            super.renderNameTag(e, Component.literal(e.getMimicName()), pose, buf, light);
+        }
+
+        @Override
+        public void render(ShadowEntity e, float yaw, float pt, PoseStack pose, MultiBufferSource buf, int light) {
+            PlayerModel<ShadowEntity> m = this.getModel();
+            m.setAllVisible(true);
+            m.rightArmPose = e.getMainHandItem().isEmpty() ? net.minecraft.client.model.HumanoidModel.ArmPose.EMPTY : net.minecraft.client.model.HumanoidModel.ArmPose.ITEM;
+            m.leftArmPose = e.getOffhandItem().isEmpty() ? net.minecraft.client.model.HumanoidModel.ArmPose.EMPTY : net.minecraft.client.model.HumanoidModel.ArmPose.ITEM;
+            super.render(e, yaw, pt, pose, buf, light);
+        }
+    }
+
     private void renderMimic(ShadowEntity e, float pt, PoseStack pose, MultiBufferSource buffers, int light) {
         java.util.UUID id = e.getMimicId();
         PlayerInfo info = Minecraft.getInstance().getConnection() != null ? Minecraft.getInstance().getConnection().getPlayerInfo(id) : null;
-        ResourceLocation skin = info != null ? info.getSkinLocation() : DefaultPlayerSkin.getDefaultSkin(id);
         boolean isSlim = info != null ? "slim".equals(info.getModelName()) : "slim".equals(DefaultPlayerSkin.getSkinModelName(id));
-        PlayerModel<ShadowEntity> m = isSlim ? slim : wide;
-        float bodyYaw = Mth.rotLerp(pt, e.yBodyRotO, e.yBodyRot);
-        float headYaw = Mth.wrapDegrees(Mth.rotLerp(pt, e.yHeadRotO, e.yHeadRot) - bodyYaw);
-        float pos = e.walkAnimation.position(pt), spd = Math.min(1F, e.walkAnimation.speed(pt));
-        pose.pushPose();
-        pose.mulPose(Axis.YP.rotationDegrees(180F - bodyYaw));
-        pose.scale(-0.9375F, -0.9375F, 0.9375F);
-        pose.translate(0F, -1.501F, 0F);
-        m.young = false; m.riding = false; m.crouching = false; m.attackTime = 0F;
-        m.setupAnim(e, pos, spd, e.tickCount + pt, headYaw, 0F);
-        m.renderToBuffer(pose, buffers.getBuffer(RenderType.entityTranslucent(skin)), light, OverlayTexture.NO_OVERLAY, 1F, 1F, 1F, 1F);
-        pose.popPose();
-        if (!e.getMimicName().isEmpty()) this.renderNameTag(e, Component.literal(e.getMimicName()), pose, buffers, light);
+        (isSlim ? slim : wide).render(e, e.getYRot(), pt, pose, buffers, light);
     }
 
     @Override

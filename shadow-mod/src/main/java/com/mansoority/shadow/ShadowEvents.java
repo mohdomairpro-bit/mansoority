@@ -20,7 +20,6 @@ import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 
@@ -63,6 +62,7 @@ public class ShadowEvents {
             return;
         }
         if (now < data.getLong(KEY_NEXT)) return;
+        if (insomniaVisit(p, data, now)) return;
         if (!eligible(p)) return;
         double chance = ShadowConfig.CHANCE.get();
         if (ShadowEntity.isDaytimeFor(p)) chance *= 0.35;          // daytime: much rarer
@@ -80,23 +80,22 @@ public class ShadowEvents {
             soundEvent(p);
         } else {                                                    // very rare: straight jumpscare, night only
             ShadowEntity.jumpscare(p, false);
+            ShadowTrails.behind(p);
         }
     }
 
-    /** rare: you wake up and it's standing over your bed */
-    @SubscribeEvent
-    public void onWake(PlayerWakeUpEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer p) || event.wakeImmediately()) return;
-        if (!ShadowConfig.ENABLED.get() || p.isCreative() || p.isSpectator() || isAfk(p)) return;
-        CompoundTag data = p.getPersistentData();
-        long now = p.level().getGameTime();
-        if (data.contains(KEY_NEXT) && now < data.getLong(KEY_NEXT)) return;
-        if (p.getRandom().nextFloat() > 0.04F || ShadowEntity.anyNear(p, 160)) return;
-        p.server.execute(() -> {
-            ShadowEntity e = ShadowEntity.spawnAround(p, -1, p.getRandom().nextBoolean() ? 60 : -60, 3.5);
-            if (e != null) warnAll(p);
-            if (e != null) data.putLong(KEY_NEXT, now + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
-        });
+    /** you haven't slept in days (3+ nights): at night, it comes and stands right next to you */
+    private static boolean insomniaVisit(ServerPlayer p, CompoundTag data, long now) {
+        int awake = p.getStats().getValue(net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.TIME_SINCE_REST));
+        if (awake < 72000 || p.level().isDay() || !eligible(p)) return false;
+        if (p.getRandom().nextFloat() > 0.06F) return false;
+        ShadowEntity e = ShadowEntity.spawnAround(p, -1, p.getRandom().nextBoolean() ? 150 : -150, 2.6);
+        if (e == null) return false;
+        ShadowEntity.ui(p, ShadowRegistry.BREATH, 1F, 0.6F);
+        p.displayClientMessage(Component.literal("You should sleep.").withStyle(net.minecraft.ChatFormatting.DARK_GRAY, net.minecraft.ChatFormatting.ITALIC), true);
+        warnAll(p);
+        data.putLong(KEY_NEXT, now + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
+        return true;
     }
 
     private static final String[] WARNINGS = {
@@ -128,6 +127,7 @@ public class ShadowEvents {
     private static void soundEvent(ServerPlayer p) {
         int id = p.getRandom().nextInt(7);
         FxPacket pkt = new FxPacket(FxPacket.SEQUENCE, id, 0, 0, 0, 1, 1);
+        ShadowTrails.behind(p);
         ShadowNet.send(p, pkt);
         for (ServerPlayer o : ShadowEntity.friendsNear(p)) ShadowNet.send(o, pkt);
     }

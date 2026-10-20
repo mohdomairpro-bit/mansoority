@@ -1,5 +1,6 @@
 package com.mansoority.shadow.client;
 
+import net.minecraft.util.Mth;
 import com.mansoority.shadow.FxPacket;
 import com.mansoority.shadow.ShadowEntity;
 import com.mansoority.shadow.ShadowRegistry;
@@ -83,6 +84,25 @@ public final class ClientFx {
         at(s, pl.getX() - Math.sin(a) * dist, pl.getEyeY() + up, pl.getZ() + Math.cos(a) * dist, volume, pitch);
     }
 
+    /** during the rush you can't look away: your view is held within 45 degrees of it */
+    private static void lockView(Minecraft mc, ShadowEntity s) {
+        net.minecraft.world.phys.Vec3 eye = mc.player.getEyePosition();
+        double dx = s.getX() - eye.x, dz = s.getZ() - eye.z;
+        double dy = (s.getY() + s.getBbHeight() * 0.45) - eye.y;
+        float want = (float) (Mth.atan2(dz, dx) * (180F / Math.PI)) - 90F;
+        float wantPitch = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * (180F / Math.PI));
+        float diff = Mth.wrapDegrees(mc.player.getYRot() - want);
+        if (Math.abs(diff) > 45F) {
+            float ny = want + Math.copySign(45F, diff);
+            mc.player.setYRot(ny); mc.player.yRotO = ny;
+        }
+        float pd = mc.player.getXRot() - wantPitch;
+        if (Math.abs(pd) > 45F) {
+            float np = Mth.clamp(wantPitch + Math.copySign(45F, pd), -90F, 90F);
+            mc.player.setXRot(np); mc.player.xRotO = np;
+        }
+    }
+
     // ------------------------------------------------------------------ ticking
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -100,7 +120,10 @@ public final class ClientFx {
         for (Entity e : mc.level.entitiesForRendering()) {
             if (e instanceof ShadowEntity s && !s.isHidden() && (s.getTargetEntityId() == mc.player.getId() || inZone(mc, s))) {
                 target = Math.max(target, Math.min(1F, s.getStare() / (float) ShadowEntity.STARE_LIMIT));
-                if (s.getRush() > 0) { target = 1F; rushing = true; }
+                if (s.getRush() > 0) {
+                    target = 1F; rushing = true;
+                    if (s.getTargetEntityId() == mc.player.getId()) lockView(mc, s);
+                }
             }
         }
         stare += (target - stare) * 0.25F;
