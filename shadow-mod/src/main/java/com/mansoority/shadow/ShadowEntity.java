@@ -753,12 +753,13 @@ public class ShadowEntity extends PathfinderMob {
     /** a solid block to stand on with 2 free blocks above, searching up/down from y */
     public static BlockPos findStand(ServerLevel level, double x, double y, double z, int range) {
         BlockPos base = BlockPos.containing(x, y, z);
-        for (int i = 0; i <= range * 2; i++) {
-            int dy = (i % 2 == 0) ? i / 2 : -(i / 2 + 1);
+        int down = Math.max(range, 40);              // under a forest canopy the ground can be far below
+        for (int i = 0; i <= range + down; i++) {
+            int dy = i <= range * 2 ? ((i % 2 == 0) ? i / 2 : -(i / 2 + 1)) : -(i - range);
             BlockPos pos = base.above(dy);
             if (!level.hasChunkAt(pos)) return null;
             BlockState below = level.getBlockState(pos.below());
-            if (below.isFaceSturdy(level, pos.below(), Direction.UP)
+            if (below.isFaceSturdy(level, pos.below(), Direction.UP) && !below.is(net.minecraft.tags.BlockTags.LEAVES)
                     && level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
                     && level.getBlockState(pos.above()).getCollisionShape(level, pos.above()).isEmpty()
                     && level.getFluidState(pos).isEmpty()) {
