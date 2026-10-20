@@ -85,6 +85,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
 
     private static void draw(ShadowMesh.Part p, PoseStack pose, VertexConsumer vc, int light, boolean glowPass) {
         pose.pushPose();
+        if (p.ty != 0F) pose.translate(0F, p.ty, 0F);
         if (p.xRot != 0F || p.yRot != 0F || p.zRot != 0F) {
             pose.translate(p.px, p.py, p.pz);
             pose.mulPose(new Quaternionf().rotationZYX(p.zRot, p.yRot, p.xRot));

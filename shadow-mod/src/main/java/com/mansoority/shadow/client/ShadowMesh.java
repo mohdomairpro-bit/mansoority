@@ -27,6 +27,7 @@ public final class ShadowMesh {
         public int[] solidTris, glowTris;
         public final List<Part> children = new ArrayList<>();
         public float xRot, yRot, zRot; // animated each frame
+        public float ty;                // vertical offset (model metres), roots only
 
         Part(String name, int parent, float px, float py, float pz, int tris) {
             this.name = name; this.parent = parent; this.px = px; this.py = py; this.pz = pz;
@@ -34,7 +35,7 @@ public final class ShadowMesh {
             this.uv = new float[tris * 6]; this.glow = new boolean[tris];
         }
         public int triangles() { return glow.length; }
-        public void reset() { xRot = yRot = zRot = 0F; }
+        public void reset() { xRot = yRot = zRot = 0F; ty = 0F; }
     }
 
     public final List<Part> parts = new ArrayList<>();

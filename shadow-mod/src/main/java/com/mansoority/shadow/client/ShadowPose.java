@@ -95,26 +95,33 @@ final class ShadowPose {
         // the chase: arms thrown forward, head down, jaw wide, legs pumping
         int rush = e.getRush();
         if (rush > 0) {
-            // drops onto all fours and comes at you - long arms as front legs, head level and locked on, horribly fast
-            float k = Math.min(1F, rush / 6F);
+            // the turn: bones crack as it folds down into a low spider crouch, limbs splayed wide, head up and locked on.
+            // then it scuttles at you.
+            float k = Math.min(1F, rush / 15F);
+            float jolt = rush < 16 ? (hash(rush / 2, id) - 0.5F) * 0.5F * (1F - k * 0.5F) : 0F;   // jerky, snapping into place
             ShadowMesh.Part hips2 = m.get("hips");
-            float run = age * (1.2F + Math.min(1F, rush / 40F) * 0.9F);
-            hips2.xRot += 0.55F * k;
-            chest.xRot += 0.85F * k;
-            neck.xRot -= 0.9F * k;
-            head.xRot -= 0.55F * k;
-            mouth += 1.4F * k;
-            armL.xRot -= (1.25F + Mth.cos(run) * 0.75F) * k;
-            armR.xRot -= (1.25F + Mth.cos(run + Mth.PI) * 0.75F) * k;
-            foreL.xRot += Math.max(0F, Mth.sin(run)) * 0.6F * k;
-            foreR.xRot += Math.max(0F, Mth.sin(run + Mth.PI)) * 0.6F * k;
-            handL.xRot += 0.5F * k; handR.xRot += 0.5F * k;
-            legL.xRot += (0.35F + Mth.cos(run + Mth.PI) * 0.8F) * k;
-            legR.xRot += (0.35F + Mth.cos(run) * 0.8F) * k;
-            shinL.xRot += Math.max(0F, Mth.sin(run + Mth.PI)) * 0.8F * k;
-            shinR.xRot += Math.max(0F, Mth.sin(run)) * 0.8F * k;
-            chest.zRot += Mth.sin(run) * 0.08F * k;
-            head.zRot += (hash((int) age, id) - 0.5F) * 0.3F;
+            boolean go = rush >= 16;
+            float run = age * 2.6F;
+            float sc = go ? 1F : 0F;
+            hips2.ty -= 0.55F * k;
+            hips2.xRot += 0.85F * k + jolt;
+            chest.xRot += 0.45F * k - jolt;
+            neck.xRot -= 1.05F * k;
+            head.xRot -= 0.85F * k;
+            head.zRot += jolt * 1.5F;
+            mouth += 1.5F * k;
+            legL.xRot -= 0.85F * k; legR.xRot -= 0.85F * k;
+            legL.zRot -= 0.95F * k; legR.zRot += 0.95F * k;
+            shinL.zRot += 0.9F * k; shinR.zRot -= 0.9F * k;
+            armL.zRot -= 0.75F * k; armR.zRot += 0.75F * k;
+            armL.xRot += 0.35F * k + jolt; armR.xRot += 0.35F * k - jolt;
+            foreL.zRot += 0.5F * k; foreR.zRot -= 0.5F * k;
+            // scuttle: diagonal pairs, fast and twitchy
+            legL.xRot += Mth.sin(run) * 0.45F * sc;  armR.xRot += Mth.sin(run) * 0.45F * sc;
+            legR.xRot += Mth.sin(run + Mth.PI) * 0.45F * sc; armL.xRot += Mth.sin(run + Mth.PI) * 0.45F * sc;
+            shinL.xRot += Math.max(0F, Mth.cos(run)) * 0.5F * sc; shinR.xRot += Math.max(0F, Mth.cos(run + Mth.PI)) * 0.5F * sc;
+            hips2.zRot += Mth.sin(run * 2F) * 0.05F * sc;
+            head.zRot += (hash((int) age, id) - 0.5F) * 0.25F * sc;
         }
 
         // the lower face splits down the middle and both halves swing out sideways

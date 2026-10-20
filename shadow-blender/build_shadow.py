@@ -35,23 +35,24 @@ def apply_mods(obj):
 # ------------------------------------------------------------------ skeleton (meters, z up, creature faces -Y)
 J = {}
 def j(name, x, y, z, r): J[name] = (Vector((x, y, z)), r)
-j("pelvis", 0, 0.02, 1.30, 0.12)
-j("spine1", 0, 0.05, 1.50, 0.085)          # wasp-thin waist
-j("spine2", 0, 0.00, 1.78, 0.17)
-j("spine3", 0, -0.14, 2.02, 0.20)          # big hunched upper back (top-heavy)
-j("neck0", 0, -0.30, 2.12, 0.075)
-j("neck1", 0, -0.46, 2.12, 0.06)
-j("head0", 0, -0.56, 2.08, 0.055)
+j("pelvis", 0, 0.04, 1.25, 0.11)
+j("spine1", 0, 0.06, 1.45, 0.075)          # wasp-thin waist
+j("spine2", 0, 0.00, 1.72, 0.15)
+j("spine3", 0, -0.10, 1.98, 0.19)          # hunched upper back between towering shoulders
+j("neck0", 0, -0.24, 2.00, 0.07)
+j("neck1", 0, -0.38, 1.94, 0.055)
+j("head0", 0, -0.46, 1.84, 0.05)           # head hangs low, in front, between the shoulders
 for s, sx in (("L", -1), ("R", 1)):
-    j("shoulder" + s, 0.30 * sx, -0.10, 2.02, 0.10)
-    j("elbow" + s, 0.46 * sx, -0.05, 1.50, 0.05)
-    j("joint2" + s, 0.50 * sx, -0.22, 1.02, 0.042)   # the extra joint
-    j("wrist" + s, 0.48 * sx, -0.38, 0.55, 0.034)
-    j("hand" + s, 0.48 * sx, -0.46, 0.40, 0.05)
-    j("hip" + s, 0.12 * sx, 0.04, 1.22, 0.085)
-    j("knee" + s, 0.15 * sx, 0.24, 0.72, 0.055)       # bends backwards
-    j("ankle" + s, 0.15 * sx, -0.02, 0.18, 0.036)
-    j("toe" + s, 0.15 * sx, -0.24, 0.03, 0.03)
+    # stilt arms: up to elbows that tower over the head, then all the way down to the ground
+    j("shoulder" + s, 0.25 * sx, -0.08, 2.04, 0.095)
+    j("elbow" + s, 0.40 * sx, -0.02, 2.62, 0.05)
+    j("joint2" + s, 0.56 * sx, -0.34, 1.60, 0.038)   # the extra joint
+    j("wrist" + s, 0.66 * sx, -0.62, 0.36, 0.03)
+    j("hand" + s, 0.67 * sx, -0.68, 0.15, 0.045)
+    j("hip" + s, 0.13 * sx, 0.05, 1.18, 0.08)
+    j("knee" + s, 0.22 * sx, -0.20, 0.72, 0.062)      # big knobbly knees
+    j("ankle" + s, 0.26 * sx, 0.06, 0.17, 0.032)
+    j("toe" + s, 0.27 * sx, -0.10, 0.05, 0.024)
 
 BONES = []   # (part, a, b)
 def bone(part, a, b): BONES.append((part, a, b))
@@ -109,6 +110,18 @@ for s, sx in (("L", -1), ("R", 1)):
             verts.append(p.copy()); radii.append(0.016 - seg * 0.003)
             edges.append((prev, len(verts) - 1)); prev = len(verts) - 1
             BONES.append(("hand" + s, None, None))
+        FINGER_TIPS.append((p.copy(), (p - verts[-2]).normalized()))
+for s, sx in (("L", -1), ("R", 1)):
+    an = J["ankle" + s][0]
+    for k, ang in enumerate((-0.55, 0.0, 0.55, 3.14)):
+        prev = idx["ankle" + s]; p = an.copy()
+        for seg in range(3):
+            L_ = 0.075 if ang != 3.14 else 0.045
+            p = p + Vector((math.sin(ang) * L_ * sx * (1 if ang != 3.14 else 0), -math.cos(ang) * L_, -0.045 if seg == 0 else -0.012))
+            p.z = max(p.z, 0.012)
+            verts.append(p.copy()); radii.append(0.013 - seg * 0.003)
+            edges.append((prev, len(verts) - 1)); prev = len(verts) - 1
+            BONES.append(("shin" + s, None, None))
         FINGER_TIPS.append((p.copy(), (p - verts[-2]).normalized()))
 body = skin_object("body", verts, edges, radii, root=idx["pelvis"], subdiv=3)
 apply_mods(body)
@@ -211,7 +224,7 @@ def make_head():
         if z > 0.05: q.x *= 1 + 0.10 * (z - 0.05) / 0.11                   # wide cranium
         q += Vector((0, -0.014, 0)) * g(q, Vector((0, -0.10, 0.058)), 0.045) * (1 if q.y < 0 else 0)   # brow ridge
         for c, r in SOCKETS:
-            q += Vector((0, 0.026, 0)) * g(q, c, r)                           # sockets, sealed over by skin
+            q += Vector((0, 0.040, 0)) * g(q, c, r)                           # deep, dark sockets
         for sx in (-1, 1):
             q += Vector((0.010 * sx, -0.012, 0)) * g(q, Vector((0.060 * sx, -0.070, -0.008)), 0.025)  # cheekbones
             q += Vector((-0.022 * sx, 0.014, 0)) * g(q, Vector((0.052 * sx, -0.055, -0.055)), 0.035)  # sucked-in cheeks
@@ -319,11 +332,11 @@ for i in range(22):
 
 hair = []
 random.seed(11)
-for k in range(90):
-    th = random.uniform(-2.6, 2.6); ph = random.uniform(0.15, 1.30)
+for k in range(150):
+    th = random.uniform(-2.9, 2.9); ph = random.uniform(0.15, 1.55)
     root = Vector((math.sin(th) * math.sin(ph) * 0.084, math.cos(th) * math.sin(ph) * 0.11, math.cos(ph) * 0.16))
     if root.y < -0.03 and abs(root.x) < 0.07: continue     # the blank face stays bare
-    L = random.uniform(0.25, 0.6)
+    L = random.uniform(0.18, 0.5)
     pts = [root]
     p_ = root.copy(); d_ = (root * Vector((1.0, 1.0, 0.0))).normalized() * 0.012
     for sgm in range(9):
@@ -339,8 +352,38 @@ for k in range(90):
     for p2 in mo.data.polygons: p2.use_smooth = True
     hair.append(mo)
 eyes, glints = [], []
+for c, r in SOCKETS:                                   # tiny pale points of light far back in the sockets
+    yb = front_y(c.x, c.z)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.0052, location=(c.x, (yb if yb is not None else c.y) - 0.0015, c.z - 0.003))
+    glints.append(bpy.context.active_object)
+# branching spines sweeping up and back off the skull
+tendrils = []
+def tendril(root, d, L, r0, depth=0):
+    pts = [root]; p_ = root.copy(); d_ = d.normalized()
+    n = 8
+    for i in range(n):
+        d_ = (d_ + Vector((0, 0.10, -0.05)) * (i / n) + Vector((random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1))) * 0.12).normalized()
+        p_ = p_ + d_ * (L / n); pts.append(p_.copy())
+    cd = bpy.data.curves.new("tendril", 'CURVE'); cd.dimensions = '3D'; cd.bevel_depth = r0; cd.bevel_resolution = 1
+    sp = cd.splines.new('POLY'); sp.points.add(len(pts) - 1)
+    for i_, q_ in enumerate(pts): sp.points[i_].co = (q_.x, q_.y, q_.z, 1); sp.points[i_].radius = max(0.08, 1.0 - i_ / len(pts))
+    ho = link(bpy.data.objects.new("tendril", cd))
+    me_ = bpy.data.meshes.new_from_object(ho.evaluated_get(bpy.context.evaluated_depsgraph_get()))
+    mo = link(bpy.data.objects.new("tendrilm", me_)); bpy.data.objects.remove(ho)
+    for p2 in mo.data.polygons: p2.use_smooth = True
+    tendrils.append(mo)
+    if depth < 1:
+        for bi in (3, 5):
+            dd = (pts[bi + 1] - pts[bi]).normalized() + Vector((random.uniform(-0.8, 0.8), random.uniform(-0.3, 0.3), random.uniform(0.2, 0.7)))
+            tendril(pts[bi], dd, L * random.uniform(0.35, 0.55), r0 * 0.55, depth + 1)
+random.seed(21)
+for k in range(11):
+    sx = -1 if k % 2 else 1; f = (k // 2) / 5
+    root = Vector((sx * (0.02 + 0.05 * f), -0.06 + 0.07 * f, 0.10 + 0.04 * (1 - f)))
+    d = Vector((sx * (0.35 + 0.6 * f), 0.55 + 0.3 * f, 0.75 - 0.3 * f))
+    tendril(root, d, random.uniform(0.22, 0.42) * (1.2 - 0.4 * f), random.uniform(0.0055, 0.0085))
 
-HEAD_PARTS = {"head": [skull, void] + hair + upper + drips, "jaw": [jaw] + lower, "jawR": [jawR] + lowerR}
+HEAD_PARTS = {"head": [skull, void] + hair + upper + drips + tendrils + glints, "jaw": [jaw] + lower, "jawR": [jawR] + lowerR}
 # place head on the neck
 head_xf = Matrix.Translation(HEAD_C) @ Matrix.Rotation(math.radians(-6), 4, 'X')
 head_inv = head_xf.inverted()
@@ -379,9 +422,10 @@ for o in drips: KIND[o.name] = "saliva"
 for o in upper + lower + lowerR: KIND[o.name] = "tooth"
 for o in glints: KIND[o.name] = "glint"
 for o in claws: KIND[o.name] = "claw"
+for o in tendrils: KIND[o.name] = "bone"
 for o in eyes: KIND[o.name] = "eye"
 
-ALL = [body] + extra + [skull, void, jaw, jawR, throat] + hair + eyes + upper + lower + lowerR + glints + drips + claws
+ALL = [body] + extra + [skull, void, jaw, jawR, throat] + hair + eyes + upper + lower + lowerR + glints + drips + claws + tendrils
 # join a temporary copy of everything for AO ray casts
 def world_tris(objs):
     vs, fs = [], []
@@ -424,7 +468,7 @@ for o in ALL:
             lp = head_inv @ p
             ln = (head_inv.to_3x3() @ n).normalized()
             for sc_, sr_ in SOCKETS:
-                c = c * (1 - 0.45 * g(lp, sc_ + Vector((0, 0.01, 0)), sr_ * 1.2))      # shadows where eyes should be
+                c = c * (1 - 0.92 * g(lp, sc_ + Vector((0, 0.02, 0)), sr_ * 1.05))     # pitch-dark sockets
             c = c * (1 - 0.35 * g(lp, Vector((0, -0.105, -0.01)), 0.022))              # flat dip, no nose
             c = c * (0.75 + 0.25 * max(0, min(1, (lp.z + 0.2) / 0.3)))
             front = 1 if lp.y < -0.02 else 0
@@ -563,7 +607,7 @@ def bake_atlas(objs, size=2048):
 # small/flat-coloured parts don't waste atlas space: they sample a painted swatch
 SOLID = {"glint": (1, 1, 1), "hair": (0.025, 0.02, 0.022), "void": (0, 0, 0), "throat": (0.14, 0.01, 0.01), "eye": (0.004, 0.004, 0.004), "claw": (0.06, 0.05, 0.045)}
 SWATCH = {k: (0.002 + i * 0.004, 0.998) for i, k in enumerate(SOLID)}
-DECIMATE = {"skin": 0.13, "face": 0.16, "void": 0.1, "hair": 0.3, "throat": 0.25, "eye": 0.5, "tooth": 0.6, "claw": 0.6}
+DECIMATE = {"bone": 0.5, "skin": 0.13, "face": 0.16, "void": 0.1, "hair": 0.3, "throat": 0.25, "eye": 0.5, "tooth": 0.6, "claw": 0.6}
 
 def export():
     # part per face: body faces go to nearest bone segment

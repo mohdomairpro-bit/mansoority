@@ -446,7 +446,11 @@ public class ShadowEntity extends PathfinderMob {
         double dx = p.getX() - this.getX();
         double dz = p.getZ() - this.getZ();
         double d = Math.sqrt(dx * dx + dz * dz);
-        if (d < 2.4 || r > 80) {
+        if (r < 16) {                                   // folding down into the crouch: holds still, bones cracking
+            if (r % 3 == 0) soundAround(ShadowRegistry.SNAP, 2.6F, 0.5F + this.random.nextFloat() * 0.3F);
+            return;
+        }
+        if (d < 2.4 || r > 96) {
             for (ServerPlayer m : zoneMembers(p)) {      // it gets everyone inside the ring
                 ShadowNet.send(m, FxPacket.of(FxPacket.JUMPSCARE_NOW));
                 if (m == p ? d < 3.5 : true) bite(m);
@@ -454,7 +458,7 @@ public class ShadowEntity extends PathfinderMob {
             this.discard();
             return;
         }
-        double speed = Math.min(d, 0.35 + r * 0.06);   // starts slow, gets horribly fast
+        double speed = Math.min(d, 0.35 + (r - 16) * 0.06);   // starts slow, gets horribly fast
         double ny = this.getY() + (p.getY() - this.getY()) * 0.25;
         this.setPos(this.getX() + dx / d * speed, ny, this.getZ() + dz / d * speed);
         if (r % 5 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.5F);
