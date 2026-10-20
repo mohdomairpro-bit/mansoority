@@ -18,6 +18,8 @@ public final class ClientSetup {
         MinecraftForge.EVENT_BUS.addListener(RingRenderer::onFog);
         MinecraftForge.EVENT_BUS.addListener(RingRenderer::onFogColor);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onLogout);
+        MinecraftForge.EVENT_BUS.addListener(CinematicCam::onHand);
+        MinecraftForge.EVENT_BUS.addListener(CinematicCam::onGui);
         if (AutoTest.enabled()) MinecraftForge.EVENT_BUS.addListener(AutoTest::onClientTick);
     }
 
@@ -26,6 +28,7 @@ public final class ClientSetup {
     }
 
     private static void onOverlays(RegisterGuiOverlaysEvent event) {
+        event.registerAboveAll("theshadow_cinema", CinematicCam::render);
         event.registerAboveAll("theshadow_fx", ClientFx::renderOverlay);
     }
 

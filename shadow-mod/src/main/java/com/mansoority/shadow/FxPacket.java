@@ -13,6 +13,7 @@ public class FxPacket {
     public static final int SOUND_AT = 3;        // positional sound at x,y,z
     public static final int SOUND_UI = 4;        // in-your-head sound
     public static final int SEQUENCE = 5;        // scripted sound event, id in 'sound'
+    public static final int CAM = 6;             // cinematic camera: shot in 'sound', params x/y/z, focus entity id in volume, chapter card in pitch
 
     public final int kind;
     public final int sound;

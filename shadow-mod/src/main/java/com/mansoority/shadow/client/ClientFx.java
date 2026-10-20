@@ -57,6 +57,7 @@ public final class ClientFx {
             case FxPacket.SOUND_UI -> ui(sound(p.sound), p.volume, p.pitch);
             case FxPacket.SOUND_AT -> at(sound(p.sound), p.x, p.y, p.z, p.volume, p.pitch);
             case FxPacket.SEQUENCE -> { seq = p.sound; seqTick = 0; }
+            case FxPacket.CAM -> CinematicCam.handle(p);
             default -> {}
         }
         if (p.kind == FxPacket.JUMPSCARE || p.kind == FxPacket.JUMPSCARE_NOW) mc.getSoundManager().stop();
@@ -128,6 +129,7 @@ public final class ClientFx {
         }
         stare += (target - stare) * 0.25F;
 
+        CinematicCam.tick();
         if (js >= 0) tickJumpscare(mc);
         if (seq >= 0) tickSequence(mc);
     }
@@ -225,6 +227,7 @@ public final class ClientFx {
 
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         js = -1; seq = -1; stare = 0; lightsOut = 0; rushing = false;
+        CinematicCam.onLogout();
     }
 
     /** staring pulls your view into it (narrowing FOV) - you can't look away from the face */

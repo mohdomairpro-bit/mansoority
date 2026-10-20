@@ -51,6 +51,8 @@ public class ShadowEvents {
         if (event.phase != TickEvent.Phase.END || event.side != LogicalSide.SERVER) return;
         if (!(event.player instanceof ServerPlayer p)) return;
         if (p.tickCount % 20 == 0) trackActivity(p);
+        ShadowCinematic.tick(p);
+        if (ShadowCinematic.running(p)) return;
         if (p.tickCount % 1200 != 600) return; // once a minute
         if (!ShadowConfig.ENABLED.get()) return;
 
@@ -140,7 +142,7 @@ public class ShadowEvents {
         d.register(Commands.literal(root).requires(s -> s.hasPermission(2))
                 .then(Commands.argument("action", StringArgumentType.word())
                         .suggests((c, b) -> {
-                            for (String a : new String[]{"test", "stalk", "mimic", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
+                            for (String a : new String[]{"cinematic", "test", "stalk", "mimic", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
                             return b.buildFuture();
                         })
                         .executes(c -> run(c, c.getSource().getPlayerOrException()))
@@ -160,6 +162,10 @@ public class ShadowEvents {
                 ShadowEntity e = ShadowEntity.spawnAround(p, 0, 180, 28);
                 reply(src, e != null ? "It's watching " + p.getScoreboardName() + " from behind." : "No room to spawn it there.");
             }
+            case "cinematic" -> {
+                ShadowCinematic.start(p);
+                reply(src, "Lights down. Starring " + p.getScoreboardName() + ".");
+            }
             case "mimic" -> {
                 ShadowEntity e = ShadowEntity.mimicFor(p);
                 reply(src, e != null ? "Someone's out there." : "No room to spawn it there.");
@@ -175,6 +181,7 @@ public class ShadowEvents {
             case "scare" -> { ShadowEntity.jumpscare(p, false); reply(src, "Jumpscare sent."); }
             case "event" -> { soundEvent(p); reply(src, "Sound event sent."); }
             case "despawn" -> {
+                ShadowCinematic.stop(p);
                 p.serverLevel().getEntities(ShadowRegistry.SHADOW.get(), e -> true).forEach(e -> e.discard());
                 reply(src, "Gone. For now.");
             }

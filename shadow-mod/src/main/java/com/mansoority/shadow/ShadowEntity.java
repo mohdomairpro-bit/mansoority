@@ -51,6 +51,10 @@ public class ShadowEntity extends PathfinderMob {
     private final java.util.List<Vec3> path = new java.util.ArrayList<>();
     /** client-side smoothed pose drivers (no snapping between states) */
     public float smoothStare, smoothRush;
+    /** driven by the /shadow cinematic script instead of its own brain */
+    public boolean scripted, noHarm;
+    public void scriptStare(int v) { this.entityData.set(DATA_STARE, v); }
+    public void reveal() { this.entityData.set(DATA_HIDDEN, false); }
 
     public static final int STARE_LIMIT = 60;
     /** Blender metres -> blocks for the mesh model (about 8 blocks tall) */
@@ -237,6 +241,7 @@ public class ShadowEntity extends PathfinderMob {
             this.discard();
             return;
         }
+        if (scripted) { faceTowards(player); return; }
         if (stage == STAGE_MIMIC) { mimicTick(player); return; }
         faceTowards(player);
 
@@ -511,7 +516,7 @@ public class ShadowEntity extends PathfinderMob {
 
     /** a little damage when it catches you. never lethal: always leaves at least one heart */
     private void bite(ServerPlayer p) {
-        if (isDaytimeFor(p)) return;
+        if (noHarm || isDaytimeFor(p)) return;
         float dmg = ShadowConfig.CATCH_DAMAGE.get().floatValue();
         if (dmg <= 0F || p.isCreative() || p.isSpectator()) return;
         float allowed = Math.min(dmg, p.getHealth() - 2.0F);
