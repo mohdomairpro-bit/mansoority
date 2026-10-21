@@ -39,6 +39,7 @@ public final class ShadowCinematic {
             for (ShadeEntity sh : p.serverLevel().getEntitiesOfClass(ShadeEntity.class, p.getBoundingBox().inflate(100))) sh.discard();
         }
         cam(p, OFF, 0, 0, 0, null, -1);
+        if (r != null) p.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
     }
 
     private static void cam(ServerPlayer p, int shot, double a, double b, double c, ShadowEntity focus, int chapter) {
@@ -68,6 +69,8 @@ public final class ShadowCinematic {
         r.t++;
         int t = r.phaseT++;
         ServerLevel sl = p.serverLevel();
+        // it's a showcase: you should be able to see what's happening, even at night
+        if (r.t % 100 == 1) p.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.NIGHT_VISION, 260, 0, false, false));
         switch (r.phase) {
             case 0 -> {                                   // opening: slow orbit, title card, the warning
                 if (t == 0) { cam(p, ORBIT, 5.5, 1.7, 0.006, null, 0); ShadowEntity.ui(p, ShadowRegistry.DRONE, 1F, 0.7F); }
@@ -169,7 +172,11 @@ public final class ShadowCinematic {
             }
             case 11 -> {                                  // X. after the dragon: the boss, its shades, their black blades
                 if (t == 0) {
-                    BlockPos s0 = ShadowEntity.findStand(sl, p.getX() + p.getLookAngle().x * 22, p.getY(), p.getZ() + p.getLookAngle().z * 22, 20);
+                    BlockPos s0 = null;
+                    for (int k = 0; k < 12 && s0 == null; k++) {
+                        double a = Math.toRadians(p.getYRot() + k * 30), d = k < 6 ? 22 : 14;
+                        s0 = ShadowEntity.findStand(sl, p.getX() - Math.sin(a) * d, p.getY(), p.getZ() + Math.cos(a) * d, 24);
+                    }
                     MansoorityBoss b = s0 == null ? null : ShadowRegistry.BOSS.get().create(sl);
                     if (b != null) {
                         b.moveTo(s0.getX() + 0.5, s0.getY(), s0.getZ() + 0.5, 0, 0);
