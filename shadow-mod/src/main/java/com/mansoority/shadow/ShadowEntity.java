@@ -505,6 +505,7 @@ public class ShadowEntity extends PathfinderMob {
             peek = 90 + this.random.nextInt(80);
             seenPeek = false;
             if (this.random.nextFloat() < 0.4F) ui(p, ShadowRegistry.HEARTBEAT, 0.35F, 0.8F);
+            else if (this.random.nextFloat() < 0.35F) soundAround(ShadowRegistry.FAR, 3.0F, 0.9F + this.random.nextFloat() * 0.2F);
             return false;
         }
         if (getStare() > 0) seenPeek = true;

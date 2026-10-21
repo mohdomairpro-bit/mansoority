@@ -2,6 +2,46 @@
  "scream": {
   "sounds": [
    {
+    "name": "theshadow:creature/scream_0",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/scream_1",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/scream_2",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/scream_3",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/scream_4",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/scream_5",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/scream_6",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/scream_7",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/scream_8",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/scream_9",
+    "weight": 2
+   },
+   {
     "name": "minecraft:mob/warden/roar_1",
     "pitch": 0.75
    },
@@ -20,28 +60,9 @@
    {
     "name": "minecraft:mob/warden/roar_5",
     "pitch": 0.75
-   },
-   {
-    "name": "minecraft:mob/endermen/scream1",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:mob/endermen/scream2",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:mob/endermen/scream3",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:mob/endermen/scream4",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:mob/ghast/affectionate_scream",
-    "pitch": 0.45
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.scream"
  },
  "stinger": {
   "sounds": [
@@ -69,7 +90,8 @@
     "name": "minecraft:mob/guardian/curse",
     "pitch": 0.55
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.stinger"
  },
  "hit": {
   "sounds": [
@@ -85,7 +107,8 @@
     "name": "minecraft:mob/warden/emerge",
     "pitch": 0.8
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.hit"
  },
  "drone": {
   "sounds": [
@@ -121,7 +144,8 @@
     "name": "minecraft:ambient/nether/crimson_forest/mood4",
     "pitch": 0.5
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.drone"
  },
  "whisper": {
   "sounds": [
@@ -149,7 +173,8 @@
     "name": "minecraft:ambient/nether/soulsand_valley/mood2",
     "pitch": 0.9
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.whisper"
  },
  "heartbeat": {
   "sounds": [
@@ -169,10 +194,51 @@
     "name": "minecraft:mob/warden/heartbeat_4",
     "pitch": 0.85
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.heartbeat"
  },
  "breath": {
   "sounds": [
+   {
+    "name": "theshadow:creature/breath_0",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/breath_1",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/breath_2",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/breath_3",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/breath_4",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/breath_5",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/breath_6",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/breath_7",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/breath_8",
+    "weight": 2
+   },
+   {
+    "name": "theshadow:creature/breath_9",
+    "weight": 2
+   },
    {
     "name": "minecraft:mob/warden/sniff_1",
     "pitch": 0.7
@@ -189,7 +255,8 @@
     "name": "minecraft:mob/warden/sniff_4",
     "pitch": 0.7
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.breath"
  },
  "snap": {
   "sounds": [
@@ -213,7 +280,8 @@
     "name": "minecraft:block/bone_block/break5",
     "pitch": 0.5
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.snap"
  },
  "riser": {
   "sounds": [
@@ -233,7 +301,8 @@
     "name": "minecraft:mob/warden/sonic_charge4",
     "pitch": 0.7
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.riser"
  },
  "static": {
   "sounds": [
@@ -241,6 +310,52 @@
     "name": "theshadow:static",
     "pitch": 1.0
    }
-  ]
+  ],
+  "subtitle": "theshadow.subtitle.static"
+ },
+ "far": {
+  "sounds": [
+   {
+    "name": "theshadow:creature/far_0",
+    "weight": 1
+   },
+   {
+    "name": "theshadow:creature/far_1",
+    "weight": 1
+   },
+   {
+    "name": "theshadow:creature/far_2",
+    "weight": 1
+   },
+   {
+    "name": "theshadow:creature/far_3",
+    "weight": 1
+   },
+   {
+    "name": "theshadow:creature/far_4",
+    "weight": 1
+   },
+   {
+    "name": "theshadow:creature/far_5",
+    "weight": 1
+   },
+   {
+    "name": "theshadow:creature/far_6",
+    "weight": 1
+   },
+   {
+    "name": "theshadow:creature/far_7",
+    "weight": 1
+   },
+   {
+    "name": "theshadow:creature/far_8",
+    "weight": 1
+   },
+   {
+    "name": "theshadow:creature/far_9",
+    "weight": 1
+   }
+  ],
+  "subtitle": "theshadow.subtitle.far"
  }
 }

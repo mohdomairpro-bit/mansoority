@@ -48,6 +48,7 @@ public final class ShadowRegistry {
     public static final RegistryObject<SoundEvent> BREATH = sound("breath");
     public static final RegistryObject<SoundEvent> SNAP = sound("snap");
     public static final RegistryObject<SoundEvent> RISER = sound("riser");
+    public static final RegistryObject<SoundEvent> FAR = sound("far");
 
     private static RegistryObject<SoundEvent> sound(String name) {
         RegistryObject<SoundEvent> ro = SOUNDS.register(name,

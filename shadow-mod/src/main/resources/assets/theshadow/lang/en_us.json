@@ -2,5 +2,16 @@
  "entity.theshadow.shadow": "Mansoority",
  "entity.theshadow.mansoority_boss": "Mansoority",
  "entity.theshadow.shade": "Shade",
- "item.theshadow.shadow_blade": "Shadow Blade"
+ "item.theshadow.shadow_blade": "Shadow Blade",
+ "theshadow.subtitle.scream": "Something screams",
+ "theshadow.subtitle.breath": "Breathing, close",
+ "theshadow.subtitle.stinger": "Something is wrong",
+ "theshadow.subtitle.hit": "Bones crack",
+ "theshadow.subtitle.whisper": "Whispering",
+ "theshadow.subtitle.heartbeat": "Your heartbeat",
+ "theshadow.subtitle.snap": "Bones snap",
+ "theshadow.subtitle.riser": "Something rising",
+ "theshadow.subtitle.drone": "A low drone",
+ "theshadow.subtitle.static": "Static",
+ "theshadow.subtitle.far": "A cry, far away"
 }
