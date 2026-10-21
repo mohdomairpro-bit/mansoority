@@ -565,7 +565,7 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
         bsdf.inputs["Emission Strength"].default_value = emit
     tex = nt.nodes.new("ShaderNodeTexNoise"); tex.inputs["Scale"].default_value = 90
     tex.inputs["Detail"].default_value = 6
-    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.07
+    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.22 if name in ("skin", "face") else 0.07
     nt.links.new(tex.outputs["Fac"], bump.inputs["Height"]); nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mt
 MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.6, 0.3, sss=0.05), "hair": make_mat("hair", 0.5, 0.4), "saliva": make_mat("saliva", 0.02, 1.0), "void": make_mat("void", 1.0, 0.0),
@@ -616,7 +616,13 @@ def bake_atlas(objs, size=2048):
         for d in o.data.uv_layers.active.data: d.uv = d.uv * 0.985
     scene.render.engine = 'CYCLES'; scene.cycles.device = 'CPU'; scene.cycles.samples = 16
     scene.render.bake.margin = 4
-    bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'}, use_clear=True)
+    w = bpy.data.worlds.new("bakeworld"); w.use_nodes = True
+    w.node_tree.nodes["Background"].inputs["Color"].default_value = (1, 1, 1, 1)
+    w.node_tree.nodes["Background"].inputs["Strength"].default_value = 1.15
+    scene.world = w
+    scene.cycles.samples = 40
+    # albedo x soft sky light: the bump detail and the deep cavities end up painted into the texture
+    bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR', 'DIRECT', 'INDIRECT'}, use_clear=True)
     import numpy as np
     px = np.empty(size * size * 4, dtype=np.float32); img.pixels.foreach_get(px); px = px.reshape(size, size, 4)
     for i, (k, col) in enumerate(SOLID.items()):          # swatches live in the top-left corner (v=0.998)
@@ -644,13 +650,29 @@ def export():
             if d < best: best, bp = d, part
         return bp
     bake_atlas([o for o in ALL if KIND[o.name] not in SOLID], 4096)
+    global TRIS, TRIS_LOD
+    TRIS = build_tris(nearest_part, 1.0)
+    TRIS_LOD = build_tris(nearest_part, 0.3, skip=("hair", "tooth", "saliva", "glint", "bone"))   # far away: a much lighter model
+    write_mesh(os.path.join(OUT, "shadow.mesh"), TRIS)
+    write_mesh(os.path.join(OUT, "shadow_lod.mesh"), TRIS_LOD)
+    hc = head_xf @ Vector((0, -0.05, 0))
+    print("[SHADOW] head centre (mc coords, unscaled):", mc(hc))
+    print("[SHADOW] height:", max(v.z for v in wv))
+    print("[SHADOW] tris per part:", {k: len(v) // 3 for k, v in TRIS.items()})
+    print("[SHADOW] lod tris:", sum(len(v) // 3 for v in TRIS_LOD.values()))
+
+ORDER = ["hips", "chest", "neck", "head", "jaw", "jawR", "armL", "foreL", "handL", "armR", "foreR", "handR", "legL", "shinL", "legR", "shinR"]
+def mc(v): return (v.x, v.z, -v.y)        # blender -> minecraft (y up, faces +z)
+
+def build_tris(nearest_part, factor, skip=()):
     tris = {k: [] for k in PARTS}
     def add_obj(o, force=None):
         kind = KIND[o.name]
+        if kind in skip and not (kind == "bone" and factor >= 1): return
         src = o
-        if kind in DECIMATE:                       # lighter copy for the game, same UVs
+        if kind in DECIMATE or factor < 1:         # lighter copy for the game, same UVs
             cp = o.copy(); cp.data = o.data.copy(); link(cp)
-            dm = cp.modifiers.new("dec", 'DECIMATE'); dm.ratio = DECIMATE[kind]
+            dm = cp.modifiers.new("dec", 'DECIMATE'); dm.ratio = DECIMATE.get(kind, 1.0) * factor
             apply_mods(cp); src = cp
         me = src.data; me.calc_loop_triangles()
         m = src.matrix_world; nm = m.to_3x3().inverted().transposed()
@@ -669,10 +691,12 @@ def export():
     for o in HEAD_PARTS["head"]: add_obj(o, "head")
     for o in HEAD_PARTS["jaw"]: add_obj(o, "jaw")
     for o in HEAD_PARTS["jawR"]: add_obj(o, "jawR")
-    order = ["hips", "chest", "neck", "head", "jaw", "jawR", "armL", "foreL", "handL", "armR", "foreR", "handR", "legL", "shinL", "legR", "shinR"]
-    def mc(v): return (v.x, v.z, -v.y)        # blender -> minecraft (y up, faces +z)
+    return tris
+
+def write_mesh(path, tris):
+    order = ORDER
     piv = {k: (JAW_PIVOTS[k] if k in JAW_PIVOTS else J[PARTS[k][1]][0]) for k in order}
-    with open(os.path.join(OUT, "shadow.mesh"), "wb") as f:
+    with open(path, "wb") as f:
         f.write(b"SHD2"); f.write(struct.pack("<i", len(order)))
         for k in order:
             nb = k.encode(); f.write(struct.pack("<h", len(nb))); f.write(nb)
@@ -684,10 +708,6 @@ def export():
                 nn = mc(n); f.write(struct.pack("<3b", *[max(-127, min(127, int(round(x * 127)))) for x in nn]))
                 f.write(struct.pack("<2f", c[0], 1.0 - c[1]))
                 f.write(struct.pack("<B", e))
-    hc = head_xf @ Vector((0, -0.05, 0))
-    print("[SHADOW] head centre (mc coords, unscaled):", mc(hc))
-    print("[SHADOW] height:", max(v.z for v in wv))
-    print("[SHADOW] tris per part:", {k: len(v) // 3 for k, v in tris.items()})
 
 # ------------------------------------------------------------------ rendering
 def setup_render(w, h, samples):
@@ -755,8 +775,14 @@ def jumpscare(frames=26):
     cam = camera(face + Vector((0, -0.75, 0.0)), ft, 30)
     sinew_mat = bpy.data.materials.new("sinew"); sinew_mat.use_nodes = True
     sb = sinew_mat.node_tree.nodes["Principled BSDF"]
-    sb.inputs["Base Color"].default_value = (0.55, 0.52, 0.45, 1); sb.inputs["Roughness"].default_value = 0.03
-    sb.inputs["Transmission Weight"].default_value = 0.55; sb.inputs["Specular IOR Level"].default_value = 1.0
+    sb.inputs["Base Color"].default_value = (0.78, 0.74, 0.66, 1); sb.inputs["Roughness"].default_value = 0.02
+    sb.inputs["Transmission Weight"].default_value = 0.85; sb.inputs["Specular IOR Level"].default_value = 1.0
+    sb.inputs["IOR"].default_value = 1.33
+    random.seed(77)
+    STR = [(random.uniform(-0.20, MOUTH_Z - 0.01), random.uniform(0.004, 0.02), random.uniform(0.0006, 0.0016),
+            random.uniform(-0.01, 0.01), random.random()) for _ in range(13)]
+    drops = []              # falling drool: [obj, velocity]
+    spit = []               # spray flying at the camera
     strands = []
     REST = {r.name: r.matrix_world.copy() for r in (jaw_rig, jawR_rig)}
     def on(rig, p_local):
@@ -765,16 +791,22 @@ def jumpscare(frames=26):
         for o_ in strands: bpy.data.objects.remove(o_)
         strands.clear()
         if open_amt < 0.05: return
-        for k in range(7):
-            zz = random.uniform(-0.20, MOUTH_Z - 0.01); yy = (front_y(0.0, zz) or -0.08) + random.uniform(0.004, 0.02)
+        for (zz, dy, thick, wob, sagr) in STR:       # the same strands every frame, stretching as it opens
+            yy = (front_y(0.0, zz) or -0.08) + dy
             a_ = on(jaw_rig, Vector((-0.004, yy, zz))); b_ = on(jawR_rig, Vector((0.004, yy, zz)))
+            if (a_ - b_).length > 0.16 + sagr * 0.08: continue          # stretched too far: snapped
             cd = bpy.data.curves.new("strand", 'CURVE'); cd.dimensions = '3D'
-            cd.bevel_depth = random.uniform(0.0004, 0.0012); cd.bevel_resolution = 2
+            cd.bevel_depth = thick * (1.0 - 0.5 * open_amt); cd.bevel_resolution = 2
             sp = cd.splines.new('BEZIER'); sp.bezier_points.add(1)
             for i_, pt in enumerate((a_, b_)):
                 bp = sp.bezier_points[i_]; bp.co = pt
                 bp.handle_left_type = bp.handle_right_type = 'AUTO'
-            mid_sag = Vector((0, random.uniform(-0.01, 0.01), -0.03 - 0.07 * open_amt * random.random()))
+            mid_sag = Vector((0, wob, -0.03 - 0.09 * open_amt * sagr))
+            # a fat bead of drool hanging at the lowest point
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=thick * 2.6, location=a_.lerp(b_, 0.5) + mid_sag * 0.75)
+            bead = bpy.context.active_object; bead.scale.z = 1.6; bead.data.materials.append(sinew_mat)
+            for pp in bead.data.polygons: pp.use_smooth = True
+            strands.append(bead)
             sp.bezier_points[0].handle_right_type = 'FREE'; sp.bezier_points[0].handle_right = a_.lerp(b_, 0.33) + mid_sag
             sp.bezier_points[1].handle_left_type = 'FREE'; sp.bezier_points[1].handle_left = a_.lerp(b_, 0.66) + mid_sag
             ob = link(bpy.data.objects.new("strand", cd)); ob.data.materials.append(sinew_mat)
@@ -794,12 +826,42 @@ def jumpscare(frames=26):
         under.data.energy = 22 * (0.3 if (f % 6 == 4) else 1.0)
         bpy.context.view_layer.update()
         build_strands(jaw_open)
+        # drool dripping off the teeth and falling
+        if f % 2 == 0 and jaw_open > 0.15:
+            zz = MOUTH_Z - 0.002; xx = random.uniform(-0.05, 0.05); yy = (front_y(xx, zz) or -0.08) + 0.006
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=random.uniform(0.0025, 0.004), location=head_xf @ Vector((xx, yy, zz)))
+            d_ = bpy.context.active_object; d_.data.materials.append(sinew_mat); d_.scale.z = 1.8
+            drops.append([d_, 0.0])
+        for d_ in drops:
+            d_[1] += 0.004; d_[0].location.z -= d_[1]; d_[0].scale.z = 1.8 + d_[1] * 120
+        # a spray of spit at the screen as it lunges
+        if 9 <= f <= 13:
+            for _ in range(6):
+                o_ = face + Vector((random.uniform(-0.03, 0.03), -0.02, random.uniform(-0.03, 0.02)))
+                bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=random.uniform(0.002, 0.006), location=o_)
+                s_ = bpy.context.active_object; s_.data.materials.append(sinew_mat)
+                v_ = (cam.location - o_).normalized() * random.uniform(0.04, 0.09) + Vector((random.uniform(-0.02, 0.02), 0, random.uniform(-0.015, 0.02)))
+                spit.append([s_, v_])
+        for s_ in spit:
+            s_[0].location += s_[1]; s_[1].z -= 0.003; s_[0].scale = (1, 1, 1.0 + s_[1].length * 25)
         bpy.context.view_layer.update()
         scene.render.filepath = os.path.join(OUT, "js_%02d.png" % f)
         bpy.ops.render.render(write_still=True)
     jaw_rig.rotation_euler = (0, 0, 0); jawR_rig.rotation_euler = (0, 0, 0); head_rig.rotation_euler = (0, 0, 0)
 
-if WHAT in ("export", "all"): export()
+def animations():
+    exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "anim.py")).read(), globals())
+    setup_render(240, 320, 6)
+    scene.cycles.use_denoising = False
+    tgt = empty("atgt", (0, -0.15, 1.2))
+    camera((-3.6, -4.8, 1.9), tgt, 40)
+    if "key" not in bpy.data.objects:
+        light("akey", 'AREA', (-2.5, -3.0, 3.2), 260, (0.85, 0.88, 1.0), 1.5, tgt)
+        light("arim", 'AREA', (2.0, 2.5, 3.0), 450, (1.0, 0.85, 0.75), 1.0, tgt)
+    bake_animations(TRIS_LOD)
+
+if WHAT in ("export", "all", "anim"): export()
 if WHAT in ("preview", "all"): preview()
+if WHAT in ("anim", "all"): animations()
 if WHAT in ("jumpscare", "all"): jumpscare()
 print("[SHADOW] done")

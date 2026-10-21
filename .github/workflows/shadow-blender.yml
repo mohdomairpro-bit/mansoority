@@ -12,7 +12,7 @@ concurrency:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - name: Install Blender 4.2 LTS
@@ -30,6 +30,20 @@ jobs:
         run: |
           pip install -q pillow numpy
           python3 shadow-blender/post.py out || true
+          python3 - <<'EOF' || true
+          import glob, os, re
+          from PIL import Image, ImageFilter
+          # previews of each animation clip as gifs
+          clips = {}
+          for f in sorted(glob.glob("out/anim/*.png")):
+              m = re.match(r"(.+)_(\d+)\.png", os.path.basename(f)); clips.setdefault(m.group(1), []).append(f)
+          for c, fs in clips.items():
+              ims = [Image.open(f).convert("P", palette=Image.ADAPTIVE) for f in fs]
+              ims[0].save("out/anim_%s.gif" % c, save_all=True, append_images=ims[1:], duration=100, loop=0)
+          # take the sampling noise out of the lit bake
+          a = Image.open("out/shadow_atlas.png").convert("RGB")
+          a.filter(ImageFilter.MedianFilter(3)).save("out/shadow_atlas.png")
+          EOF
           ls -la out
       - name: Publish
         if: always()
@@ -45,5 +59,8 @@ jobs:
             out/shadow_atlas.png
             out/*.jpg
             out/shadow.mesh
+            out/shadow_lod.mesh
+            out/shadow.anim
+            out/*.gif
             out/blender.log
             out/jumpscare_strip.jpg
