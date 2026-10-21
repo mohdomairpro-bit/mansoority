@@ -1,5 +1,5 @@
 {
   "variants": {
-    "default": "outlined_sprite:theshadow/shadow.png"
+    "default": "normal_sprite:theshadow/shadow.png"
   }
 }

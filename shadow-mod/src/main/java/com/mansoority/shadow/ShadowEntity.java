@@ -84,6 +84,7 @@ public class ShadowEntity extends PathfinderMob {
         this.xpReward = 0;
         this.noCulling = false;        // frustum-culled: costs nothing while it's behind you
         this.setInvulnerable(true);
+        this.setInvisible(true);      // minimaps/radars (Xaero's etc.) skip invisible mobs; our own renderer draws it anyway
         this.setPersistenceRequired();
     }
 

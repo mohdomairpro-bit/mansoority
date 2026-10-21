@@ -57,6 +57,9 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         }
 
         @Override
+        protected boolean isBodyVisible(ShadowEntity e) { return true; }
+
+        @Override
         protected void scale(ShadowEntity e, PoseStack pose, float pt) { pose.scale(0.9375F, 0.9375F, 0.9375F); }
 
         @Override
