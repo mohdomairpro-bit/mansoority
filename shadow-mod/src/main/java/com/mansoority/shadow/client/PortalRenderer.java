@@ -20,7 +20,7 @@ import org.joml.Matrix4f;
 /** when it leaves, a black-and-white spiral tears open, it's pulled in twisting, and the hole snaps shut */
 public final class PortalRenderer {
     private static final ResourceLocation SMOKE = new ResourceLocation(TheShadow.MODID, "textures/entity/portal_smoke.png");
-    private static final ResourceLocation HAND = new ResourceLocation(TheShadow.MODID, "textures/gui/hand.png");
+    private static final ResourceLocation HAND = new ResourceLocation(TheShadow.MODID, "textures/entity/portal_hand.png");
     private static final int FRAMES = 24, GX = 4, GY = 6;
 
     public static void onRenderLevel(RenderLevelStageEvent event) {
@@ -65,16 +65,18 @@ public final class PortalRenderer {
             float reach = Mth.clamp((v - 5F) / 10F, 0F, 1F) * open;
             if (reach > 0.02F) {
                 VertexConsumer hv = buf.getBuffer(hands);
-                for (int k = 0; k < 4; k++) {
-                    float ang = k * 95F + 35F + Mth.sin(v * 0.13F + k) * 6F;
+                float[] angs = {20F, 140F, 255F};
+                for (int k = 0; k < 3; k++) {
+                    float kr = Mth.clamp(reach * 1.3F - k * 0.15F, 0F, 1F);     // one after another
+                    if (kr <= 0F) continue;
                     ps.pushPose();
-                    ps.translate(0, 0, 0.12F);
-                    ps.mulPose(Axis.ZP.rotationDegrees(ang));
-                    float hs = rad * (0.75F + 0.1F * k % 2);
-                    float out = rad * (0.15F + 0.55F * reach) + Mth.sin(v * 0.6F + k * 2F) * rad * 0.03F;
-                    ps.translate(out - hs * 0.55F, 0, 0);
-                    int ha = (int) (215 * reach);
-                    quad(hv, ps.last().pose(), ps.last().normal(), hs * 0.5F, hs * 0.5F, 0F, 0F, 1F, 1F, ha, 150, 146, 140);
+                    ps.translate(0, 0, 0.12F + k * 0.01F);
+                    ps.mulPose(Axis.ZP.rotationDegrees(angs[k] + Mth.sin(v * 0.13F + k) * 6F));
+                    float hs = rad * 0.6F;
+                    float d = rad * (0.3F + 0.32F * kr) + hs * 0.2F + Mth.sin(v * 0.6F + k * 2F) * rad * 0.02F;
+                    ps.translate(d, 0, 0);
+                    int ha = (int) (230 * kr);
+                    quad(hv, ps.last().pose(), ps.last().normal(), hs * 0.5F, hs * 0.5F, 0F, 0F, 1F, 1F, ha, 160, 156, 150);
                     ps.popPose();
                 }
             }
