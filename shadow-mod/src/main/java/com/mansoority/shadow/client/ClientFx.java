@@ -73,6 +73,10 @@ public final class ClientFx {
                 }
             }
             case FxPacket.LICK -> drool = 1F;
+            case FxPacket.POLTER -> ClientScares.polter();
+            case FxPacket.MIRROR -> ClientScares.mirror();
+            case FxPacket.DEATHMSG -> ClientScares.deathMsg();
+            case FxPacket.MARK -> ClientScares.mark(p.sound);
             default -> {}
         }
         if (p.kind == FxPacket.JUMPSCARE || p.kind == FxPacket.JUMPSCARE_NOW) mc.getSoundManager().stop();
@@ -157,6 +161,7 @@ public final class ClientFx {
         stare += (target - stare) * 0.25F;
 
         CinematicCam.tick();
+        ClientScares.tick();
         if (drool > 0F) drool = Math.max(0F, drool - 0.008F);
         if (turnT >= 0) {
             turnT++;

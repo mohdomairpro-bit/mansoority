@@ -51,6 +51,7 @@ public class ShadowEvents {
         if (event.phase != TickEvent.Phase.END || event.side != LogicalSide.SERVER) return;
         if (!(event.player instanceof ServerPlayer p)) return;
         if (p.tickCount % 20 == 0) trackActivity(p);
+        if (p.tickCount % 40 == 0) ShadowMark.tick(p);
         ShadowCinematic.tick(p);
         if (ShadowCinematic.running(p)) return;
         if (p.tickCount % 1200 != 600) return; // once a minute
@@ -98,6 +99,7 @@ public class ShadowEvents {
         ShadowEntity e = ShadowEntity.spawnAround(p, -1, p.getRandom().nextBoolean() ? 150 : -150, 2.6);
         if (e == null) return false;
         ShadowEntity.ui(p, ShadowRegistry.BREATH, 1F, 0.6F);
+        ShadowAdvancements.award(p, "sleep");
         p.displayClientMessage(Component.literal("You should sleep.").withStyle(net.minecraft.ChatFormatting.DARK_GRAY, net.minecraft.ChatFormatting.ITALIC), true);
         warnAll(p);
         data.putLong(KEY_NEXT, now + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
@@ -137,6 +139,10 @@ public class ShadowEvents {
     }
 
     private static void soundEvent(ServerPlayer p) {
+        float k = p.getRandom().nextFloat();
+        if (k < 0.18F) { ShadowNet.send(p, FxPacket.of(FxPacket.POLTER)); ShadowTrails.behind(p); return; }
+        if (k < 0.26F) { ShadowNet.send(p, FxPacket.of(FxPacket.MIRROR)); return; }
+        if (k < 0.33F) { ShadowNet.send(p, FxPacket.of(FxPacket.DEATHMSG)); return; }
         int id = p.getRandom().nextInt(7);
         FxPacket pkt = new FxPacket(FxPacket.SEQUENCE, id, 0, 0, 0, 1, 1);
         ShadowTrails.behind(p);
@@ -152,7 +158,7 @@ public class ShadowEvents {
         d.register(Commands.literal(root).requires(s -> s.hasPermission(2))
                 .then(Commands.argument("action", StringArgumentType.word())
                         .suggests((c, b) -> {
-                            for (String a : new String[]{"cinematic", "test", "stalk", "mimic", "grab", "lick", "drag", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
+                            for (String a : new String[]{"cinematic", "test", "stalk", "mimic", "grab", "lick", "drag", "polter", "mirror", "deathmsg", "mark", "boss", "lair", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
                             return b.buildFuture();
                         })
                         .executes(c -> run(c, c.getSource().getPlayerOrException()))
@@ -196,6 +202,10 @@ public class ShadowEvents {
             }
             case "scare" -> { ShadowEntity.jumpscare(p, false); reply(src, "Jumpscare sent."); }
             case "event" -> { soundEvent(p); reply(src, "Sound event sent."); }
+            case "polter" -> { ShadowNet.send(p, FxPacket.of(FxPacket.POLTER)); reply(src, "Something moved."); }
+            case "mirror" -> { ShadowNet.send(p, FxPacket.of(FxPacket.MIRROR)); reply(src, "Press F5."); }
+            case "deathmsg" -> { ShadowNet.send(p, FxPacket.of(FxPacket.DEATHMSG)); reply(src, "Check chat."); }
+            case "mark" -> { ShadowMark.mark(p); reply(src, p.getScoreboardName() + " has been marked."); }
             case "despawn" -> {
                 ShadowCinematic.stop(p);
                 p.serverLevel().getEntities(ShadowRegistry.SHADOW.get(), e -> true).forEach(e -> e.discard());

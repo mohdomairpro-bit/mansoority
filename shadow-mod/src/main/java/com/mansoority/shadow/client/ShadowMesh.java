@@ -27,7 +27,8 @@ public final class ShadowMesh {
         public int[] solidTris, glowTris;
         public final List<Part> children = new ArrayList<>();
         public float xRot, yRot, zRot; // animated each frame
-        public float ty;                // vertical offset (model metres), roots only
+        public float tx, ty, tz;        // offset (model metres), applied before the pivot rotation
+        public final org.joml.Quaternionf anim = new org.joml.Quaternionf();   // keyframed rotation (Blender clips)
 
         Part(String name, int parent, float px, float py, float pz, int tris) {
             this.name = name; this.parent = parent; this.px = px; this.py = py; this.pz = pz;
@@ -35,7 +36,7 @@ public final class ShadowMesh {
             this.uv = new float[tris * 6]; this.glow = new boolean[tris];
         }
         public int triangles() { return glow.length; }
-        public void reset() { xRot = yRot = zRot = 0F; ty = 0F; }
+        public void reset() { xRot = yRot = zRot = 0F; tx = ty = tz = 0F; anim.identity(); }
     }
 
     public final List<Part> parts = new ArrayList<>();
@@ -46,8 +47,19 @@ public final class ShadowMesh {
         return null;
     }
 
-    private static ShadowMesh cached;
-    private static boolean failed;
+    private static ShadowMesh cached, cachedLod;
+    private static boolean failed, failedLod;
+    public static final ResourceLocation LOD = new ResourceLocation(TheShadow.MODID, "models/shadow_lod.mesh");
+
+    /** the far-away version: a fraction of the triangles */
+    public static ShadowMesh lod() {
+        if (cachedLod == null && !failedLod) {
+            try (InputStream in = Minecraft.getInstance().getResourceManager().open(LOD)) {
+                cachedLod = read(in.readAllBytes());
+            } catch (Exception e) { failedLod = true; }
+        }
+        return cachedLod != null ? cachedLod : get();
+    }
 
     public static ShadowMesh get() {
         if (cached == null && !failed) {

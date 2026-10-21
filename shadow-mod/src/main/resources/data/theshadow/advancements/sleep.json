@@ -1,0 +1,26 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:red_bed"
+    },
+    "title": {
+      "text": "You Should Sleep.",
+      "color": "white"
+    },
+    "description": {
+      "text": "Go nights without sleeping, and find out why you shouldn't",
+      "color": "gray",
+      "italic": true
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "theshadow:root"
+}

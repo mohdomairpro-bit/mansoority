@@ -1,0 +1,26 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:leather_boots"
+    },
+    "title": {
+      "text": "Run.",
+      "color": "white"
+    },
+    "description": {
+      "text": "Get caught at the end of the chase",
+      "color": "gray",
+      "italic": true
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "theshadow:root"
+}

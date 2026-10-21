@@ -1,0 +1,26 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:name_tag"
+    },
+    "title": {
+      "text": "It Knows Your Name.",
+      "color": "dark_red"
+    },
+    "description": {
+      "text": "Live through everything it can do",
+      "color": "gray",
+      "italic": true
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "theshadow:boss"
+}

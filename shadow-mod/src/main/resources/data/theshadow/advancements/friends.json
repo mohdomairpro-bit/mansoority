@@ -1,0 +1,26 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:player_head"
+    },
+    "title": {
+      "text": "It Wears Your Friends",
+      "color": "white"
+    },
+    "description": {
+      "text": "Walk up to someone who isn't who they look like",
+      "color": "gray",
+      "italic": true
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "theshadow:root"
+}

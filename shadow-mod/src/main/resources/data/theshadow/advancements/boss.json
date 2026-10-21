@@ -1,0 +1,26 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:dragon_head"
+    },
+    "title": {
+      "text": "The End Was Only the Beginning",
+      "color": "dark_red"
+    },
+    "description": {
+      "text": "Drive Mansoority out of the End",
+      "color": "gray",
+      "italic": true
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "theshadow:lair"
+}

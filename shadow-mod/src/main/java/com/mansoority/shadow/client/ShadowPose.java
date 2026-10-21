@@ -39,8 +39,89 @@ final class ShadowPose {
         }
     }
 
+    /** Blender clips when they're available; the hand-coded poses below are the fallback */
     static void apply(ShadowMesh m, ShadowEntity e, float age, float pt, net.minecraft.world.phys.Vec3 cam) {
         for (ShadowMesh.Part p : m.parts) p.reset();
+        ShadowAnim A = ShadowAnim.get();
+        if (A != null && A.clips.containsKey("idle")) { animated(A, m, e, age, pt, cam); return; }
+        procedural(m, e, age, pt, cam);
+    }
+
+    private static void animated(ShadowAnim A, ShadowMesh m, ShadowEntity e, float age, float pt, net.minecraft.world.phys.Vec3 cam) {
+        if (!(e.animState instanceof ShadowAnim.State)) e.animState = A.newState();
+        ShadowAnim.State st = (ShadowAnim.State) e.animState;
+        int id = e.getId();
+        float stare = e.smoothStare;
+        int rush = e.getRush(), gr = e.getGrab();
+        double moved = Math.hypot(e.getX() - e.xo, e.getZ() - e.zo);
+        String clip = "idle"; float drive = -1F, speed = 1F;
+        if (e.getVanish() > 0) { clip = st.cur; speed = 0.4F; }
+        else if (gr > 0) {
+            if (gr < 24) { clip = "grab"; drive = gr + pt; }
+            else if (e.getGrabMode() == ShadowEntity.GRAB_LICK) { clip = "lick"; speed = 1F; }
+            else { clip = "scuttle"; speed = 1.2F; }
+        } else if (rush > 0) {
+            float r = rush + pt;
+            float g = r - ShadowEntity.RUSH_GO;
+            if (r < ShadowEntity.RUSH_STILL) { clip = "idle"; speed = 0.2F; }
+            else if (g < 0) { clip = "fold"; drive = (r - ShadowEntity.RUSH_STILL) * 45F / ShadowEntity.RUSH_FOLD; }
+            else { clip = "scuttle"; speed = (g > 18 && g < 30) ? 0F : 1.3F; }
+        } else if (e.getScuttle() > 0) { clip = "scuttle"; speed = 1.3F; }
+        else if (stare > 0.03F) {
+            switch (e.getVariant()) {
+                case 1 -> { clip = "crawl"; speed = moved > 0.01 ? 0.8F : 0.15F; }
+                case 2 -> { clip = moved > 0.01 ? "walk" : "idle"; speed = moved > 0.01 ? 1.4F : 0.1F; }
+                case 3 -> { clip = "neck"; drive = stare * 60F; }
+                default -> { clip = "stareA"; drive = stare * 60F; }
+            }
+        } else if (e.getStage() == 0) { clip = "peek"; }
+        else if (moved > 0.03) { clip = "walk"; speed = (float) Math.min(2.0, moved * 6.0); }
+        A.play(st, clip, drive, speed, age);
+        A.apply(st, m);
+
+        ShadowMesh.Part head = m.get("head"), jaw = m.get("jaw"), jawR = m.get("jawR"), neck = m.get("neck");
+        // it always looks AT you
+        double headY = e.getY() + 1.905 * ShadowEntity.MODEL_SCALE;
+        double horiz = Math.max(1.0, Math.sqrt((cam.x - e.getX()) * (cam.x - e.getX()) + (cam.z - e.getZ()) * (cam.z - e.getZ())));
+        float look = Mth.clamp((float) Math.atan2(headY - cam.y, horiz), -0.5F, 1.25F);
+        boolean crouched = clip.equals("peek") || clip.equals("crawl") || clip.equals("scuttle") || clip.equals("fold");
+        neck.xRot += look * (crouched ? 0.2F : 0.45F);
+        head.xRot += look * (crouched ? 0.25F : 0.55F);
+        // the face: barely parts when it breathes, splits wide as you stare / when it comes for you
+        float mouth = (Mth.sin(age * 0.06F) * 0.5F + 0.5F) * 0.035F;
+        mouth += stare * stare * 1.6F;
+        if (stare > 0.6F) {
+            float j = (stare - 0.6F) * 2.5F;
+            head.zRot += (hash((int) age, id) - 0.5F) * 0.35F * j;
+            head.xRot += (hash((int) age, id + 9) - 0.5F) * 0.25F * j;
+            mouth += hash((int) age, id + 11) * 0.3F * j;
+        }
+        if (rush > 0) mouth += Mth.clamp((rush - ShadowEntity.RUSH_STILL * 0.5F) / 40F, 0F, 1.5F);
+        if (gr > 0 && e.getGrabMode() == ShadowEntity.GRAB_LICK && gr > 50) mouth += 0.7F + 0.6F * Math.abs(Mth.sin((gr + pt) * 0.21F));
+        if (e.getScuttle() > 0) mouth += 1.0F;
+        // rare little twitches so it's never perfectly smooth
+        int win = (int) (age / 6F);
+        float local = age - win * 6F;
+        if (stare < 0.05F && rush <= 0 && hash(win, id) < 0.06F && local < 2.5F) {
+            float tw = Mth.sin(local / 2.5F * Mth.PI);
+            head.zRot += (hash(win, id + 1) - 0.5F) * 0.8F * tw;
+            mouth += hash(win, id + 3) * 0.25F * tw;
+        }
+        mouth = Mth.clamp(mouth, 0F, 1.75F);
+        jaw.yRot -= mouth; jawR.yRot += mouth;
+        jaw.xRot += mouth * 0.12F; jawR.xRot += mouth * 0.12F;
+        int vanish = e.getVanish();
+        if (vanish > 0) {
+            float v = Math.min(1F, vanish / 12F);
+            for (ShadowMesh.Part p : m.parts) {
+                int i = p.name.hashCode();
+                p.xRot += (hash((int) age, i * 31 + id) - 0.5F) * 0.9F * v;
+                p.zRot += (hash((int) age + 7, i * 17 + id) - 0.5F) * 0.9F * v;
+            }
+        }
+    }
+
+    private static void procedural(ShadowMesh m, ShadowEntity e, float age, float pt, net.minecraft.world.phys.Vec3 cam) {
         ShadowMesh.Part head = m.get("head"), jaw = m.get("jaw"), jawR = m.get("jawR"), neck = m.get("neck"), chest = m.get("chest");
         ShadowMesh.Part armL = m.get("armL"), armR = m.get("armR"), foreL = m.get("foreL"), foreR = m.get("foreR");
         ShadowMesh.Part handL = m.get("handL"), handR = m.get("handR");

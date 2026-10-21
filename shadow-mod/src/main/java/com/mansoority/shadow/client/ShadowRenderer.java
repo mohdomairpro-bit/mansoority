@@ -95,10 +95,13 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     @Override
     public void render(ShadowEntity e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         if (e.isMimic()) { renderMimic(e, partialTick, pose, buffers, light); return; }
-        ShadowMesh mesh = ShadowMesh.get();
-        if (mesh == null || e.isHidden()) return;
+        if (e.isHidden()) return;
+        net.minecraft.world.phys.Vec3 camPos = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        boolean far = camPos.distanceToSqr(e.position()) > 56 * 56 && e.getGrab() <= 0;
+        ShadowMesh mesh = far ? ShadowMesh.lod() : ShadowMesh.get();
+        if (mesh == null) return;
         float age = e.tickCount + partialTick;
-        ShadowPose.apply(mesh, e, age, partialTick, net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition());
+        ShadowPose.apply(mesh, e, age, partialTick, camPos);
         float bodyYaw = Mth.rotLerp(partialTick, e.yBodyRotO, e.yBodyRot);
         float grow = 1F + Math.min(1F, e.getStare() / (float) ShadowEntity.STARE_LIMIT) * 0.12F;
         // pulled into the portal: shrinks and twists away
@@ -109,6 +112,17 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         e.tint += (wantTint - e.tint) * 0.1F;
         tint = (int) (255 * e.tint);
         pose.pushPose();
+        // two friends together never see it in the same place: while it's lurking, everyone else sees it somewhere else
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (e.getStage() == 0 && mc.player != null && mc.player.getId() != e.getTargetEntityId() && mc.level != null) {
+            net.minecraft.world.entity.Entity t = mc.level.getEntity(e.getTargetEntityId());
+            if (t != null) {
+                double rx = e.getX() - t.getX(), rz = e.getZ() - t.getZ();
+                double a = Math.toRadians(70 + Math.floorMod(mc.player.getId() * 37, 140));
+                double nx = rx * Math.cos(a) - rz * Math.sin(a), nz = rx * Math.sin(a) + rz * Math.cos(a);
+                pose.translate(nx - rx, 0, nz - rz);
+            }
+        }
         pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw + vt * vt * 540F));
         if (vt > 0F) pose.translate(0F, e.getBbHeight() * 0.5F * vt, 0F);
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);
@@ -122,9 +136,11 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
 
     private static void draw(ShadowMesh.Part p, PoseStack pose, VertexConsumer vc, int light, boolean glowPass) {
         pose.pushPose();
-        if (p.ty != 0F) pose.translate(0F, p.ty, 0F);
-        if (p.xRot != 0F || p.yRot != 0F || p.zRot != 0F) {
+        if (p.tx != 0F || p.ty != 0F || p.tz != 0F) pose.translate(p.tx, p.ty, p.tz);
+        boolean animRot = p.anim.w < 0.99999F;
+        if (animRot || p.xRot != 0F || p.yRot != 0F || p.zRot != 0F) {
             pose.translate(p.px, p.py, p.pz);
+            if (animRot) pose.mulPose(p.anim);
             pose.mulPose(new Quaternionf().rotationZYX(p.zRot, p.yRot, p.xRot));
             pose.translate(-p.px, -p.py, -p.pz);
         }

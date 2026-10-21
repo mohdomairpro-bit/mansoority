@@ -1,0 +1,26 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:slime_ball"
+    },
+    "title": {
+      "text": "Mostly.",
+      "color": "white"
+    },
+    "description": {
+      "text": "Get lifted up to its face... and put back",
+      "color": "gray",
+      "italic": true
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "theshadow:root"
+}

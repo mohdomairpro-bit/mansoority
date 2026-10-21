@@ -15,7 +15,11 @@ public class FxPacket {
     public static final int SEQUENCE = 5;        // scripted sound event, id in 'sound'
     public static final int TURN = 7;            // a hand grabs your head and turns it toward entity id in 'volume'
     public static final int LICK = 8;            // wet smear across the screen
-    public static final int CAM = 6;             // cinematic camera: shot in 'sound', params x/y/z, focus entity id in volume, chapter card in pitch
+    public static final int CAM = 6;
+    public static final int POLTER = 9;          // a torch goes out / a door opens / a chest creaks (client-only, restored after)
+    public static final int MIRROR = 10;         // it's right behind you for an instant (third person)
+    public static final int DEATHMSG = 11;       // a fake death message in your chat
+    public static final int MARK = 12;           // you've been marked (seconds in 'sound')             // cinematic camera: shot in 'sound', params x/y/z, focus entity id in volume, chapter card in pitch
 
     public final int kind;
     public final int sound;

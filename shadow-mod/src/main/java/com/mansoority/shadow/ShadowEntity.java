@@ -48,6 +48,7 @@ public class ShadowEntity extends PathfinderMob {
     private static final EntityDataAccessor<String> DATA_MIMIC_NAME = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Integer> DATA_GRAB = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_GRAB_MODE = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_VARIANT = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_SCUTTLE = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     public static final int STAGE_MIMIC = -2, STAGE_GRAB = -3, STAGE_FLEE = -4;
     public static final int GRAB_LICK = 0, GRAB_DRAG = 1, VANISH_LEN = 34;
@@ -60,6 +61,11 @@ public class ShadowEntity extends PathfinderMob {
     private final java.util.List<Vec3> path = new java.util.ArrayList<>();
     /** client-side smoothed pose drivers (no snapping between states) */
     public float smoothStare, smoothRush, tint = 1F;
+    /** client: animation playback state */
+    public Object animState;
+    /** where it's gliding to (it walks now instead of blinking from spot to spot) */
+    private Vec3 glide;
+    private Vec3 lastVictimPos, prevVictimPos;
     /** driven by the /shadow cinematic script instead of its own brain */
     public boolean scripted, noHarm;
     public void scriptStare(int v) { this.entityData.set(DATA_STARE, v); }
@@ -109,6 +115,7 @@ public class ShadowEntity extends PathfinderMob {
         this.entityData.define(DATA_GRAB, 0);
         this.entityData.define(DATA_GRAB_MODE, 0);
         this.entityData.define(DATA_SCUTTLE, 0);
+        this.entityData.define(DATA_VARIANT, 0);
         this.entityData.define(DATA_MIMIC_NAME, "");
     }
 
@@ -117,11 +124,15 @@ public class ShadowEntity extends PathfinderMob {
     public UUID getMimicId() { try { return UUID.fromString(this.entityData.get(DATA_MIMIC)); } catch (Exception ex) { return new UUID(0, 0); } }
     public String getMimicName() { return this.entityData.get(DATA_MIMIC_NAME); }
     @Override
-    public AABB getBoundingBoxForCulling() { return this.getBoundingBox().inflate(5.0, 2.0, 5.0); }
+    public AABB getBoundingBoxForCulling() {
+        return getStage() == 0 ? this.getBoundingBox().inflate(60.0, 8.0, 60.0) : this.getBoundingBox().inflate(5.0, 2.0, 5.0);
+    }
 
     public int getGrab() { return this.entityData.get(DATA_GRAB); }
     public int getGrabMode() { return this.entityData.get(DATA_GRAB_MODE); }
     public int getScuttle() { return this.entityData.get(DATA_SCUTTLE); }
+    /** how it reacts to being stared at: 0 arms open + face splits, 1 head upside-down crawl, 2 copies your steps, 3 neck stretches */
+    public int getVariant() { return this.entityData.get(DATA_VARIANT); }
 
     // ---------------------------------------------------------------- the grab: picks you up, then licks you or drags you off
     public static ShadowEntity grab(ServerPlayer p, int mode) {
@@ -199,6 +210,9 @@ public class ShadowEntity extends PathfinderMob {
             if (s != null) p.teleportTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5);
             p.fallDistance = 0;
             GRABBED.remove(p.getUUID());
+            ShadowAdvancements.award(p, mode == GRAB_LICK ? "mostly" : "dragged");
+            ShadowMark.mark(p);
+            if (mode == GRAB_LICK && this.random.nextFloat() < 0.5F) ShadowNet.send(p, FxPacket.of(FxPacket.DEATHMSG));
             if (mode == GRAB_DRAG) ui(p, ShadowRegistry.STATIC, 1F, 0.7F);
             startVanish();
         }
@@ -213,6 +227,7 @@ public class ShadowEntity extends PathfinderMob {
 
     /** a mimic you walked up to: drops the act, turns back into itself and runs */
     private void unmask(ServerPlayer near) {
+        ShadowAdvancements.award(near, "friends");
         this.entityData.set(DATA_MIMIC, "");
         this.entityData.set(DATA_MIMIC_NAME, "");
         for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) this.setItemSlot(slot, net.minecraft.world.item.ItemStack.EMPTY);
@@ -240,6 +255,9 @@ public class ShadowEntity extends PathfinderMob {
         this.setYRot(yaw); this.yBodyRot = yaw; this.yHeadRot = yaw;
         if (life % 3 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.4F);
     }
+
+    /** client-only dummies (the mirror moment) */
+    public void clientStage(int st) { this.entityData.set(DATA_STAGE, st); this.entityData.set(DATA_HIDDEN, false); }
 
     public int getStage() { return this.entityData.get(DATA_STAGE); }
 
@@ -317,6 +335,21 @@ public class ShadowEntity extends PathfinderMob {
         this.stage = stage;
         this.entityData.set(DATA_STAGE, stage);
         if (stage == 0) { this.entityData.set(DATA_HIDDEN, true); hiddenFor = 60; }
+        this.entityData.set(DATA_VARIANT, this.random.nextInt(4));
+    }
+
+    /** walk toward 'glide' a little each tick, following the ground */
+    private boolean glideTick(double speed) {
+        if (glide == null) return false;
+        Vec3 d = glide.subtract(this.position());
+        double h = Math.hypot(d.x, d.z);
+        if (h < 0.3) { glide = null; return false; }
+        double st = Math.min(speed, h);
+        double nx = this.getX() + d.x / h * st, nz = this.getZ() + d.z / h * st;
+        BlockPos g = findStand((ServerLevel) this.level(), nx, this.getY(), nz, 3);
+        double ny = g != null ? this.getY() + (g.getY() - this.getY()) * 0.35 : this.getY();
+        this.setPos(nx, ny, nz);
+        return true;
     }
 
     // ---------------------------------------------------------------- harmless & unkillable
@@ -388,6 +421,8 @@ public class ShadowEntity extends PathfinderMob {
             this.discard();
             return;
         }
+        prevVictimPos = lastVictimPos;
+        lastVictimPos = player.position();
         if (stage == STAGE_GRAB) { grabTick(player); return; }
         if (stage == STAGE_FLEE) { fleeTick(); return; }
         if (scripted) { faceTowards(player); return; }
@@ -407,8 +442,17 @@ public class ShadowEntity extends PathfinderMob {
         if (watcher != null) {
             this.getNavigation().stop();
             unseen = 0;
+            glide = null;
             int stare = getStare() + 1;
             this.entityData.set(DATA_STARE, stare);
+            int var = getVariant();
+            if (var == 1 && stare > 15 && this.distanceTo(watcher) > 7) {          // crawls at you while you watch
+                glide = watcher.position(); glideTick(0.06); glide = null;
+            }
+            if (var == 2 && prevVictimPos != null && watcher == player && this.distanceTo(watcher) > 6) {   // every step you take, it takes one toward you
+                double moved = Math.hypot(watcher.getX() - prevVictimPos.x, watcher.getZ() - prevVictimPos.z);
+                if (moved > 0.01) { glide = watcher.position(); glideTick(moved); glide = null; }
+            }
             onStare(watcher, stare);
         } else {
             if (getStare() > 0) {
@@ -416,6 +460,7 @@ public class ShadowEntity extends PathfinderMob {
                 for (ServerPlayer m : inside) calm(m);
             }
             unseen++;
+            glideTick(0.32);
             if (stage >= 1 && unseen > 20 * 7 && life - lastTurn > 20 * 25) turnHead(player);
             creep(player);
         }
@@ -563,6 +608,7 @@ public class ShadowEntity extends PathfinderMob {
         if (s == 40) ui(p, ShadowRegistry.WHISPER, 1F, 0.6F);
         if (stage >= 1 && (s == 20 || s == 40) && this.distanceTo(p) > 6) lurch(p);
         if (stage < 0 && s >= 10) { startVanish(); return; }   // bedside visit: one look and it's gone
+        if (s == 30) ShadowAdvancements.award(p, "looked");
         if (s >= STARE_LIMIT) advance(p);
     }
 
@@ -589,7 +635,7 @@ public class ShadowEntity extends PathfinderMob {
         Vec3 dir = p.position().subtract(this.position()).normalize();
         double step = Math.min(4.0, dist - 7);
         BlockPos spot = findStand((ServerLevel) this.level(), this.getX() + dir.x * step, this.getY(), this.getZ() + dir.z * step, 6);
-        if (spot != null) this.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+        if (spot != null) glide = new Vec3(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
     }
 
     private void advance(ServerPlayer p) {
@@ -658,6 +704,8 @@ public class ShadowEntity extends PathfinderMob {
         if (d < 2.4 || g > 140) {
             for (ServerPlayer m : zoneMembers(p)) {      // it gets everyone inside the ring
                 ShadowNet.send(m, FxPacket.of(FxPacket.JUMPSCARE_NOW));
+                ShadowAdvancements.award(m, "run");
+                ShadowMark.mark(m);
                 if (m == p ? d < 3.5 : true) bite(m);
             }
             this.discard();
