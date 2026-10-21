@@ -117,7 +117,46 @@ public final class AutoTest {
         int c = t - 560;
         int[] at = {40, 120, 230, 300, 420, 470, 560, 640, 700, 780, 860, 960, 1060, 1200, 1300, 1420, 1500};
         for (int i = 0; i < at.length; i++) if (c == at[i]) shot(mc, String.format("c%02d_cinematic", i));
-        if (t == 2470) { log("done"); mc.stop(); }
+        // ---- new features
+        if (t == 2440) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.serverLevel().getEntities(ShadowRegistry.SHADOW.get(), x -> true).forEach(Entity::discard);
+            sp.serverLevel().setDayTime(18000);
+            ShadowEntity e = ShadowEntity.grab(sp, ShadowEntity.GRAB_LICK);
+            log("grab: " + (e != null));
+        });
+        if (t == 2500) shot(mc, "20_grab_lift");
+        if (t == 2540) shot(mc, "21_grab_lick");
+        if (t == 2620) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_HELMET));
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_CHESTPLATE));
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADOW_BLADE.get()));
+            ShadowEntity e = ShadowEntity.mimicFor(sp);
+            log("mimic: " + (e != null));
+        });
+        if (t == 2640) lookNear(mc, 0F);
+        if (t == 2650) shot(mc, "22_mimic_gear");
+        if (t == 2660) { ClientFx.handle(FxPacket.of(FxPacket.DEATHMSG)); ClientFx.handle(new FxPacket(FxPacket.MARK, 600, 0, 0, 0, 1, 1)); }
+        if (t == 2680) shot(mc, "23_deathmsg_mark");
+        if (t == 2700) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel end = server.getLevel(net.minecraft.world.level.Level.END);
+            if (end != null) { sp.teleportTo(end, 0.5, 80, 40.5, 180F, 10F); log("to the end"); }
+        });
+        if (t == 2800) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.getAbilities().invulnerable = true;
+            var b = com.mansoority.shadow.ShadowEvents.endBossCheck(sp, true);
+            log("boss: " + (b != null));
+        });
+        if (t == 2830) lookNear(mc, 0F);
+        if (t == 2840) shot(mc, "24_boss_emerge");
+        if (t == 2900) lookNear(mc, 0F);
+        if (t == 2910) shot(mc, "25_boss_fight");
+        if (t == 3000) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
+        if (t == 3010) shot(mc, "26_boss_shades");
+        if (t == 3100) { log("done"); mc.stop(); }
     }
 
     /** aim at the shadow's head, offset sideways by 'offset' degrees */
