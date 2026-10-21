@@ -37,6 +37,7 @@ public class ShadowConfigScreen extends Screen {
         slider(colR, y, w, "Max players near", ShadowConfig.MAX_WITNESSES.get(), 1, 10, v -> String.valueOf((int) v),
                 v -> ShadowConfig.MAX_WITNESSES.set((int) Math.round(v)));
         y += 24;
+        toggle(colR, y, w, "Only after dragon", ShadowConfig.AFTER_DRAGON);
         slider(colL, y, w, "Catch damage", ShadowConfig.CATCH_DAMAGE.get(), 0, 10, v -> String.format("%.1f hearts", v / 2),
                 v -> ShadowConfig.CATCH_DAMAGE.set(Math.round(v * 2) / 2.0));
         y += 34;

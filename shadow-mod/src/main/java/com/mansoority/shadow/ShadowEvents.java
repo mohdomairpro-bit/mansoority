@@ -145,7 +145,7 @@ public class ShadowEvents {
 
     /** walking into its lair: always ends with it coming for you */
     private static void lairCheck(ServerPlayer p) {
-        if (p.isCreative() || p.isSpectator() || !ShadowConfig.ENABLED.get() || !ShadowConfig.LAIR.get()) return;
+        if (p.isCreative() || p.isSpectator() || !ShadowConfig.ENABLED.get() || !ShadowConfig.LAIR.get() || !awakened(p.server)) return;
         net.minecraft.server.level.ServerLevel sl = p.serverLevel();
         var reg = sl.registryAccess().registryOrThrow(Registries.STRUCTURE);
         var st = reg.get(LAIR);
@@ -186,7 +186,15 @@ public class ShadowEvents {
                 Component.literal(msg).withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), false);
     }
 
+    /** has anyone on this world killed the Ender Dragon yet? until then it doesn't exist */
+    public static boolean awakened(net.minecraft.server.MinecraftServer server) {
+        if (!ShadowConfig.AFTER_DRAGON.get()) return true;
+        net.minecraft.server.level.ServerLevel end = server.getLevel(net.minecraft.world.level.Level.END);
+        return end != null && end.getDragonFight() != null && end.getDragonFight().hasPreviouslyKilledDragon();
+    }
+
     private static boolean eligible(ServerPlayer p) {
+        if (!awakened(p.server)) return false;
         if (p.isCreative() || p.isSpectator() || p.isSleeping()) return false;
         if (isAfk(p)) return false;                                            // you have to actually be playing
         if (p.tickCount < 24000) return false;                                 // first 20 min after joining: nothing
