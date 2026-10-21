@@ -214,7 +214,10 @@ public final class ClientFx {
             if (turnT > 34) turnT = -1;
         }
         // being held: you can only look at its face
-        if (mc.player.getVehicle() instanceof ShadowEntity holder) lockGrab(mc, holder);
+        if (mc.player.getVehicle() instanceof ShadowEntity holder) {
+            lockGrab(mc, holder);
+            if (mc.player.tickCount % 5 == 0) mc.gui.setOverlayMessage(net.minecraft.network.chat.Component.empty(), false);   // no "press shift to dismount"
+        }
         if (js >= 0) tickJumpscare(mc);
         if (seq >= 0) tickSequence(mc);
     }
