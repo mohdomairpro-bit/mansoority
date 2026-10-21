@@ -1,1 +1,6 @@
-{"entity.theshadow.shadow": "Mansoority"}
+{
+ "entity.theshadow.shadow": "Mansoority",
+ "entity.theshadow.mansoority_boss": "Mansoority",
+ "entity.theshadow.shade": "Shade",
+ "item.theshadow.shadow_blade": "Shadow Blade"
+}

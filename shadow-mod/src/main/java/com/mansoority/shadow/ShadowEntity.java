@@ -327,7 +327,19 @@ public class ShadowEntity extends PathfinderMob {
     public int getRush() { return this.entityData.get(DATA_RUSH); }
     public boolean isHidden() { return this.entityData.get(DATA_HIDDEN); }
     /** the black ring is up once it has started closing in */
-    public boolean ringActive() { return getRush() > 0 || this.entityData.get(DATA_STAGE) >= 1; }
+    public boolean ringActive() { int st = this.entityData.get(DATA_STAGE); return st < STAGE_BOSS && (getRush() > 0 || st >= 1); }
+    public static final int STAGE_BOSS = 7;
+    /** subclasses (the End boss) run their own brain */
+    protected boolean customTick() { return false; }
+    // hooks the boss uses
+    protected void setStare(int v) { this.entityData.set(DATA_STARE, v); }
+    protected void setVanishTick(int v) { this.entityData.set(DATA_VANISH, v); }
+    protected void setScuttle(int v) { this.entityData.set(DATA_SCUTTLE, v); }
+    protected void setGrab(int g, int mode) { this.entityData.set(DATA_GRAB, g); this.entityData.set(DATA_GRAB_MODE, mode); }
+    protected void setStageData(int st) { this.entityData.set(DATA_STAGE, st); this.entityData.set(DATA_HIDDEN, false); this.stage = st; }
+    protected void setTargetId(int id) { this.entityData.set(DATA_TARGET, id); }
+    protected void setVariantData(int v) { this.entityData.set(DATA_VARIANT, v); }
+    public void sound(RegistryObject<SoundEvent> s, float vol, float pitch) { soundAround(s, vol, pitch); }
 
     public void setTarget(ServerPlayer player, int stage) {
         this.targetId = player.getUUID();
@@ -373,7 +385,7 @@ public class ShadowEntity extends PathfinderMob {
     @Override
     public void tick() {
         super.tick();
-        if (!this.level().isClientSide) serverTick();
+        if (!this.level().isClientSide) { if (!customTick()) serverTick(); }
         else {
             float st = Math.min(1F, getStare() / (float) STARE_LIMIT);
             smoothStare += (st - smoothStare) * (st > smoothStare ? 0.3F : 0.12F);

@@ -26,6 +26,16 @@ public final class ShadowRegistry {
                     .fireImmune()
                     .build("shadow"));
 
+    public static final RegistryObject<EntityType<MansoorityBoss>> BOSS = ENTITIES.register("mansoority_boss",
+            () -> EntityType.Builder.<MansoorityBoss>of(MansoorityBoss::new, MobCategory.MONSTER)
+                    .sized(2.2F, 11.5F).clientTrackingRange(16).updateInterval(1).fireImmune().build("mansoority_boss"));
+    public static final RegistryObject<EntityType<ShadeEntity>> SHADE = ENTITIES.register("shade",
+            () -> EntityType.Builder.<ShadeEntity>of(ShadeEntity::new, MobCategory.MONSTER)
+                    .sized(0.55F, 1.6F).clientTrackingRange(8).fireImmune().build("shade"));
+
+    public static final DeferredRegister<net.minecraft.world.item.Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, TheShadow.MODID);
+    public static final RegistryObject<net.minecraft.world.item.Item> SHADOW_BLADE = ITEMS.register("shadow_blade", ShadowBladeItem::new);
+
     /** index in this list is what the network packets send */
     public static final List<RegistryObject<SoundEvent>> SOUND_LIST = new ArrayList<>();
     public static final RegistryObject<SoundEvent> SCREAM = sound("scream");

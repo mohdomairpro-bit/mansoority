@@ -27,6 +27,8 @@ public final class ClientSetup {
 
     private static void onRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ShadowRegistry.SHADOW.get(), ShadowRenderer::new);
+        event.registerEntityRenderer(ShadowRegistry.BOSS.get(), ShadowRenderer::new);
+        event.registerEntityRenderer(ShadowRegistry.SHADE.get(), ShadeRenderer::new);
     }
 
     private static void onOverlays(RegisterGuiOverlaysEvent event) {

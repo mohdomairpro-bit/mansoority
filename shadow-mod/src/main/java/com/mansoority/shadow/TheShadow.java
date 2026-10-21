@@ -23,6 +23,8 @@ public class TheShadow {
         ShadowRegistry.ENTITIES.register(bus);
         ShadowRegistry.SOUNDS.register(bus);
         ShadowRegistry.PARTICLES.register(bus);
+        ShadowRegistry.ITEMS.register(bus);
+        bus.addListener(this::onTabs);
         bus.addListener(this::onAttributes);
         bus.addListener(this::onSetup);
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ShadowConfig.SPEC);
@@ -36,6 +38,12 @@ public class TheShadow {
 
     private void onAttributes(EntityAttributeCreationEvent event) {
         event.put(ShadowRegistry.SHADOW.get(), ShadowEntity.createAttributes().build());
+        event.put(ShadowRegistry.BOSS.get(), MansoorityBoss.createAttributes().build());
+        event.put(ShadowRegistry.SHADE.get(), ShadeEntity.createAttributes().build());
+    }
+
+    private void onTabs(net.minecraftforge.event.BuildCreativeModeTabContentsEvent event) {
+        if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.COMBAT) event.accept(ShadowRegistry.SHADOW_BLADE);
     }
 
     private void onSetup(FMLCommonSetupEvent event) {

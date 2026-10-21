@@ -52,6 +52,9 @@ public class ShadowEvents {
         if (!(event.player instanceof ServerPlayer p)) return;
         if (p.tickCount % 20 == 0) trackActivity(p);
         if (p.tickCount % 40 == 0) ShadowMark.tick(p);
+        if (p.tickCount % 100 == 50) ShadowEvents.endBossCheck(p, false);
+        Long nf = MansoorityBoss.NOFALL.get(p.getUUID());
+        if (nf != null) { p.fallDistance = 0; if (p.onGround() && p.level().getGameTime() > nf - 90 || p.level().getGameTime() > nf) MansoorityBoss.NOFALL.remove(p.getUUID()); }
         ShadowCinematic.tick(p);
         if (ShadowCinematic.running(p)) return;
         if (p.tickCount % 1200 != 600) return; // once a minute
@@ -104,6 +107,40 @@ public class ShadowEvents {
         warnAll(p);
         data.putLong(KEY_NEXT, now + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
         return true;
+    }
+
+    /** the End after the dragon: if you're near the main island, it comes for you */
+    public static MansoorityBoss endBossCheck(ServerPlayer p, boolean force) {
+        net.minecraft.server.level.ServerLevel sl = p.serverLevel();
+        if (sl.dimension() != net.minecraft.world.level.Level.END) return null;
+        BossData d = BossData.get(p.server);
+        if (!force) {
+            if (d.defeated || !ShadowConfig.ENABLED.get() || p.isCreative() || p.isSpectator()) return null;
+            var fight = sl.getDragonFight();
+            if (fight == null || !fight.hasPreviouslyKilledDragon()) return null;
+            if (!sl.getEntitiesOfClass(EnderDragon.class, p.getBoundingBox().inflate(300)).isEmpty()) return null;
+            if (Math.hypot(p.getX(), p.getZ()) > 150) return null;
+            if (sl.getGameTime() - d.lastSpawn < 20 * 60 * 5) return null;
+        }
+        if (!sl.getEntitiesOfClass(MansoorityBoss.class, p.getBoundingBox().inflate(300)).isEmpty()) return null;
+        double a = Math.toRadians(p.getYRot());
+        net.minecraft.core.BlockPos s = ShadowEntity.findStand(sl, p.getX() - Math.sin(a) * 24, p.getY(), p.getZ() + Math.cos(a) * 24, 30);
+        if (s == null) s = ShadowEntity.findStand(sl, 0.5, 70, 0.5 + 20, 40);
+        if (s == null) return null;
+        MansoorityBoss b = ShadowRegistry.BOSS.get().create(sl);
+        if (b == null) return null;
+        b.moveTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5, 0, 0);
+        b.setHealth(MansoorityBoss.MAX_HP);
+        sl.addFreshEntity(b);
+        d.spawned(sl.getGameTime());
+        for (ServerPlayer o : sl.players())
+            o.displayClientMessage(Component.literal("Something followed you out of the dark.").withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), false);
+        return b;
+    }
+
+    @SubscribeEvent
+    public void onFall(net.minecraftforge.event.entity.living.LivingFallEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p && (MansoorityBoss.NOFALL.containsKey(p.getUUID()) || ShadowEntity.GRABBED.contains(p.getUUID()))) event.setCanceled(true);
     }
 
     /** nothing hurts you while it's holding you (falling, suffocating in a wall, mobs) */
@@ -205,6 +242,10 @@ public class ShadowEvents {
             case "polter" -> { ShadowNet.send(p, FxPacket.of(FxPacket.POLTER)); reply(src, "Something moved."); }
             case "mirror" -> { ShadowNet.send(p, FxPacket.of(FxPacket.MIRROR)); reply(src, "Press F5."); }
             case "deathmsg" -> { ShadowNet.send(p, FxPacket.of(FxPacket.DEATHMSG)); reply(src, "Check chat."); }
+            case "boss" -> {
+                MansoorityBoss b = endBossCheck(p, true);
+                reply(src, b != null ? "It's here." : "Only in the End (and only one at a time).");
+            }
             case "mark" -> { ShadowMark.mark(p); reply(src, p.getScoreboardName() + " has been marked."); }
             case "despawn" -> {
                 ShadowCinematic.stop(p);
