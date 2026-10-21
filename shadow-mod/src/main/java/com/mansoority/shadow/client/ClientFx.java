@@ -353,6 +353,12 @@ public final class ClientFx {
             g.setColor(1F, 1F, 1F, 1F);
         }
 
+        if (RingRenderer.inside() && js < 0) {          // works even when a shader pack owns the fog
+            g.setColor(0F, 0F, 0F, 0.85F);
+            blend(); g.blit(VIGNETTE, 0, 0, w, h, 0F, 0F, 256, 256, 256, 256);
+            g.setColor(1F, 1F, 1F, 1F);
+        }
+
         if (lightsOut > 0F) {
             g.setColor(1F, 1F, 1F, 1F);
             g.fill(0, 0, w, h, ((int) (lightsOut * 0.93F * 255) << 24));

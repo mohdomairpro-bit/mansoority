@@ -95,6 +95,8 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     @Override
     public void render(ShadowEntity e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         if (e.isMimic()) { renderMimic(e, partialTick, pose, buffers, light); return; }
+        RingRenderer.renderWall(e, pose, buffers, partialTick);
+        PortalRenderer.renderPortal(e, pose, buffers, partialTick);
         if (e.isHidden()) return;
         net.minecraft.world.phys.Vec3 camPos = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         boolean far = camPos.distanceToSqr(e.position()) > 56 * 56 && e.getGrab() <= 0;

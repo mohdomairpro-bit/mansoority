@@ -39,36 +39,42 @@ public final class RingRenderer {
         return null;
     }
 
+    /** keeps 'inside' up to date (used for the fog and the darkness overlay) */
     public static void onRenderLevel(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         Vec3 c = ringCentre(event.getPartialTick());
         Minecraft mc = Minecraft.getInstance();
         inside = c != null && mc.player != null
                 && mc.player.position().subtract(c).multiply(1, 0, 1).lengthSqr() < ShadowEntity.ZONE_RADIUS * ShadowEntity.ZONE_RADIUS;
-        if (c == null) return;
-        Vec3 cam = event.getCamera().getPosition();
-        PoseStack pose = event.getPoseStack();
+    }
+
+    public static boolean inside() { return inside; }
+
+    /** the wall itself, drawn as part of the entity (so shader packs light/fog it like any entity) */
+    public static void renderWall(ShadowEntity e, PoseStack pose, MultiBufferSource buf, float pt) {
+        if (!e.ringActive()) return;
+        Minecraft mc = Minecraft.getInstance();
+        Entity t = mc.level.getEntity(e.getTargetEntityId());
+        if (t == null) return;
+        Vec3 c = t.getPosition(pt).subtract(e.getPosition(pt));
         pose.pushPose();
-        pose.translate(c.x - cam.x, c.y - cam.y, c.z - cam.z);
-        MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
-        RenderType rt = RenderType.entityTranslucent(FOG);
-        VertexConsumer vc = buf.getBuffer(rt);
+        pose.translate(c.x, c.y, c.z);
+        VertexConsumer vc = buf.getBuffer(RenderType.entityTranslucent(FOG));
         Matrix4f m = pose.last().pose();
         Matrix3f n = pose.last().normal();
         float r = (float) ShadowEntity.ZONE_RADIUS;
-        float t = (mc.level.getGameTime() + event.getPartialTick()) * 0.0015F;
+        float tt = (mc.level.getGameTime() + pt) * 0.0015F;
         float y0 = -12F, y1 = 48F;
         for (int i = 0; i < SEGMENTS; i++) {
             double a0 = i * Math.PI * 2 / SEGMENTS, a1 = (i + 1) * Math.PI * 2 / SEGMENTS;
             float x0 = (float) Math.cos(a0) * r, z0 = (float) Math.sin(a0) * r;
             float x1 = (float) Math.cos(a1) * r, z1 = (float) Math.sin(a1) * r;
-            float u0 = i / 8F + t, u1 = (i + 1) / 8F + t;
-            for (int layer = 0; layer < 3; layer++) {        // three offset layers = no gaps, slow churning
+            float u0 = i / 8F + tt, u1 = (i + 1) / 8F + tt;
+            for (int layer = 0; layer < 3; layer++) {
                 float off = layer * 0.37F, k = 1F + layer * 0.004F;
-                quad(vc, m, n, x0 * k, z0 * k, x1 * k, z1 * k, y0, y1, u0 + off, u1 + off, t * (1 + layer) + off, 0.97F);
+                quad(vc, m, n, x0 * k, z0 * k, x1 * k, z1 * k, y0, y1, u0 + off, u1 + off, tt * (1 + layer) + off, 0.97F);
             }
         }
-        buf.endBatch(rt);
         pose.popPose();
     }
 

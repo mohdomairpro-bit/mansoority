@@ -125,7 +125,9 @@ public class ShadowEntity extends PathfinderMob {
     public String getMimicName() { return this.entityData.get(DATA_MIMIC_NAME); }
     @Override
     public AABB getBoundingBoxForCulling() {
-        return getStage() == 0 ? this.getBoundingBox().inflate(60.0, 8.0, 60.0) : this.getBoundingBox().inflate(5.0, 2.0, 5.0);
+        if (getStage() == 0) return this.getBoundingBox().inflate(60.0, 8.0, 60.0);
+        if (ringActive()) return this.getBoundingBox().inflate(ZONE_RADIUS + 40.0, 30.0, ZONE_RADIUS + 40.0);   // the black wall around the victim
+        return this.getBoundingBox().inflate(5.0 + (getVanish() > 0 ? 6.0 : 0.0), 2.0, 5.0 + (getVanish() > 0 ? 6.0 : 0.0));
     }
 
     public int getGrab() { return this.entityData.get(DATA_GRAB); }

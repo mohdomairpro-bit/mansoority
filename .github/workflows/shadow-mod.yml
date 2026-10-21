@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -58,6 +58,28 @@ jobs:
           ls -la shots
           grep -q "SHADOW-AUTOTEST\] done" client.log
 
+      - name: Shader-pack screenshot test (Oculus + Embeddium + Complementary)
+        id: shader
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        working-directory: shadow-mod
+        run: |
+          pick() { curl -s "https://api.modrinth.com/v2/project/$1/version?loaders=%5B%22$2%22%5D&game_versions=%5B%221.20.1%22%5D" | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['$3'])"; }
+          export OCULUS_VER=$(pick oculus forge version_number)
+          export EMBEDDIUM_VER=$(pick embeddium forge version_number)
+          echo "oculus=$OCULUS_VER embeddium=$EMBEDDIUM_VER"
+          mkdir -p run/shaderpacks run/config
+          URL=$(curl -s "https://api.modrinth.com/v2/project/complementary-reimagined/version?loaders=%5B%22iris%22%5D" | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['files'][0]['url'])")
+          NAME=$(basename "$URL" | python3 -c "import sys,urllib.parse;print(urllib.parse.unquote(sys.stdin.read().strip()))")
+          curl -sL -o "run/shaderpacks/$NAME" "$URL"
+          printf "enableShaders=true\nshaderPack=%s\n" "$NAME" > run/config/oculus.properties
+          rm -rf run/screenshots; mkdir -p run/saves
+          if [ -d run/world ]; then rm -rf run/saves/autotest && cp -r run/world run/saves/autotest; fi
+          export LIBGL_ALWAYS_SOFTWARE=1
+          timeout 1800 xvfb-run -a -s "-screen 0 1280x720x24" gradle runClient --no-daemon 2>&1 | tee client_shader.log || true
+          mkdir -p shots_shader && for f in run/screenshots/*.png; do cp "$f" "shots_shader/shader_$(basename $f)"; done 2>/dev/null || true
+          ls -la shots_shader
+
       - name: Publish jar, logs, screenshots
         if: always()
         uses: softprops/action-gh-release@v2
@@ -73,3 +95,5 @@ jobs:
             shadow-mod/server.log
             shadow-mod/client.log
             shadow-mod/shots/*.png
+            shadow-mod/shots_shader/*.png
+            shadow-mod/client_shader.log

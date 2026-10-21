@@ -23,17 +23,16 @@ public final class PortalRenderer {
     private static final ResourceLocation HAND = new ResourceLocation(TheShadow.MODID, "textures/entity/portal_hand.png");
     private static final int FRAMES = 24, GX = 4, GY = 6;
 
-    public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
+    /** drawn from the entity renderer, centred on the entity */
+    public static void renderPortal(ShadowEntity s0, PoseStack entityPose, MultiBufferSource bufIn, float pt) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
-        float pt = event.getPartialTick();
-        Vec3 cam = event.getCamera().getPosition();
-        MultiBufferSource.BufferSource buf = mc.renderBuffers().bufferSource();
+        if (mc.level == null || s0.getVanish() <= 0) return;
+        Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
+        MultiBufferSource buf = bufIn;
         RenderType smoke = RenderType.entityTranslucent(SMOKE), hands = RenderType.entityTranslucent(HAND);
         boolean any = false;
-        for (Entity en : mc.level.entitiesForRendering()) {
-            if (!(en instanceof ShadowEntity s) || s.getVanish() <= 0) continue;
+        {
+            ShadowEntity s = s0;
             any = true;
             float v = s.getVanish() + pt;
             // a hole of ink-black smoke bleeds open, hands reach out of it, it swallows him, then it bleeds shut
@@ -45,9 +44,9 @@ public final class PortalRenderer {
             int frame = (int) (v * 0.9F) % FRAMES;
             float u0 = (frame % GX) / (float) GX, v0 = (frame / GX) / (float) GY, du = 1F / GX, dv = 1F / GY;
             int alpha = (int) (255 * Math.min(1F, open * 1.4F));
-            PoseStack ps = event.getPoseStack();
+            PoseStack ps = entityPose;
             ps.pushPose();
-            ps.translate(c.x - cam.x, c.y - cam.y, c.z - cam.z);
+            ps.translate(0, s.getBbHeight() * 0.5, 0);
             float yaw = (float) Math.toDegrees(Math.atan2(cam.x - c.x, cam.z - c.z));
             ps.mulPose(Axis.YP.rotationDegrees(yaw));
             VertexConsumer sm = buf.getBuffer(smoke);
@@ -82,7 +81,7 @@ public final class PortalRenderer {
             }
             ps.popPose();
         }
-        if (any) { buf.endBatch(smoke); buf.endBatch(hands); }
+
     }
 
     private static void quad(VertexConsumer vc, Matrix4f m, Matrix3f n, float hw, float hh, float u0, float v0, float u1, float v1, int a, int r, int g, int b) {

@@ -15,7 +15,6 @@ public final class ClientSetup {
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onCamera);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onFov);
         MinecraftForge.EVENT_BUS.addListener(RingRenderer::onRenderLevel);
-        MinecraftForge.EVENT_BUS.addListener(PortalRenderer::onRenderLevel);
         MinecraftForge.EVENT_BUS.addListener(ClientScares::onRenderLevel);
         MinecraftForge.EVENT_BUS.addListener(RingRenderer::onFog);
         MinecraftForge.EVENT_BUS.addListener(RingRenderer::onFogColor);

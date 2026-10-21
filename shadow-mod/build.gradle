@@ -40,6 +40,18 @@ minecraft {
 
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.3.0'
+    // CI shader-compatibility run only: Oculus + Embeddium in the dev client (versions picked by the workflow)
+    if (System.getenv('OCULUS_VER')) {
+        runtimeOnly fg.deobf("maven.modrinth:oculus:${System.getenv('OCULUS_VER')}")
+        runtimeOnly fg.deobf("maven.modrinth:embeddium:${System.getenv('EMBEDDIUM_VER')}")
+    }
+}
+
+repositories {
+    exclusiveContent {
+        forRepository { maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' } }
+        filter { includeGroup 'maven.modrinth' }
+    }
 }
 
 tasks.named('jar', Jar).configure {
