@@ -22,16 +22,24 @@ done
 fx() {  # in out pitch(cents) tempo reverb lowpass
   sox "$1" "$2" gain -n -8 pitch "$3" tempo "$4" lowpass "$6" reverb "$5" 50 100 100 10 2 gain -n -2 fade q 0.03 -0 0.08 || echo "skip $1"
 }
-n=0
-for f in src/n_*.wav; do
-  # scream: pitched down hard, wide and huge
-  fx "$f" "out/scream_$n.wav" -500 0.85 70 6000
-  # breath / growl: low, slow, close
-  fx "$f" "out/breath_$n.wav" -900 0.7 35 2200
-  # a quieter, far-off, cavernous version for distant cries
-  sox "$f" "out/far_$n.wav" gain -n -8 pitch -700 tempo 0.8 lowpass 1500 reverb 95 80 100 100 40 6 gain -n -9 fade q 0.05 -0 0.2 || echo "skip far $f"
-  n=$((n+1))
+# the snarl recordings are long takes with several snarls each: cut them apart at the silences
+mkdir -p seg
+for f in src/n_0*.wav; do
+  b=$(basename "$f" .wav)
+  sox "$f" "seg/${b}_.wav" silence 1 0.04 1.5% 1 0.25 1.5% : newfile : restart 2>/dev/null || true
 done
+n=0
+for f in seg/*.wav; do
+  d=$(soxi -D "$f" 2>/dev/null || echo 0)
+  ok=$(python3 -c "print(1 if 0.5 <= $d <= 3.5 else 0)")
+  [ "$ok" = "1" ] || continue
+  fx "$f" "out/scream_$n.wav" -500 0.85 70 6000
+  fx "$f" "out/breath_$n.wav" -900 0.7 35 2200
+  sox "$f" "out/far_$n.wav" gain -n -8 pitch -700 tempo 0.8 lowpass 1500 reverb 95 80 100 100 40 6 gain -n -9 fade q 0.05 -0 0.2 || true
+  n=$((n+1))
+  [ $n -ge 10 ] && break
+done
+echo "segments used: $n"
 set +e
 for w in out/*.wav; do
   b=$(basename "$w" .wav)
