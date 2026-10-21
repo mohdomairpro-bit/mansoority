@@ -37,6 +37,8 @@ public class MansoorityBoss extends ShadowEntity {
     private int t, attackCd = 100, summonCd = 160, darkCd = 300, alone, emerge = 80, blink = -1, dying = -1;
     private int charge = -1, grabT = -1, stareT = -1;
     private ServerPlayer focus;
+    /** cinematic version: same fight, nothing is saved, it leaves when the scene ends */
+    public boolean showcase;
     private Vec3 chargeDir, blinkTo;
 
     public MansoorityBoss(EntityType<? extends ShadowEntity> type, Level level) {
@@ -254,7 +256,7 @@ public class MansoorityBoss extends ShadowEntity {
             sl.addFreshEntity(new ItemEntity(sl, this.getX(), this.getY() + 2, this.getZ(), new ItemStack(ShadowRegistry.SHADOW_BLADE.get())));
             ExperienceOrb.award(sl, this.position().add(0, 2, 0), 1500);
             for (ServerPlayer pl : sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(128))) ShadowAdvancements.award(pl, "boss");
-            BossData.get(sl.getServer()).setDefeated();
+            if (!showcase) BossData.get(sl.getServer()).setDefeated();
             sl.getServer().getPlayerList().broadcastSystemMessage(Component.literal("Mansoority has been driven back into the dark. For now.")
                     .withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), false);
             this.discard();

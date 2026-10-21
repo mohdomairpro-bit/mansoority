@@ -23,9 +23,19 @@ public class ShadowConfigScreen extends Screen {
         this.parent = parent;
     }
 
+    /** connected to someone else's server: the settings belong to the server, not to you */
+    private boolean remote() {
+        return this.minecraft != null && this.minecraft.level != null && !this.minecraft.hasSingleplayerServer();
+    }
+
     @Override
     protected void init() {
         apply.clear();
+        if (remote()) {
+            this.addRenderableWidget(Button.builder(Component.literal("Done"), b -> this.minecraft.setScreen(parent))
+                    .bounds(this.width / 2 - 100, this.height / 2 + 30, 200, 20).build());
+            return;
+        }
         int w = 150, gap = 6, colL = this.width / 2 - w - gap / 2, colR = this.width / 2 + gap / 2;
         int y = 42;
         toggle(colL, y, w, "Encounters", ShadowConfig.ENABLED);
@@ -74,6 +84,13 @@ public class ShadowConfigScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
         this.renderBackground(g);
+        if (remote()) {
+            g.drawCenteredString(this.font, this.title, this.width / 2, this.height / 2 - 30, 0xFFFFFF);
+            g.drawCenteredString(this.font, Component.literal("You're on a multiplayer server: only the server owner can change these settings.").withStyle(ChatFormatting.GRAY), this.width / 2, this.height / 2 - 10, 0xFFFFFF);
+            g.drawCenteredString(this.font, Component.literal("(server: config/theshadow-common.toml)").withStyle(ChatFormatting.DARK_GRAY), this.width / 2, this.height / 2 + 4, 0xFFFFFF);
+            super.render(g, mx, my, pt);
+            return;
+        }
         g.drawCenteredString(this.font, this.title, this.width / 2, 14, 0xFFFFFF);
         g.drawCenteredString(this.font, Component.literal("On a server, the server's config/theshadow-common.toml decides").withStyle(ChatFormatting.DARK_GRAY), this.width / 2, 26, 0xFFFFFF);
         g.drawCenteredString(this.font, Component.literal("Events").withStyle(ChatFormatting.GRAY), this.width / 2, 42 + 24 * 3 - 4, 0xFFFFFF);
@@ -82,8 +99,7 @@ public class ShadowConfigScreen extends Screen {
 
     @Override
     public void onClose() {
-        for (Runnable r : apply) r.run();
-        ShadowConfig.SPEC.save();
+        if (!remote()) { for (Runnable r : apply) r.run(); ShadowConfig.SPEC.save(); }
         this.minecraft.setScreen(parent);
     }
 }

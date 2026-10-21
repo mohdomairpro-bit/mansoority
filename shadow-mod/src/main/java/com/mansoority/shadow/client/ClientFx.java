@@ -77,6 +77,7 @@ public final class ClientFx {
             case FxPacket.MIRROR -> ClientScares.mirror();
             case FxPacket.DEATHMSG -> ClientScares.deathMsg();
             case FxPacket.MARK -> ClientScares.mark(p.sound);
+            case FxPacket.FAKE_LAIR -> ClientScares.fakeLair(net.minecraft.core.BlockPos.containing(p.x, p.y, p.z), p.sound);
             case FxPacket.MARK_OTHER -> HandprintLayer.mark((int) p.volume, p.sound);
             default -> {}
         }

@@ -28,12 +28,17 @@ public final class CinematicCam {
     private static final String[][] CARDS = {
             {"M A N S O O R I T Y", "starring %s"},
             {"I.  IT WATCHES", "you'll only ever catch a glimpse"},
-            {"II.  IT WEARS YOUR FRIENDS", "don't walk up to them"},
-            {"III.  DON'T LOOK AT IT", "the longer you stare, the closer it gets"},
-            {"IV.  RUN", ""},
-            {"V.  YOU SHOULD SLEEP", ""},
-            {"M A N S O O R I T Y", "it could be anyone"},
-            {"VI.  IT WANTS A TASTE", "it always puts you back. mostly"}};
+            {"II.  SOMETHING IN THE HOUSE", "the lights. the door. behind you."},
+            {"III.  IT WEARS YOUR FRIENDS", "don't walk up to them"},
+            {"IV.  DON'T LOOK AT IT", "it never reacts the same way twice"},
+            {"V.  RUN", ""},
+            {"VI.  YOU SHOULD SLEEP", ""},
+            {"VII.  IT WANTS A TASTE", "it always puts you back. mostly"},
+            {"VIII.  TAKEN FOR A WALK", ""},
+            {"IX.  WHERE IT SLEEPS", "very rare. you'll know it when you find it"},
+            {"X.  AFTER THE DRAGON", "it was waiting for you"},
+            {"M A N S O O R I T Y", "it could be anyone"}};
+    private static final int END_CARD = 11;
 
     public static boolean active() { return active; }
 
@@ -151,7 +156,7 @@ public final class CinematicCam {
         if (chapter >= 0 && chapter < CARDS.length) {
             int t = chapterT;
             float a = t < 20 ? t / 20F : t < 90 ? 1F : Math.max(0F, 1F - (t - 90) / 30F);
-            if (chapter == 6 && t > 60) {     // end card: fade to black
+            if (chapter == END_CARD && t > 60) {     // end card: fade to black
                 int fade = (int) (Math.min(1F, (t - 60) / 80F) * 255);
                 g.fill(0, 0, w, h, fade << 24);
                 a = Math.min(1F, t / 20F);
@@ -162,7 +167,7 @@ public final class CinematicCam {
                 String title = CARDS[chapter][0];
                 String sub = String.format(CARDS[chapter][1], mc.player != null ? mc.player.getGameProfile().getName() : "");
                 g.pose().pushPose();
-                float sc = chapter == 0 || chapter == 6 ? 3.2F : 2.2F;
+                float sc = chapter == 0 || chapter == END_CARD ? 3.2F : 2.2F;
                 g.pose().translate(w / 2F, h * 0.42F, 0);
                 g.pose().scale(sc, sc, 1F);
                 g.drawCenteredString(mc.font, Component.literal(title), 0, 0, alpha | 0xE8E0D8);

@@ -92,6 +92,28 @@ public final class ClientScares {
         PENDING.add(new Pending(q, orig, to, tick + delay, tick + delay + dur));
     }
 
+    // ---------------------------------------------------------------- the lair, risen out of the ground on your screen only
+    public static void fakeLair(BlockPos origin, int dur) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        try (java.io.InputStream in = TheShadow.class.getResourceAsStream("/data/theshadow/structures/lair.nbt")) {
+            if (in == null) return;
+            net.minecraft.nbt.CompoundTag root = net.minecraft.nbt.NbtIo.readCompressed(in);
+            var blocks = mc.level.holderLookup(net.minecraft.core.registries.Registries.BLOCK);
+            net.minecraft.nbt.ListTag pal = root.getList("palette", 10);
+            BlockState[] states = new BlockState[pal.size()];
+            for (int i = 0; i < pal.size(); i++) states[i] = net.minecraft.nbt.NbtUtils.readBlockState(blocks, pal.getCompound(i));
+            net.minecraft.nbt.ListTag list = root.getList("blocks", 10);
+            for (int i = 0; i < list.size(); i++) {
+                net.minecraft.nbt.CompoundTag b = list.getCompound(i);
+                net.minecraft.nbt.ListTag ps = b.getList("pos", 3);
+                BlockPos q = origin.offset(ps.getInt(0), ps.getInt(1), ps.getInt(2));
+                BlockState to = states[b.getInt("state")];
+                fake(q, mc.level.getBlockState(q), to, dur - ps.getInt(1) * 8, ps.getInt(1) * 8);   // rises up, layer by layer
+            }
+        } catch (Exception ex) { TheShadow.LOGGER.warn("fake lair failed", ex); }
+    }
+
     // ---------------------------------------------------------------- mirror: one frame, right behind you
     public static void mirror() {
         mirrorArmed = tick + 20 * 60;          // if you're in first person, it waits until you look
@@ -110,6 +132,7 @@ public final class ClientScares {
             Pending p = PENDING.get(i);
             if (tick >= p.at) {
                 mc.level.setBlock(p.pos, p.to, 0);
+                if (FAKES.size() > 64) { FAKES.add(new Fake(p.pos, p.orig, p.until)); PENDING.remove(i); continue; }   // the lair: no per-block sounds
                 if (p.to.isAir() || p.to.getBlock() instanceof AbstractCandleBlock) {
                     mc.level.playLocalSound(p.pos, SoundEvents.CANDLE_EXTINGUISH, SoundSource.BLOCKS, 1F, 0.6F, false);
                     mc.level.addParticle(ParticleTypes.SMOKE, p.pos.getX() + 0.5, p.pos.getY() + 0.6, p.pos.getZ() + 0.5, 0, 0.03, 0);
@@ -138,7 +161,7 @@ public final class ClientScares {
         }
         if (mirrorArmed >= 0) {
             if (tick > mirrorArmed) mirrorArmed = -1;
-            else if (mc.options.getCameraType() == CameraType.THIRD_PERSON_BACK) {
+            else if (mc.options.getCameraType() == CameraType.THIRD_PERSON_BACK || CinematicCam.active()) {
                 mirrorArmed = -1; mirrorShow = tick + 3;
                 mirror = ShadowRegistry.SHADOW.get().create(mc.level);
                 if (mirror != null) {

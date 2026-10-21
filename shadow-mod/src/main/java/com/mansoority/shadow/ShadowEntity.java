@@ -69,6 +69,9 @@ public class ShadowEntity extends PathfinderMob {
     /** driven by the /shadow cinematic script instead of its own brain */
     public boolean scripted, noHarm;
     public void scriptStare(int v) { this.entityData.set(DATA_STARE, v); }
+    public void scriptVariant(int v) { this.entityData.set(DATA_VARIANT, v); }
+    /** cinematic: the mimic drops its disguise */
+    public void reveal(ServerPlayer near) { if (isMimic()) unmask(near); }
     public void reveal() { this.entityData.set(DATA_HIDDEN, false); }
 
     public static final int STARE_LIMIT = 60;

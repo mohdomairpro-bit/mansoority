@@ -40,6 +40,7 @@ public final class AutoTest {
                 ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
                 sp.serverLevel().setDayTime(6000);
                 sp.serverLevel().getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(false, server);
+                sp.serverLevel().getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(false, server);   // no zombies/spiders ruining shots
                 sp.serverLevel().setWeatherParameters(6000, 0, false, false);
                 ShadowEntity e = ShadowEntity.spawnAround(sp, 1, 0, 10);
                 log("spawned day: " + (e != null));
@@ -95,7 +96,13 @@ public final class AutoTest {
         if (t == 445) lookNear(mc, 28F);
         if (t == 455) shot(mc, "15_bedside");
         if (t == 470) { mc.options.hideGui = false; ClientFx.handle(FxPacket.of(FxPacket.SEQUENCE)); }
-        if (t == 2400) server.execute(() -> {
+        if (t % 200 == 0) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            for (var m : sp.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.monster.Monster.class, sp.getBoundingBox().inflate(96)))
+                if (!(m instanceof com.mansoority.shadow.ShadeEntity)) m.discard();
+            if (sp.getHealth() < 10) sp.setHealth(20);
+        });
+        if (t == 3700) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             sp.serverLevel().getEntities(ShadowRegistry.SHADOW.get(), x -> true).forEach(Entity::discard);
             ShadowEntity e = ShadowEntity.spawnAround(sp, 1, 0, 14);
@@ -103,10 +110,10 @@ public final class AutoTest {
             if (e != null) { e.scripted = true; e.reveal(); e.startVanish(); }
             log("portal: " + (e != null));
         });
-        if (t == 2402) lookNear(mc, 0F);
-        if (t == 2410) shot(mc, "16_portal_open");
-        if (t == 2420) shot(mc, "17_portal_hands");
-        if (t == 2429) shot(mc, "18_portal_close");
+        if (t == 3702) lookNear(mc, 0F);
+        if (t == 3710) shot(mc, "16_portal_open");
+        if (t == 3720) shot(mc, "17_portal_hands");
+        if (t == 3729) shot(mc, "18_portal_close");
         if (t == 560) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             sp.serverLevel().getEntities(ShadowRegistry.SHADOW.get(), x -> true).forEach(Entity::discard);
@@ -115,19 +122,19 @@ public final class AutoTest {
             log("cinematic started");
         });
         int c = t - 560;
-        int[] at = {40, 120, 230, 300, 420, 470, 560, 640, 700, 780, 860, 960, 1060, 1200, 1300, 1420, 1500};
+        int[] at = {40, 120, 250, 330, 420, 520, 620, 700, 820, 980, 1120, 1260, 1400, 1550, 1700, 1850, 2000, 2150, 2300, 2450, 2600, 2750, 2900, 3050};
         for (int i = 0; i < at.length; i++) if (c == at[i]) shot(mc, String.format("c%02d_cinematic", i));
         // ---- new features
-        if (t == 2440) server.execute(() -> {
+        if (t == 3740) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             sp.serverLevel().getEntities(ShadowRegistry.SHADOW.get(), x -> true).forEach(Entity::discard);
             sp.serverLevel().setDayTime(18000);
             ShadowEntity e = ShadowEntity.grab(sp, ShadowEntity.GRAB_LICK);
             log("grab: " + (e != null));
         });
-        if (t == 2500) shot(mc, "20_grab_lift");
-        if (t == 2540) shot(mc, "21_grab_lick");
-        if (t == 2620) server.execute(() -> {
+        if (t == 3800) shot(mc, "20_grab_lift");
+        if (t == 3840) shot(mc, "21_grab_lick");
+        if (t == 3920) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             sp.serverLevel().setDayTime(6000);
             sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_HELMET));
@@ -136,16 +143,16 @@ public final class AutoTest {
             ShadowEntity e = ShadowEntity.mimicFor(sp);
             log("mimic: " + (e != null));
         });
-        if (t == 2640) { for (Entity en : mc.level.entitiesForRendering()) if (en instanceof ShadowEntity se && se.isMimic()) {
+        if (t == 3940) { for (Entity en : mc.level.entitiesForRendering()) if (en instanceof ShadowEntity se && se.isMimic()) {
                 Vec3 d = en.position().subtract(mc.player.position()); mc.player.setYRot((float) (Math.atan2(d.z, d.x) * 180 / Math.PI) - 90F); mc.player.setXRot(5F); log("mimic at " + (int) d.length()); } }
-        if (t == 2650) shot(mc, "22_mimic_gear");
-        if (t == 2660) { ClientFx.handle(FxPacket.of(FxPacket.DEATHMSG)); ClientFx.handle(new FxPacket(FxPacket.MARK, 600, 0, 0, 0, 1, 1));
+        if (t == 3950) shot(mc, "22_mimic_gear");
+        if (t == 3960) { ClientFx.handle(FxPacket.of(FxPacket.DEATHMSG)); ClientFx.handle(new FxPacket(FxPacket.MARK, 600, 0, 0, 0, 1, 1));
             ClientFx.handle(new FxPacket(FxPacket.MARK_OTHER, 600, 0, 0, 0, mc.player.getId(), 1)); }
-        if (t == 2680) shot(mc, "23_deathmsg_mark");
-        if (t == 2682) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
-        if (t == 2690) shot(mc, "23b_handprint_back");
-        if (t == 2692) mc.options.setCameraType(CameraType.FIRST_PERSON);
-        if (t == 2700) server.execute(() -> {
+        if (t == 3980) shot(mc, "23_deathmsg_mark");
+        if (t == 3982) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
+        if (t == 3990) shot(mc, "23b_handprint_back");
+        if (t == 3992) mc.options.setCameraType(CameraType.FIRST_PERSON);
+        if (t == 4000) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             net.minecraft.server.level.ServerLevel end = server.getLevel(net.minecraft.world.level.Level.END);
             if (end != null) {
@@ -155,24 +162,24 @@ public final class AutoTest {
                 sp.teleportTo(end, 0.5, y, 40.5, 180F, 10F); sp.fallDistance = 0; log("to the end at y=" + y);
             }
         });
-        if (t == 2800) server.execute(() -> {
+        if (t == 4100) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             var b = com.mansoority.shadow.ShadowEvents.endBossCheck(sp, true);
             log("boss: " + (b != null));
         });
-        if (t == 2830) lookNear(mc, 0F);
-        if (t == 2840) shot(mc, "24_boss_emerge");
-        if (t == 2900) lookNear(mc, 0F);
-        if (t == 2910) shot(mc, "25_boss_fight");
-        if (t == 3000) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
-        if (t == 3010) shot(mc, "26_boss_shades");
-        if (t > 2800 && t < 3100 && t % 40 == 0) server.execute(() -> {
+        if (t == 4130) lookNear(mc, 0F);
+        if (t == 4140) shot(mc, "24_boss_emerge");
+        if (t == 4200) lookNear(mc, 0F);
+        if (t == 4210) shot(mc, "25_boss_fight");
+        if (t == 4300) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
+        if (t == 4310) shot(mc, "26_boss_shades");
+        if (t > 4100 && t < 4400 && t % 40 == 0) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             log("boss fight hp=" + sp.getHealth() + " alive=" + sp.isAlive());
         });
-        if (t == 3100) mc.setScreen(new ShadowConfigScreen(null));
-        if (t == 3110) shot(mc, "27_config_screen");
-        if (t == 3115) { mc.setScreen(null); log("done"); mc.stop(); }
+        if (t == 4400) mc.setScreen(new ShadowConfigScreen(null));
+        if (t == 4410) shot(mc, "27_config_screen");
+        if (t == 4415) { mc.setScreen(null); log("done"); mc.stop(); }
     }
 
     /** aim at the shadow's head, offset sideways by 'offset' degrees */
