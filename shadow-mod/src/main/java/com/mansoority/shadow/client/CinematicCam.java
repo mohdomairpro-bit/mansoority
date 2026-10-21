@@ -96,6 +96,8 @@ public final class CinematicCam {
             }
             default -> { want = eye; look = eye.add(dirPF); }
         }
+        // never inside a mountain: pull the camera in front of whatever is between it and you
+        want = unblock(mc, eye, want);
         // a slow, heavy camera: eases into each new position
         double ease = shotT < 3 ? 0.35 : 0.075;
         Vec3 np = pos.lerp(want, ease);
@@ -112,6 +114,17 @@ public final class CinematicCam {
         cam.setYRot(ny); cam.setXRot(npi); cam.setYHeadRot(ny); cam.yHeadRotO = yaw;
         pos = np; yaw = ny; pitch = npi;
         if (mc.getCameraEntity() != cam) mc.setCameraEntity(cam);
+    }
+
+    private static Vec3 unblock(Minecraft mc, Vec3 from, Vec3 to) {
+        Vec3 d = to.subtract(from);
+        double len = d.length();
+        if (len < 0.01) return to;
+        net.minecraft.world.phys.BlockHitResult hit = mc.level.clip(new net.minecraft.world.level.ClipContext(from, to,
+                net.minecraft.world.level.ClipContext.Block.VISUAL, net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player));
+        if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) return to;
+        double back = Math.max(0.6, hit.getLocation().distanceTo(from) - 0.45);
+        return from.add(d.scale(back / len)).add(0, 0.15, 0);
     }
 
     private static void reset(Minecraft mc) {

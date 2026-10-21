@@ -37,6 +37,17 @@ public final class ShadowCinematic {
 
     private static void next(Run r) { r.phase++; r.phaseT = 0; }
 
+    /** mountains, cliffs, water: if the planned spot doesn't work, try every direction and closer distances */
+    private static ShadowEntity spawn(ServerPlayer p, int stage, double angle, double dist) {
+        for (double f : new double[]{1.0, 0.7, 0.45})
+            for (int k = 0; k < 12; k++) {
+                double a = angle + (k % 2 == 0 ? 1 : -1) * ((k + 1) / 2) * 30;
+                ShadowEntity e = ShadowEntity.spawnAround(p, stage, a, Math.max(2.5, dist * f));
+                if (e != null) return e;
+            }
+        return null;
+    }
+
     public static void tick(ServerPlayer p) {
         Run r = RUNS.get(p.getUUID());
         if (r == null) return;
@@ -55,7 +66,7 @@ public final class ShadowCinematic {
             }
             case 1 -> {                                   // I. it watches: a glimpse from the treeline
                 if (t == 0) {
-                    r.cur = ShadowEntity.spawnAround(p, 0, 35, 26);
+                    r.cur = spawn(p, 0, 35, 26);
                     if (r.cur != null) { r.cur.scripted = true; r.cur.reveal(); }
                     cam(p, SHOULDER, 3.6, 1.1, 1.3, r.cur, 1);
                     ShadowEntity.ui(p, ShadowRegistry.HEARTBEAT, 0.6F, 0.8F);
@@ -78,7 +89,7 @@ public final class ShadowCinematic {
             }
             case 3 -> {                                   // III. don't look at it: the stare, the face splits
                 if (t == 0) {
-                    r.cur = ShadowEntity.spawnAround(p, 1, 0, 12);
+                    r.cur = spawn(p, 1, 0, 12);
                     if (r.cur != null) { r.cur.scripted = true; r.cur.reveal(); }
                     cam(p, SHOULDER, 3.2, 1.0, 1.1, r.cur, 3);
                 }
@@ -91,6 +102,7 @@ public final class ShadowCinematic {
             case 4 -> {                                   // IV. run: the turn, the crouch, the scuttle
                 if (t == 0) {
                     r.cur = ShadowEntity.rushFrom(p, 24);
+                    if (r.cur == null) { r.cur = spawn(p, 2, 0, 24); if (r.cur != null) r.cur.startRush(p); }
                     if (r.cur != null) r.cur.noHarm = true;
                     cam(p, WIDE, 15, 3.0, 0, r.cur, 4);
                 }
@@ -104,7 +116,7 @@ public final class ShadowCinematic {
             }
             case 6 -> {                                   // V. you should sleep: it's right behind you
                 if (t == 0) {
-                    r.cur = ShadowEntity.spawnAround(p, -1, 170, 2.6);
+                    r.cur = spawn(p, -1, 170, 2.6);
                     if (r.cur != null) { r.cur.scripted = true; r.cur.reveal(); }
                     cam(p, FACE, 3.4, 0.3, 0, r.cur, 5);
                     ShadowEntity.ui(p, ShadowRegistry.BREATH, 1F, 0.6F);

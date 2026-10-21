@@ -755,7 +755,7 @@ public class ShadowEntity extends PathfinderMob {
             double a = Math.toRadians(p.getYRot() + angle + off);
             double x = p.getX() - Math.sin(a) * dist;
             double z = p.getZ() + Math.cos(a) * dist;
-            BlockPos spot = findStand(level, x, p.getY(), z, 12);
+            BlockPos spot = findStand(level, x, p.getY(), z, 24);   // mountains: the ground can be far above or below you
             if (spot != null) return spot;
         }
         return null;
