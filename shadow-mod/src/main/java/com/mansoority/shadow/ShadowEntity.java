@@ -368,6 +368,17 @@ public class ShadowEntity extends PathfinderMob {
         int vanish = getVanish();
         if (vanish > 0) {
             this.entityData.set(DATA_VANISH, vanish + 1);
+            if (vanish == 1) soundAround(ShadowRegistry.RISER, 2.5F, 0.5F);
+            if (vanish % 2 == 0 && vanish < VANISH_LEN - 6 && this.level() instanceof ServerLevel sl) {   // darkness pulled into the hole
+                double h = this.getBbHeight(), rad = Math.max(1.3, h * 0.5);
+                for (int i = 0; i < 3; i++) {
+                    double a = this.random.nextDouble() * Math.PI * 2, d = rad * (1.1 + this.random.nextDouble() * 0.6);
+                    double px = Math.cos(a) * d, py = Math.sin(a) * d * 0.9;
+                    double yaw = Math.toRadians(this.random.nextDouble() * 360);
+                    double ox = px * Math.cos(yaw), oz = px * Math.sin(yaw);
+                    sl.sendParticles(ShadowRegistry.WISP.get(), this.getX() + ox, this.getY() + h * 0.5 + py, this.getZ() + oz, 0, -ox * 0.25, -py * 0.25, -oz * 0.25, 1.0);
+                }
+            }
             if (vanish >= VANISH_LEN) finishVanish();
             return;
         }
@@ -687,8 +698,7 @@ public class ShadowEntity extends PathfinderMob {
     }
 
     private void finishVanish() {
-        if (this.level() instanceof ServerLevel sl)
-            sl.sendParticles(net.minecraft.core.particles.ParticleTypes.WHITE_ASH, this.getX(), this.getY() + this.getBbHeight() * 0.5, this.getZ(), 40, 1.2, this.getBbHeight() * 0.25, 1.2, 0.02);
+
         soundAround(ShadowRegistry.STATIC, 1.5F, 1.3F);
         this.discard();
     }
