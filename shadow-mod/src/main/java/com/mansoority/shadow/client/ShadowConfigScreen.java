@@ -74,10 +74,8 @@ public class ShadowConfigScreen extends Screen {
     public void render(GuiGraphics g, int mx, int my, float pt) {
         this.renderBackground(g);
         g.drawCenteredString(this.font, this.title, this.width / 2, 14, 0xFFFFFF);
-        g.drawCenteredString(this.font, Component.literal("It could be anyone.").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC), this.width / 2, 26, 0xFFFFFF);
+        g.drawCenteredString(this.font, Component.literal("On a server, the server's config/theshadow-common.toml decides").withStyle(ChatFormatting.DARK_GRAY), this.width / 2, 26, 0xFFFFFF);
         g.drawCenteredString(this.font, Component.literal("Events").withStyle(ChatFormatting.GRAY), this.width / 2, 42 + 24 * 3 - 4, 0xFFFFFF);
-        g.drawCenteredString(this.font, Component.literal("On a server these come from the server's config/theshadow-common.toml").withStyle(ChatFormatting.DARK_GRAY),
-                this.width / 2, this.height - 42, 0xFFFFFF);
         super.render(g, mx, my, pt);
     }
 

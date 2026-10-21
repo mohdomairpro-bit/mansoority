@@ -136,12 +136,13 @@ public final class AutoTest {
             ShadowEntity e = ShadowEntity.mimicFor(sp);
             log("mimic: " + (e != null));
         });
-        if (t == 2640) lookNear(mc, 0F);
+        if (t == 2640) { for (Entity en : mc.level.entitiesForRendering()) if (en instanceof ShadowEntity se && se.isMimic()) {
+                Vec3 d = en.position().subtract(mc.player.position()); mc.player.setYRot((float) (Math.atan2(d.z, d.x) * 180 / Math.PI) - 90F); mc.player.setXRot(5F); log("mimic at " + (int) d.length()); } }
         if (t == 2650) shot(mc, "22_mimic_gear");
         if (t == 2660) { ClientFx.handle(FxPacket.of(FxPacket.DEATHMSG)); ClientFx.handle(new FxPacket(FxPacket.MARK, 600, 0, 0, 0, 1, 1));
             ClientFx.handle(new FxPacket(FxPacket.MARK_OTHER, 600, 0, 0, 0, mc.player.getId(), 1)); }
         if (t == 2680) shot(mc, "23_deathmsg_mark");
-        if (t == 2682) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); mc.player.setYRot(mc.player.getYRot() + 180F); }
+        if (t == 2682) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
         if (t == 2690) shot(mc, "23b_handprint_back");
         if (t == 2692) mc.options.setCameraType(CameraType.FIRST_PERSON);
         if (t == 2700) server.execute(() -> {

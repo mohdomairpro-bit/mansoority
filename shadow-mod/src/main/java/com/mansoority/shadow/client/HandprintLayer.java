@@ -39,7 +39,8 @@ public class HandprintLayer extends RenderLayer<AbstractClientPlayer, PlayerMode
         pose.pushPose();
         this.getParentModel().body.translateAndRotate(pose);
         // the back of the torso is 2 px behind the pivot; the print sits just outside it (and outside a jacket layer)
-        pose.translate(0.0F, 6.0F / 16F, 2.35F / 16F);
+        boolean armour = !p.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST).isEmpty();
+        pose.translate(0.0F, 6.0F / 16F, (armour ? 3.45F : 2.35F) / 16F);   // on top of a chestplate if you wear one
         VertexConsumer vc = buf.getBuffer(RenderType.entityTranslucent(TEX));
         Matrix4f m = pose.last().pose(); Matrix3f n = pose.last().normal();
         float s = 3.4F / 16F;
