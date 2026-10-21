@@ -770,8 +770,12 @@ public class ShadowEntity extends PathfinderMob {
         }
     }
 
+    /** a sound from where it stands. sent to each nearby client so it can be muffled by walls and echo in caves */
     private void soundAround(RegistryObject<SoundEvent> s, float vol, float pitch) {
-        this.level().playSound(null, this.getX(), this.getY() + 4, this.getZ(), s.get(), SoundSource.MASTER, vol, pitch);
+        if (!(this.level() instanceof ServerLevel sl)) return;
+        double r = Math.max(24, 16 * vol);
+        for (ServerPlayer p : sl.players())
+            if (p.distanceToSqr(this) < r * r) at(p, s, this.getX(), this.getY() + 4, this.getZ(), vol, pitch);
     }
 
     // ---------------------------------------------------------------- helpers used by events/commands

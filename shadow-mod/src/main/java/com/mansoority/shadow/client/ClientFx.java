@@ -91,9 +91,44 @@ public final class ClientFx {
         Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(s, pitch, volume));
     }
 
+    private record Echo(SoundEvent s, double x, double y, double z, float v, float p, int at) {}
+    private static final java.util.List<Echo> ECHOES = new java.util.ArrayList<>();
+    private static int fxTick;
+
+    /** positional: muffled when there's rock or a wall between you, and it echoes when you're underground */
     private static void at(SoundEvent s, double x, double y, double z, float volume, float pitch) {
-        Minecraft.getInstance().getSoundManager().play(
-                new SimpleSoundInstance(s, SoundSource.MASTER, volume, pitch, RandomSource.create(), x, y, z));
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+        net.minecraft.world.phys.Vec3 ear = mc.gameRenderer.getMainCamera().getPosition();
+        net.minecraft.world.phys.Vec3 src = new net.minecraft.world.phys.Vec3(x, y, z);
+        int walls = 0;
+        net.minecraft.world.phys.Vec3 from = ear;
+        for (int i = 0; i < 3; i++) {                     // count up to 3 solid layers in the way
+            var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(from, src, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player));
+            if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) break;
+            walls++;
+            from = hit.getLocation().add(src.subtract(hit.getLocation()).normalize().scale(1.05));
+            if (from.distanceToSqr(src) < 1) break;
+        }
+        float v = volume * (float) Math.pow(0.55, walls), pch = pitch * (1F - 0.06F * walls);
+        mc.getSoundManager().play(new SimpleSoundInstance(s, SoundSource.HOSTILE, v, pch, RandomSource.create(), x, y, z));
+        boolean cave = !mc.level.canSeeSky(mc.player.blockPosition()) && mc.player.getY() < 62;
+        if (cave) {                                       // the tunnels throw it back at you
+            ECHOES.add(new Echo(s, x, y, z, v * 0.38F, pch * 0.97F, fxTick + 7));
+            ECHOES.add(new Echo(s, x, y, z, v * 0.17F, pch * 0.95F, fxTick + 15));
+        }
+    }
+
+    private static void tickEchoes(Minecraft mc) {
+        fxTick++;
+        for (int i = ECHOES.size() - 1; i >= 0; i--) {
+            Echo e = ECHOES.get(i);
+            if (fxTick >= e.at) {
+                mc.getSoundManager().play(new SimpleSoundInstance(e.s, SoundSource.HOSTILE, e.v, e.p, RandomSource.create(), e.x, e.y, e.z));
+                ECHOES.remove(i);
+            }
+        }
     }
 
     /** a sound 'dist' blocks away at 'angle' degrees from where you look (180 = right behind you) */
@@ -162,6 +197,7 @@ public final class ClientFx {
 
         CinematicCam.tick();
         ClientScares.tick();
+        tickEchoes(mc);
         if (drool > 0F) drool = Math.max(0F, drool - 0.008F);
         if (turnT >= 0) {
             turnT++;

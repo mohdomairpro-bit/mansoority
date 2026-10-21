@@ -1,0 +1,28 @@
+name: Build Mansoority sounds
+on:
+  push:
+    branches: [shadow-mod]
+    paths: ['shadow-sounds/**', '.github/workflows/shadow-sounds.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sounds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq sox libsox-fmt-all ffmpeg unzip > /dev/null
+      - run: cd shadow-sounds && ./process.sh 2>&1 | tee build.log
+      - name: Pack
+        run: cd shadow-sounds && zip -q -r sounds.zip out spec build.log
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: shadow-sounds-build
+          name: Mansoority sounds (auto)
+          prerelease: true
+          make_latest: false
+          body: "Sounds build from commit ${{ github.sha }}"
+          files: |
+            shadow-sounds/sounds.zip
+            shadow-sounds/build.log

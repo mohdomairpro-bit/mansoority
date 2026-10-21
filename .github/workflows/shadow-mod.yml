@@ -3,6 +3,9 @@ on:
   push:
     branches: [shadow-mod]
   workflow_dispatch:
+concurrency:
+  group: shadow-mod
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
