@@ -13,6 +13,7 @@ public final class ClientSetup {
         modBus.addListener(ClientSetup::onRenderers);
         modBus.addListener(ClientSetup::onOverlays);
         modBus.addListener(ClientSetup::onParticles);
+        modBus.addListener(ClientSetup::onLayers);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onClientTick);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onCamera);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onFov);
@@ -30,6 +31,13 @@ public final class ClientSetup {
         event.registerEntityRenderer(ShadowRegistry.SHADOW.get(), ShadowRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.BOSS.get(), ShadowRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.SHADE.get(), ShadeRenderer::new);
+    }
+
+    private static void onLayers(EntityRenderersEvent.AddLayers event) {
+        for (String skin : event.getSkins()) {
+            net.minecraft.client.renderer.entity.LivingEntityRenderer<net.minecraft.client.player.AbstractClientPlayer, net.minecraft.client.model.PlayerModel<net.minecraft.client.player.AbstractClientPlayer>> r = event.getSkin(skin);
+            if (r != null) r.addLayer(new HandprintLayer(r));
+        }
     }
 
     private static void onOverlays(RegisterGuiOverlaysEvent event) {

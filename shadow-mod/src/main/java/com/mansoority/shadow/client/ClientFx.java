@@ -77,6 +77,7 @@ public final class ClientFx {
             case FxPacket.MIRROR -> ClientScares.mirror();
             case FxPacket.DEATHMSG -> ClientScares.deathMsg();
             case FxPacket.MARK -> ClientScares.mark(p.sound);
+            case FxPacket.MARK_OTHER -> HandprintLayer.mark((int) p.volume, p.sound);
             default -> {}
         }
         if (p.kind == FxPacket.JUMPSCARE || p.kind == FxPacket.JUMPSCARE_NOW) mc.getSoundManager().stop();

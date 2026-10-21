@@ -19,7 +19,8 @@ public class FxPacket {
     public static final int POLTER = 9;          // a torch goes out / a door opens / a chest creaks (client-only, restored after)
     public static final int MIRROR = 10;         // it's right behind you for an instant (third person)
     public static final int DEATHMSG = 11;       // a fake death message in your chat
-    public static final int MARK = 12;           // you've been marked (seconds in 'sound')             // cinematic camera: shot in 'sound', params x/y/z, focus entity id in volume, chapter card in pitch
+    public static final int MARK = 12;
+    public static final int MARK_OTHER = 13;     // player entity id in 'volume' carries the mark (seconds in 'sound')           // you've been marked (seconds in 'sound')             // cinematic camera: shot in 'sound', params x/y/z, focus entity id in volume, chapter card in pitch
 
     public final int kind;
     public final int sound;

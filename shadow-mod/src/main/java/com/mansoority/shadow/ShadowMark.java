@@ -11,6 +11,8 @@ public final class ShadowMark {
         CompoundTag d = p.getPersistentData();
         d.putLong(KEY, p.level().getGameTime() + 24000L);
         ShadowNet.send(p, new FxPacket(FxPacket.MARK, 24000 / 20, 0, 0, 0, 1, 1));
+        for (ServerPlayer o : p.serverLevel().players())             // everyone sees the handprint on your back
+            ShadowNet.send(o, new FxPacket(FxPacket.MARK_OTHER, 24000 / 20, 0, 0, 0, p.getId(), 1));
     }
 
     public static boolean marked(ServerPlayer p) {
