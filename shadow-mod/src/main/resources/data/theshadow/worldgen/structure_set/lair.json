@@ -1,0 +1,14 @@
+{
+ "structures": [
+  {
+   "structure": "theshadow:lair",
+   "weight": 1
+  }
+ ],
+ "placement": {
+  "type": "minecraft:random_spread",
+  "spacing": 110,
+  "separation": 70,
+  "salt": 914273
+ }
+}

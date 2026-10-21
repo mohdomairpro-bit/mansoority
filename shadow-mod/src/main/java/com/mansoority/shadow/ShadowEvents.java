@@ -53,6 +53,7 @@ public class ShadowEvents {
         if (p.tickCount % 20 == 0) trackActivity(p);
         if (p.tickCount % 40 == 0) ShadowMark.tick(p);
         if (p.tickCount % 100 == 50) ShadowEvents.endBossCheck(p, false);
+        if (p.tickCount % 40 == 20) lairCheck(p);
         Long nf = MansoorityBoss.NOFALL.get(p.getUUID());
         if (nf != null) { p.fallDistance = 0; if (p.onGround() && p.level().getGameTime() > nf - 90 || p.level().getGameTime() > nf) MansoorityBoss.NOFALL.remove(p.getUUID()); }
         ShadowCinematic.tick(p);
@@ -136,6 +137,29 @@ public class ShadowEvents {
         for (ServerPlayer o : sl.players())
             o.displayClientMessage(Component.literal("Something followed you out of the dark.").withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), false);
         return b;
+    }
+
+    private static final net.minecraft.resources.ResourceKey<net.minecraft.world.level.levelgen.structure.Structure> LAIR =
+            net.minecraft.resources.ResourceKey.create(Registries.STRUCTURE, new ResourceLocation(TheShadow.MODID, "lair"));
+
+    /** walking into its lair: always ends with it coming for you */
+    private static void lairCheck(ServerPlayer p) {
+        if (p.isCreative() || p.isSpectator() || !ShadowConfig.ENABLED.get()) return;
+        net.minecraft.server.level.ServerLevel sl = p.serverLevel();
+        var reg = sl.registryAccess().registryOrThrow(Registries.STRUCTURE);
+        var st = reg.get(LAIR);
+        if (st == null) return;
+        if (!sl.structureManager().getStructureWithPieceAt(p.blockPosition(), st).isValid()) return;
+        CompoundTag d = p.getPersistentData();
+        long now = sl.getGameTime();
+        if (now - d.getLong("theshadow_lair") < 20L * 60 * 20) return;            // once per visit (20 min)
+        if (ShadowEntity.anyNear(p, 160)) return;
+        d.putLong("theshadow_lair", now);
+        ShadowAdvancements.award(p, "lair");
+        warnAll(p);
+        ShadowNet.send(p, FxPacket.of(FxPacket.POLTER));                          // its candles go out
+        ShadowEntity e = ShadowEntity.spawnAround(p, 2, 180, 7);                    // and it's already behind you
+        if (e == null) ShadowEntity.rushFrom(p, 20);
     }
 
     @SubscribeEvent
@@ -242,6 +266,7 @@ public class ShadowEvents {
             case "polter" -> { ShadowNet.send(p, FxPacket.of(FxPacket.POLTER)); reply(src, "Something moved."); }
             case "mirror" -> { ShadowNet.send(p, FxPacket.of(FxPacket.MIRROR)); reply(src, "Press F5."); }
             case "deathmsg" -> { ShadowNet.send(p, FxPacket.of(FxPacket.DEATHMSG)); reply(src, "Check chat."); }
+            case "lair" -> reply(src, "Use: /locate structure theshadow:lair  (it's very rare - forests, taigas, swamps)");
             case "boss" -> {
                 MansoorityBoss b = endBossCheck(p, true);
                 reply(src, b != null ? "It's here." : "Only in the End (and only one at a time).");
