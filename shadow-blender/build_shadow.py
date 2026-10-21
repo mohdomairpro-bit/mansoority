@@ -794,7 +794,7 @@ def jumpscare(frames=26):
         for (zz, dy, thick, wob, sagr) in STR:       # the same strands every frame, stretching as it opens
             yy = (front_y(0.0, zz) or -0.08) + dy
             a_ = on(jaw_rig, Vector((-0.004, yy, zz))); b_ = on(jawR_rig, Vector((0.004, yy, zz)))
-            if (a_ - b_).length > 0.16 + sagr * 0.08: continue          # stretched too far: snapped
+            if (a_ - b_).length > 0.32 + sagr * 0.12: continue          # stretched too far: snapped
             cd = bpy.data.curves.new("strand", 'CURVE'); cd.dimensions = '3D'
             cd.bevel_depth = thick * (1.0 - 0.5 * open_amt); cd.bevel_resolution = 2
             sp = cd.splines.new('BEZIER'); sp.bezier_points.add(1)
@@ -836,11 +836,11 @@ def jumpscare(frames=26):
             d_[1] += 0.004; d_[0].location.z -= d_[1]; d_[0].scale.z = 1.8 + d_[1] * 120
         # a spray of spit at the screen as it lunges
         if 9 <= f <= 13:
-            for _ in range(6):
+            for _ in range(3):
                 o_ = face + Vector((random.uniform(-0.03, 0.03), -0.02, random.uniform(-0.03, 0.02)))
-                bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=random.uniform(0.002, 0.006), location=o_)
+                bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=random.uniform(0.0006, 0.0016), location=o_)
                 s_ = bpy.context.active_object; s_.data.materials.append(sinew_mat)
-                v_ = (cam.location - o_).normalized() * random.uniform(0.04, 0.09) + Vector((random.uniform(-0.02, 0.02), 0, random.uniform(-0.015, 0.02)))
+                v_ = (cam.location - o_).normalized() * random.uniform(0.015, 0.035) + Vector((random.uniform(-0.02, 0.02), 0, random.uniform(-0.015, 0.02)))
                 spit.append([s_, v_])
         for s_ in spit:
             s_[0].location += s_[1]; s_[1].z -= 0.003; s_[0].scale = (1, 1, 1.0 + s_[1].length * 25)

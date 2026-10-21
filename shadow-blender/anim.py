@@ -78,16 +78,16 @@ def clips():
     C["stareA"] = (60, False, [
         (0,  {}, {}),
         (14, {"chest": (0.15, 0, 0), "neck": (0.15, 0, 0)}, {}),
-        (34, {"chest": (0.15, 0, 0), "neck": (0.15, 0, 0), "head": (0, 0, 0.35), "armL": (-0.55, 0, -0.22), "armR": (-0.55, 0, 0.22),
-              "foreL": (-0.25, 0, 0), "foreR": (-0.25, 0, 0), "handL": (-0.35, 0, 0), "handR": (-0.35, 0, 0)}, {}),
-        (60, {"chest": (0.18, 0, 0), "neck": (0.18, 0, 0), "head": (0, 0, 0.85), "armL": (-1.1, 0, -0.45), "armR": (-1.1, 0, 0.45),
-              "foreL": (-0.5, 0, 0), "foreR": (-0.5, 0, 0), "handL": (-0.7, 0, 0), "handR": (-0.7, 0, 0)}, {}),
+        (34, {"chest": (0.15, 0, 0), "neck": (0.15, 0, 0), "head": (0, 0, 0.35), "armL": (0.20, 0, -0.18), "armR": (0.20, 0, 0.18),
+              "foreL": (-0.45, 0, 0), "foreR": (-0.45, 0, 0), "handL": (-0.35, 0, 0), "handR": (-0.35, 0, 0)}, {}),
+        (60, {"chest": (0.18, 0, 0), "neck": (0.18, 0, 0), "head": (0, 0, 0.85), "armL": (0.35, 0, -0.32), "armR": (0.35, 0, 0.32),
+              "foreL": (-0.95, 0, 0), "foreR": (-0.95, 0, 0), "handL": (-0.6, 0, 0), "handR": (-0.6, 0, 0)}, {}),
     ])
     # stare B: head turns all the way upside down and it crawls toward you, slowly
     keys = []
     for f in range(0, 41, 5):
         ph = f / 40 * 2 * _m.pi
-        P = gait(ph, 0.22, spider(0.85))
+        P = gait(ph, 0.22, spider(0.85), arm_amp=0.07)
         P = merge(P, {"head": (0.2, 0, 2.9 + 0.08 * _m.sin(ph * 2))})
         keys.append((f, P, {"hips": (0, -0.47 + 0.02 * abs(_m.sin(ph)), 0)}))
     C["crawl"] = (40, True, keys)
@@ -95,14 +95,14 @@ def clips():
     keys = []
     for f in range(0, 41, 5):
         ph = f / 40 * 2 * _m.pi
-        P = gait(ph, 0.28, {"chest": (0.06, 0, 0), "head": (0, 0, 0.12 * _m.sin(ph))}, arm_amp=0.22)
+        P = gait(ph, 0.24, {"chest": (0.06, 0, 0), "head": (0, 0, 0.12 * _m.sin(ph))}, arm_amp=0.06)
         keys.append((f, P, {"hips": (0, -0.03 * abs(_m.cos(ph)), 0)}))
     C["walk"] = (40, True, keys)
     # stare D: the neck stretches out toward you while the body stays where it is
     C["neck"] = (60, False, [
         (0,  {}, {}),
         (10, {"neck": (-0.1, 0, 0)}, {"neck": (0, 0.02, 0.05)}),
-        (60, {"neck": (-0.35, 0, 0), "head": (0.25, 0, 0.4), "armL": (-0.2, 0, -0.3), "armR": (-0.2, 0, 0.3)}, {"neck": (0, 0.18, 0.75), "head": (0, 0.05, 0.25)}),
+        (60, {"neck": (0.55, 0, 0), "head": (-0.45, 0, 0.4), "armL": (0.1, 0, -0.25), "armR": (0.1, 0, 0.25)}, {"neck": (0, 0.03, 0.10), "head": (0, 0.02, 0.06)}),
     ])
     # fold: snaps down into the spider crouch in jerks (each step: a snap, then a hold)
     keys = [(0, {}, {})]
@@ -120,19 +120,19 @@ def clips():
     keys = []
     for f in range(0, 13, 3):
         ph = f / 12 * 2 * _m.pi
-        P = gait(ph, 0.45, spider(1.0))
+        P = gait(ph, 0.42, spider(1.0), arm_amp=0.14)
         P = merge(P, {"hips": (0, 0, 0.05 * _m.sin(ph * 2))})
         keys.append((f, P, {"hips": (0, -0.55 + 0.03 * abs(_m.sin(ph)), 0)}))
     C["scuttle"] = (12, True, keys)
     # grab: one long arm shoots out
     C["grab"] = (24, False, [
         (0, {}, {}),
-        (6, {"armR": (-0.5, 0, 0.35), "chest": (0.05, 0, 0)}, {}),
-        (14, {"armR": (-1.45, 0, 0.25), "foreR": (-0.45, 0, 0), "handR": (-0.3, 0, 0), "chest": (0.12, 0, 0)}, {}),
-        (24, {"armR": (-1.35, 0, 0.2), "foreR": (-0.35, 0, 0), "handR": (0.9, 0, 0), "chest": (0.1, 0, 0)}, {}),
+        (6, {"armR": (0.25, 0, 0.15), "foreR": (-0.5, 0, 0), "chest": (0.05, 0, 0)}, {}),
+        (14, {"armR": (0.55, 0, 0.10), "foreR": (-1.35, 0, 0), "handR": (-0.3, 0, 0), "chest": (0.12, 0, 0)}, {}),
+        (24, {"armR": (0.50, 0, 0.08), "foreR": (-1.25, 0, 0), "handR": (0.9, 0, 0), "chest": (0.1, 0, 0)}, {}),
     ])
     # lick: holding you up at its face, head bobbing in to you
-    hold = {"armR": (-2.25, 0, 0.2), "foreR": (-0.35, 0, 0), "handR": (0.9, 0, 0)}
+    hold = {"armR": (0.45, 0, 0.08), "foreR": (-1.95, 0, 0), "handR": (0.9, 0, 0)}
     C["lick"] = (30, True, [
         (0,  merge(hold, {"neck": (0.35, 0, 0), "head": (0.30, 0, -0.2)}), {}),
         (10, merge(hold, {"neck": (0.45, 0, 0), "head": (0.45, 0, 0.1)}), {"neck": (0, 0, 0.05)}),
