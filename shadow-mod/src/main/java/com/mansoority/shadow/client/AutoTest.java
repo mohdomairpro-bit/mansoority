@@ -129,6 +129,7 @@ public final class AutoTest {
         if (t == 2540) shot(mc, "21_grab_lick");
         if (t == 2620) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.serverLevel().setDayTime(6000);
             sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_HELMET));
             sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_CHESTPLATE));
             sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADOW_BLADE.get()));
@@ -137,16 +138,24 @@ public final class AutoTest {
         });
         if (t == 2640) lookNear(mc, 0F);
         if (t == 2650) shot(mc, "22_mimic_gear");
-        if (t == 2660) { ClientFx.handle(FxPacket.of(FxPacket.DEATHMSG)); ClientFx.handle(new FxPacket(FxPacket.MARK, 600, 0, 0, 0, 1, 1)); }
+        if (t == 2660) { ClientFx.handle(FxPacket.of(FxPacket.DEATHMSG)); ClientFx.handle(new FxPacket(FxPacket.MARK, 600, 0, 0, 0, 1, 1));
+            ClientFx.handle(new FxPacket(FxPacket.MARK_OTHER, 600, 0, 0, 0, mc.player.getId(), 1)); }
         if (t == 2680) shot(mc, "23_deathmsg_mark");
+        if (t == 2682) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); mc.player.setYRot(mc.player.getYRot() + 180F); }
+        if (t == 2690) shot(mc, "23b_handprint_back");
+        if (t == 2692) mc.options.setCameraType(CameraType.FIRST_PERSON);
         if (t == 2700) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             net.minecraft.server.level.ServerLevel end = server.getLevel(net.minecraft.world.level.Level.END);
-            if (end != null) { sp.teleportTo(end, 0.5, 80, 40.5, 180F, 10F); log("to the end"); }
+            if (end != null) {
+                end.getChunk(0, 2); end.getChunk(0, 3);
+                net.minecraft.core.BlockPos st = ShadowEntity.findStand(end, 0.5, 70, 40.5, 40);
+                double y = st != null ? st.getY() : 70;
+                sp.teleportTo(end, 0.5, y, 40.5, 180F, 10F); sp.fallDistance = 0; log("to the end at y=" + y);
+            }
         });
         if (t == 2800) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-            sp.getAbilities().invulnerable = true;
             var b = com.mansoority.shadow.ShadowEvents.endBossCheck(sp, true);
             log("boss: " + (b != null));
         });
@@ -156,7 +165,13 @@ public final class AutoTest {
         if (t == 2910) shot(mc, "25_boss_fight");
         if (t == 3000) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
         if (t == 3010) shot(mc, "26_boss_shades");
-        if (t == 3100) { log("done"); mc.stop(); }
+        if (t > 2800 && t < 3100 && t % 40 == 0) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            log("boss fight hp=" + sp.getHealth() + " alive=" + sp.isAlive());
+        });
+        if (t == 3100) mc.setScreen(new ShadowConfigScreen(null));
+        if (t == 3110) shot(mc, "27_config_screen");
+        if (t == 3115) { mc.setScreen(null); log("done"); mc.stop(); }
     }
 
     /** aim at the shadow's head, offset sideways by 'offset' degrees */
