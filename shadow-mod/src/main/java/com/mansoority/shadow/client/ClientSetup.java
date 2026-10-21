@@ -8,6 +8,8 @@ import net.minecraftforge.eventbus.api.IEventBus;
 
 public final class ClientSetup {
     public static void init(IEventBus modBus) {
+        net.minecraftforge.fml.ModLoadingContext.get().registerExtensionPoint(net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
+                () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory((mc, parent) -> new ShadowConfigScreen(parent)));
         modBus.addListener(ClientSetup::onRenderers);
         modBus.addListener(ClientSetup::onOverlays);
         modBus.addListener(ClientSetup::onParticles);

@@ -79,15 +79,16 @@ public class ShadowEvents {
         double roll = p.getRandom().nextDouble();
         warnAll(p);
         boolean day = ShadowEntity.isDaytimeFor(p);
-        if (roll >= 0.55 && roll < 0.63 && !day) {                  // rare, night only: it picks you up
+        // a disabled event just becomes a small scare (or nothing, if those are off too)
+        if (roll >= 0.55 && roll < 0.63 && !day && ShadowConfig.GRAB.get()) {   // rare, night only: it picks you up
             if (ShadowEntity.grab(p, p.getRandom().nextBoolean() ? ShadowEntity.GRAB_LICK : ShadowEntity.GRAB_DRAG) == null) soundEvent(p);
             return;
         }
-        if (roll < 0.14) {                                          // a familiar face where it shouldn't be
+        if (roll < 0.14 && ShadowConfig.MIMIC.get()) {              // a familiar face where it shouldn't be
             if (ShadowEntity.mimicFor(p) == null) soundEvent(p);
-        } else if (roll < 0.55) {                                   // stalked (only ends in a chase at night)
+        } else if (roll < 0.55 && ShadowConfig.STALK.get()) {       // stalked (only ends in a chase at night)
             if (ShadowEntity.spawnAround(p, 0, 180, 28) == null) soundEvent(p);
-        } else if (day || roll < 0.96) {                            // just sounds / something wrong
+        } else if (day || roll < 0.96 || !ShadowConfig.JUMPSCARE.get()) {   // just sounds / something wrong
             soundEvent(p);
         } else {                                                    // very rare: straight jumpscare, night only
             ShadowEntity.jumpscare(p, false);
@@ -98,7 +99,7 @@ public class ShadowEvents {
     /** you haven't slept in days (3+ nights): at night, it comes and stands right next to you */
     private static boolean insomniaVisit(ServerPlayer p, CompoundTag data, long now) {
         int awake = p.getStats().getValue(net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.TIME_SINCE_REST));
-        if (awake < 72000 || p.level().isDay() || !eligible(p)) return false;
+        if (!ShadowConfig.BEDSIDE.get() || awake < 72000 || p.level().isDay() || !eligible(p)) return false;
         if (p.getRandom().nextFloat() > 0.06F) return false;
         ShadowEntity e = ShadowEntity.spawnAround(p, -1, p.getRandom().nextBoolean() ? 150 : -150, 2.6);
         if (e == null) return false;
@@ -116,7 +117,7 @@ public class ShadowEvents {
         if (sl.dimension() != net.minecraft.world.level.Level.END) return null;
         BossData d = BossData.get(p.server);
         if (!force) {
-            if (d.defeated || !ShadowConfig.ENABLED.get() || p.isCreative() || p.isSpectator()) return null;
+            if (d.defeated || !ShadowConfig.ENABLED.get() || !ShadowConfig.BOSS.get() || p.isCreative() || p.isSpectator()) return null;
             var fight = sl.getDragonFight();
             if (fight == null || !fight.hasPreviouslyKilledDragon()) return null;
             if (!sl.getEntitiesOfClass(EnderDragon.class, p.getBoundingBox().inflate(300)).isEmpty()) return null;
@@ -144,7 +145,7 @@ public class ShadowEvents {
 
     /** walking into its lair: always ends with it coming for you */
     private static void lairCheck(ServerPlayer p) {
-        if (p.isCreative() || p.isSpectator() || !ShadowConfig.ENABLED.get()) return;
+        if (p.isCreative() || p.isSpectator() || !ShadowConfig.ENABLED.get() || !ShadowConfig.LAIR.get()) return;
         net.minecraft.server.level.ServerLevel sl = p.serverLevel();
         var reg = sl.registryAccess().registryOrThrow(Registries.STRUCTURE);
         var st = reg.get(LAIR);
@@ -200,6 +201,7 @@ public class ShadowEvents {
     }
 
     private static void soundEvent(ServerPlayer p) {
+        if (!ShadowConfig.SCARES.get()) return;
         float k = p.getRandom().nextFloat();
         if (k < 0.18F) { ShadowNet.send(p, FxPacket.of(FxPacket.POLTER)); ShadowTrails.behind(p); return; }
         if (k < 0.26F) { ShadowNet.send(p, FxPacket.of(FxPacket.MIRROR)); return; }
