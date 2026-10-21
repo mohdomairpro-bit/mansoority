@@ -95,6 +95,17 @@ public final class AutoTest {
         if (t == 445) lookNear(mc, 28F);
         if (t == 455) shot(mc, "15_bedside");
         if (t == 470) { mc.options.hideGui = false; ClientFx.handle(FxPacket.of(FxPacket.SEQUENCE)); }
+        if (t == 500) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.serverLevel().getEntities(ShadowRegistry.SHADOW.get(), x -> true).forEach(Entity::discard);
+            ShadowEntity e = ShadowEntity.spawnAround(sp, 1, 0, 14);
+            if (e != null) { e.scripted = true; e.reveal(); e.startVanish(); }
+            log("portal: " + (e != null));
+        });
+        if (t == 502) lookNear(mc, 0F);
+        if (t == 512) shot(mc, "16_portal_open");
+        if (t == 522) shot(mc, "17_portal_hands");
+        if (t == 531) shot(mc, "18_portal_close");
         if (t == 560) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             sp.serverLevel().getEntities(ShadowRegistry.SHADOW.get(), x -> true).forEach(Entity::discard);
