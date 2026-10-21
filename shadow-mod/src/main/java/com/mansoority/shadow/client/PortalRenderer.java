@@ -38,7 +38,7 @@ public final class PortalRenderer {
             // a hole of ink-black smoke bleeds open, hands reach out of it, it swallows him, then it bleeds shut
             float open = v < 8F ? v / 8F : v > ShadowEntity.VANISH_LEN - 7 ? Math.max(0F, (ShadowEntity.VANISH_LEN - v) / 7F) : 1F;
             open = open * open * (3F - 2F * open);
-            if (open <= 0.01F) continue;
+            if (open <= 0.01F) return;
             Vec3 c = s.getPosition(pt).add(0, s.getBbHeight() * 0.5, 0);
             float rad = Math.max(1.4F, s.getBbHeight() * 0.55F) * (0.35F + 0.65F * open);
             int frame = (int) (v * 0.9F) % FRAMES;
