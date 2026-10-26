@@ -17,7 +17,7 @@ import org.joml.Vector3f;
 final class ShadowSkeleton {
     /** the four limbs as two-bone chains: upper bone, lower bone, contact point at rest (model metres) */
     static final String[][] LIMB = {{"legL", "shinL"}, {"legR", "shinR"}, {"foreL", "handL"}, {"foreR", "handR"}};
-    static final float[][] END = {{-0.26F, 0.17F, -0.06F}, {0.26F, 0.17F, -0.06F}, {-0.67F, 0.15F, 0.68F}, {0.67F, 0.15F, 0.68F}};
+    static final float[][] END = {{-0.27F, 0.05F, 0.10F}, {0.27F, 0.05F, 0.10F}, {-0.67F, 0.15F, 0.68F}, {0.67F, 0.15F, 0.68F}};   // toes and fingertips touch down
 
     private static Matrix4f[] W = new Matrix4f[0];
     private static final Matrix4f TMP = new Matrix4f(), INV = new Matrix4f();

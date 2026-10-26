@@ -94,7 +94,7 @@ def set_pivots(piv):
 
 
 # the four limbs as two-bone chains: (upper bone, lower bone, end point at rest, side)
-LIMBS = {"legL": ("legL", "shinL", J["ankleL"]), "legR": ("legR", "shinR", J["ankleR"]),
+LIMBS = {"legL": ("legL", "shinL", J["toeL"]), "legR": ("legR", "shinR", J["toeR"]),     # plant the toes, not the ankle
          "armL": ("foreL", "handL", J["handL"]), "armR": ("foreR", "handR", J["handR"])}
 
 

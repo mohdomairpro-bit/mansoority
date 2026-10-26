@@ -10,7 +10,7 @@ from rig import ORDER, PIVOT, J, LIMBS, qeuler, qmul, fk, two_bone, end_pos, set
 
 PI = math.pi
 SIDE = {"L": -1.0, "R": 1.0}
-REST_FOOT = {"legL": J["ankleL"].copy(), "legR": J["ankleR"].copy(), "armL": J["handL"].copy(), "armR": J["handR"].copy()}
+REST_FOOT = {"legL": J["toeL"].copy(), "legR": J["toeR"].copy(), "armL": J["handL"].copy(), "armR": J["handR"].copy()}
 GROUND = {k: float(v[1]) for k, v in REST_FOOT.items()}          # height of each contact point when standing flat
 
 
@@ -151,7 +151,7 @@ WALK_CYCLE, WALK_STRIDE = 48, 0.95
 @clip("walk", WALK_CYCLE, speed=WALK_STRIDE / WALK_CYCLE)
 def walk(f):
     p = P()
-    gait(p, f, WALK_CYCLE, WALK_STRIDE, 0.22, 0.72, {"legL": 0.0, "armL": 0.25, "legR": 0.5, "armR": 0.75})
+    gait(p, f, WALK_CYCLE, WALK_STRIDE, 0.13, 0.76, {"legL": 0.0, "armL": 0.25, "legR": 0.5, "armR": 0.75})
     ph = 2 * PI * f / WALK_CYCLE
     p.off("hips", 0.05 * math.sin(ph), -0.035 * abs(math.cos(ph)), 0)               # weight rolls over each planted foot
     p.rot("hips", 0.03, 0.06 * math.sin(ph), -0.06 * math.sin(ph))
@@ -240,13 +240,17 @@ def scuttle(f):
 @clip("grab", 24, loop=False)
 def grab(f):
     p = P()
-    wind = ease((f) / 6) * (1 - ease((f - 6) / 4))     # draws back a little first
-    reach = ease_out((f - 8) / 6)
-    p.rot("chest", -0.06 * wind + 0.14 * reach, 0, 0).rot("neck", 0.1 * reach)
-    p.rot("armR", 0.6 * reach, 0, -0.1 * wind)
-    p.free.add("armR")
-    p.rot("foreR", -1.3 * reach - 0.2 * wind).rot("handR", -0.3 * reach + 1.1 * ease((f - 15) / 6))
-    p.contact["armR"] = False
+    wind = ease(f / 7) * (1 - ease((f - 7) / 3))              # coils back and down first
+    reach = ease_out((f - 8) / 5)
+    over = math.exp(-((f - 13) / 2.2) ** 2)                    # overshoots past you, then snaps back
+    close = ease((f - 14) / 6)                                 # fingers closing round you
+    p.rot("chest", -0.12 * wind + 0.2 * reach + 0.08 * over, 0.18 * wind - 0.15 * reach, -0.06 * wind)
+    p.rot("neck", -0.1 * wind + 0.18 * reach).rot("head", 0.1 * wind - 0.15 * reach, 0, 0.2 * over)
+    p.off("hips", 0, -0.08 * wind, -0.05 * wind + 0.1 * reach)
+    p.free.add("armR"); p.contact["armR"] = False
+    p.rot("armR", 0.6 * reach + 0.15 * over - 0.3 * wind, 0, -0.1 * wind)
+    p.rot("foreR", -1.3 * reach - 0.4 * wind - 0.2 * over).rot("handR", -0.4 * reach + 1.2 * close)
+    p.feet["armL"] = p.feet["armL"] + np.array([0.08, 0, 0.12 * reach])     # the other hand braces
     return p
 
 
@@ -256,13 +260,18 @@ def lick(f):
     p = P()
     ph = 2 * PI * f / 40
     p.free.add("armR"); p.contact["armR"] = False
-    p.rot("armR", 0.5, 0, 0.05).rot("foreR", -1.95).rot("handR", 0.9)
+    pull = 0.5 + 0.5 * math.sin(ph - 0.8)                    # it pulls you in to its face and pushes you back out
+    p.rot("armR", 0.5 + 0.12 * pull, 0.08 * math.sin(ph * 2), 0.05).rot("foreR", -1.95 + 0.25 * pull).rot("handR", 0.9 + 0.15 * math.sin(ph * 3))
     lean = 0.5 + 0.5 * math.sin(ph)
-    p.rot("chest", 0.08 * lean).rot("neck", 0.32 + 0.14 * lean).rot("head", 0.28 + 0.15 * lean, 0, 0.25 * math.sin(ph + 0.6))
-    p.off("neck", 0, 0, 0.05 * lean)
+    heave = math.sin(ph * 2)                                  # the chest heaves as it breathes on you
+    p.rot("chest", 0.08 * lean - 0.05 * heave, 0.08 * math.sin(ph), 0.04 * math.sin(ph + 1))
+    p.rot("neck", 0.32 + 0.14 * lean, 0.1 * math.sin(ph + 0.4), 0)
+    p.rot("head", 0.28 + 0.15 * lean + 0.05 * math.sin(f * 1.3), 0.15 * math.sin(ph * 2 + 1), 0.3 * math.sin(ph + 0.6) + 0.06 * math.sin(f * 2.1))
+    p.off("neck", 0, 0, 0.05 * lean).off("hips", 0.03 * math.sin(ph), -0.02 * abs(heave), 0)
+    p.feet["armL"] = p.feet["armL"] + np.array([0, 0.06 * max(0, math.sin(ph * 2)), 0])   # the free hand twitches
     out = ease_out(f / 9) * (1 - ease((f - 31) / 9))
     stroke = 2 * PI * (f - 6) / 13                                   # two long strokes upward per cycle
-    p.tongue(out, pitch=-0.55 * out - 0.25 * math.sin(stroke) * out, wave=0.42 * out, phase=stroke, droop=0.2 * (1 - out))
+    p.tongue(out, pitch=-0.55 * out - 0.25 * math.sin(stroke) * out, wave=0.42 * out, phase=stroke, droop=0.2 * (1 - out), side=0.4 * math.sin(ph))
     return p
 
 
