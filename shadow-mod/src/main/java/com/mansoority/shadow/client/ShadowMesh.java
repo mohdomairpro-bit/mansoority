@@ -48,6 +48,23 @@ public final class ShadowMesh {
     public float[] outPos, outNrm;
 
     public Part get(String name) { return byName.get(name); }
+
+    private final Map<String, int[]> subsets = new HashMap<>();
+    /** the triangles that belong entirely to these bones (e.g. the two halves of the face, for the weak-point glow) */
+    public int[] trianglesOf(String... bones) {
+        String key = String.join(",", bones);
+        return subsets.computeIfAbsent(key, k -> {
+            java.util.Set<Integer> ids = new java.util.HashSet<>();
+            for (String b : bones) { Part p = get(b); if (p != null) ids.add(p.index); }
+            int[] tmp = new int[solid.length]; int n = 0;
+            for (int t = 0; t < solid.length; t += 3) {
+                boolean all = true;
+                for (int c = 0; c < 3; c++) { int v = solid[t + c]; if (!ids.contains(b0[v] & 255) || w0[v] < 0.9F) { all = false; break; } }
+                if (all) { tmp[n++] = solid[t]; tmp[n++] = solid[t + 1]; tmp[n++] = solid[t + 2]; }
+            }
+            return java.util.Arrays.copyOf(tmp, n);
+        });
+    }
     public int vertexCount() { return w0.length; }
 
     private static ShadowMesh cached, cachedLod;

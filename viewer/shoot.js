@@ -21,7 +21,7 @@ const server = http.createServer((q, r) => {
     const [clip, fr, v, jaw, cam] = s.split(':');
     await p.evaluate(([clip, fr, v, jaw, cam]) => {
       pick(clip); view.fade = 1; view.playing = false; view.t = parseFloat(fr); setView(v || '34');
-      view.jaw = jaw ? parseFloat(jaw) : 0.03; view.bones = false;
+      view.jaw = jaw ? parseFloat(jaw) : (AUTO_JAW[clip] ?? 0.03); view.jawManual = true; view.bones = false;
       if (cam) { const c = cam.split(',').map(Number); camera.position.set(c[0], c[1], c[2]); controls.target.set(c[3], c[4], c[5]); controls.update(); }
     }, [clip, fr, v, jaw, cam]);
     await p.waitForTimeout(400);

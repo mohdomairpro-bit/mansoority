@@ -11,6 +11,7 @@ public final class ShadowConfig {
     public static final ForgeConfigSpec.DoubleValue CATCH_DAMAGE;
     public static final ForgeConfigSpec.BooleanValue AFTER_DRAGON;
     public static final ForgeConfigSpec.BooleanValue STALK, MIMIC, GRAB, SCARES, JUMPSCARE, BEDSIDE, LAIR, BOSS;
+    public static final ForgeConfigSpec.BooleanValue COLLAPSE, STEAL;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -30,6 +31,8 @@ public final class ShadowConfig {
         BEDSIDE = b.comment("It stands next to you after 3+ nights without sleep").define("insomnia", true);
         LAIR = b.comment("Walking into its lair triggers an encounter").define("lair", true);
         BOSS = b.comment("The End boss after the dragon").define("endBoss", true);
+        STEAL = b.comment("It hides on a pillar during a dragon fight and takes the kill at the last moment").define("stealsTheDragon", true);
+        COLLAPSE = b.comment("Phase three: chunks of the main island crumble into the void (they're put back after the fight)").define("arenaCollapse", true);
         b.pop();
         b.push("damage");
         CATCH_DAMAGE = b.comment("Damage when it catches you at the end of the chase (2 = one heart). It can never kill you: you're always left with at least 1 heart. 0 = harmless.")

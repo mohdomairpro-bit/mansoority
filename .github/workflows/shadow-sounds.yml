@@ -2,7 +2,7 @@ name: Build Mansoority sounds
 on:
   push:
     branches: [shadow-mod]
-    paths: ['shadow-sounds/**', '.github/workflows/shadow-sounds.yml']
+    paths: ['shadow-sounds/process.sh']
   workflow_dispatch:
 permissions:
   contents: write

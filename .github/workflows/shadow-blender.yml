@@ -2,7 +2,7 @@ name: Render The Shadow (Blender)
 on:
   push:
     branches: [shadow-mod]
-    paths: ['shadow-blender/build_shadow.py', 'shadow-blender/anim.py', 'shadow-blender/post.py']
+    paths: ['shadow-blender/RENDER']   # touch this file to re-render in CI (the model is built locally now)
   workflow_dispatch:
 permissions:
   contents: write

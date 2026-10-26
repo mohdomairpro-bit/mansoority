@@ -92,6 +92,10 @@ public final class CinematicCam {
                 want = eye.add(dirPF.scale(-pa)).add(0, pb, 0).add(side.scale(0.8));
                 look = F != null ? eye.lerp(F, 0.35) : eye;
             }
+            case ShadowCinematic.POV -> {                     // your own eyes, a little forward, locked on its face
+                want = eye.add(dirPF.scale(pa)).add(0, -0.1, 0);
+                look = f != null ? f.position().add(0, pb, 0) : eye.add(dirPF);
+            }
             case ShadowCinematic.CRANE -> {
                 double k = Math.min(1.0, shotT / 180.0);
                 k = k * k * (3 - 2 * k);

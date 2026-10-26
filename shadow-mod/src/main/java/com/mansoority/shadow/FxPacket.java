@@ -21,7 +21,17 @@ public class FxPacket {
     public static final int DEATHMSG = 11;       // a fake death message in your chat
     public static final int MARK = 12;
     public static final int MARK_OTHER = 13;
-    public static final int FAKE_LAIR = 14;      // the lair appears at x,y,z on this client only, for 'sound' ticks     // player entity id in 'volume' carries the mark (seconds in 'sound')           // you've been marked (seconds in 'sound')             // cinematic camera: shot in 'sound', params x/y/z, focus entity id in volume, chapter card in pitch
+    public static final int FAKE_LAIR = 14;
+    // the End fight
+    public static final int RING_WAVE = 15;      // shockwave ring from x,y,z: speed in volume, max radius in pitch
+    public static final int KNOCKDOWN = 16;      // you're thrown to the ground for 'sound' ticks
+    public static final int FLOOD = 17;          // the arena goes pitch black for 'sound' ticks except its eyes (boss id in volume)
+    public static final int LINE = 18;           // a line of its speech across the screen: index in 'sound', ticks in volume
+    public static final int TELEGRAPH = 19;      // a warning circle on the ground at x,y,z: radius in volume, ticks in 'sound'
+    public static final int PILLAR_EYES = 20;    // a pair of eyes in a pillar at x,y,z for 'sound' ticks, facing yaw in volume
+    public static final int SHAKE = 21;          // a jolt of camera shake (amount in volume)
+    public static final int SPRAY = 22;          // its stomach spraying: boss id in volume, ticks in 'sound'
+    public static final int HOLLOW = 23;         // you're in its place: 'sound' ticks of it      // the lair appears at x,y,z on this client only, for 'sound' ticks     // player entity id in 'volume' carries the mark (seconds in 'sound')           // you've been marked (seconds in 'sound')             // cinematic camera: shot in 'sound', params x/y/z, focus entity id in volume, chapter card in pitch
 
     public final int kind;
     public final int sound;

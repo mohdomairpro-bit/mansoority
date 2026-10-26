@@ -118,7 +118,7 @@ public class ShadowEvents {
         if (sl.dimension() != net.minecraft.world.level.Level.END) return null;
         BossData d = BossData.get(p.server);
         if (!force) {
-            if (d.defeated || !ShadowConfig.ENABLED.get() || !ShadowConfig.BOSS.get() || p.isCreative() || p.isSpectator()) return null;
+            if (d.defeated || d.sealed || !ShadowConfig.ENABLED.get() || !ShadowConfig.BOSS.get() || p.isCreative() || p.isSpectator()) return null;
             var fight = sl.getDragonFight();
             if (fight == null || !fight.hasPreviouslyKilledDragon()) return null;
             if (!sl.getEntitiesOfClass(EnderDragon.class, p.getBoundingBox().inflate(300)).isEmpty()) return null;
@@ -135,10 +135,73 @@ public class ShadowEvents {
         b.moveTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5, 0, 0);
         b.setHealth(MansoorityBoss.MAX_HP);
         sl.addFreshEntity(b);
+        b.beginIntro();
         d.spawned(sl.getGameTime());
         for (ServerPlayer o : sl.players())
             o.displayClientMessage(Component.literal("Something followed you out of the dark.").withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), false);
         return b;
+    }
+
+    /** a dragon fight is on: it climbs a pillar, waits, and takes the kill at the very end */
+    private static void dragonWatch(net.minecraft.server.level.ServerLevel end) {
+        if (!ShadowConfig.ENABLED.get() || !ShadowConfig.BOSS.get() || !ShadowConfig.STEAL.get()) return;
+        BossData d = BossData.get(end.getServer());
+        if (d.defeated || d.sealed) return;
+        var fight = end.getDragonFight();
+        if (fight == null) return;
+        if (!end.getEntitiesOfClass(MansoorityBoss.class, new net.minecraft.world.phys.AABB(-300, 0, -300, 300, 320, 300)).isEmpty()) return;
+        for (EnderDragon dragon : end.getEntitiesOfClass(EnderDragon.class, new net.minecraft.world.phys.AABB(-300, 0, -300, 300, 320, 300))) {
+            if (!dragon.isAlive() || dragon.getHealth() > dragon.getMaxHealth() * 0.25F) continue;
+            boolean players = !end.getEntitiesOfClass(ServerPlayer.class, new net.minecraft.world.phys.AABB(-150, 0, -150, 150, 320, 150), q -> !q.isCreative() && !q.isSpectator()).isEmpty();
+            if (!players) return;
+            var spikes = net.minecraft.world.level.levelgen.feature.SpikeFeature.getSpikesForLevel(end);
+            if (spikes.isEmpty()) return;
+            var sp = spikes.get(end.random.nextInt(spikes.size()));
+            MansoorityBoss b = ShadowRegistry.BOSS.get().create(end);
+            if (b == null) return;
+            b.moveTo(sp.getCenterX() + 0.5, sp.getHeight() + 1, sp.getCenterZ() + 0.5, 0, 0);
+            b.setHealth(MansoorityBoss.MAX_HP);
+            end.addFreshEntity(b);
+            b.beginSteal(dragon, sp);
+            d.spawned(end.getGameTime());
+            return;
+        }
+    }
+
+    /** sealed in its tower: five TNT going off at the foot of it wake it up */
+    @SubscribeEvent
+    public void onExplode(net.minecraftforge.event.level.ExplosionEvent.Detonate event) {
+        if (!(event.getLevel() instanceof net.minecraft.server.level.ServerLevel sl) || sl.dimension() != net.minecraft.world.level.Level.END) return;
+        BossData d = BossData.get(sl.getServer());
+        if (!d.sealed) return;
+        var pos = event.getExplosion().getPosition();
+        if (Math.hypot(pos.x - d.sealedAt.getX(), pos.z - d.sealedAt.getZ()) > 14) return;
+        if (!(event.getExplosion().getDirectSourceEntity() instanceof net.minecraft.world.entity.item.PrimedTnt)) return;
+        d.tnt++; d.setDirty();
+        for (ServerPlayer p : sl.players()) if (p.distanceToSqr(pos) < 80 * 80)
+            p.displayClientMessage(Component.literal(d.tnt >= 5 ? "It's awake." : "Something inside the tower moves. (" + d.tnt + "/5)")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), true);
+        if (d.tnt < 5) return;
+        d.sealed = false; d.tnt = 0; d.setDirty();
+        MansoorityBoss b = ShadowRegistry.BOSS.get().create(sl);
+        if (b == null) return;
+        var g = ShadowEntity.findStand(sl, d.sealedAt.getX() + 6.5, d.sealedAt.getY(), d.sealedAt.getZ() + 0.5, 120);
+        if (g == null) g = d.sealedAt;
+        b.moveTo(g.getX() + 0.5, g.getY(), g.getZ() + 0.5, 0, 0);
+        sl.addFreshEntity(b);
+        b.restoreHp(d.sealedHp);
+        b.beginIntro();
+    }
+
+    /** someone died in the fight: it counts */
+    @SubscribeEvent
+    public void onDeath(net.minecraftforge.event.entity.living.LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer p) || p.level().dimension() != net.minecraft.world.level.Level.END && !HollowPlace.is(p.level())) return;
+        net.minecraft.server.level.ServerLevel end = p.server.getLevel(net.minecraft.world.level.Level.END);
+        if (end == null) return;
+        for (MansoorityBoss b : end.getEntitiesOfClass(MansoorityBoss.class, new net.minecraft.world.phys.AABB(-400, -64, -400, 400, 400, 400))) {
+            if (HollowPlace.is(p.level()) || b.distanceToSqr(p) < 120 * 120) { b.onPlayerKilled(p); return; }
+        }
     }
 
     private static final net.minecraft.resources.ResourceKey<net.minecraft.world.level.levelgen.structure.Structure> LAIR =
@@ -162,6 +225,12 @@ public class ShadowEvents {
         ShadowNet.send(p, FxPacket.of(FxPacket.POLTER));                          // its candles go out
         ShadowEntity e = ShadowEntity.spawnAround(p, 2, 180, 7);                    // and it's already behind you
         if (e == null) ShadowEntity.rushFrom(p, 20);
+    }
+
+    @SubscribeEvent
+    public void onLevelTick(TickEvent.LevelTickEvent event) {
+        if (event.phase != TickEvent.Phase.END || !(event.level instanceof net.minecraft.server.level.ServerLevel sl)) return;
+        if (sl.dimension() == net.minecraft.world.level.Level.END && sl.getGameTime() % 20 == 0) dragonWatch(sl);
     }
 
     @SubscribeEvent

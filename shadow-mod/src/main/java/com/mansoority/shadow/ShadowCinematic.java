@@ -15,7 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
  * every feature, in order, with its own camera work and title cards. nobody gets hurt.
  */
 public final class ShadowCinematic {
-    public static final int OFF = 0, ORBIT = 1, SHOULDER = 2, WIDE = 3, FACE = 4, CRANE = 5;
+    public static final int OFF = 0, ORBIT = 1, SHOULDER = 2, WIDE = 3, FACE = 4, CRANE = 5, POV = 6;
     private static final Map<UUID, Run> RUNS = new HashMap<>();
 
     private static final class Run {
@@ -48,6 +48,9 @@ public final class ShadowCinematic {
         }
         if (r != null) p.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
     }
+
+    /** the boss fight's own camera moves (the intro), outside of /shadow cinematic */
+    public static void camFor(ServerPlayer p, int shot, double a, double b, double c, ShadowEntity focus, int chapter) { cam(p, shot, a, b, c, focus, chapter); }
 
     private static void cam(ServerPlayer p, int shot, double a, double b, double c, ShadowEntity focus, int chapter) {
         ShadowNet.send(p, new FxPacket(FxPacket.CAM, shot, a, b, c, focus == null ? -1 : focus.getId(), chapter));

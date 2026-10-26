@@ -79,7 +79,7 @@ public final class ClientFx {
             case FxPacket.MARK -> ClientScares.mark(p.sound);
             case FxPacket.FAKE_LAIR -> ClientScares.fakeLair(net.minecraft.core.BlockPos.containing(p.x, p.y, p.z), p.sound);
             case FxPacket.MARK_OTHER -> HandprintLayer.mark((int) p.volume, p.sound);
-            default -> {}
+            default -> BossFx.handle(p);
         }
         if (p.kind == FxPacket.JUMPSCARE || p.kind == FxPacket.JUMPSCARE_NOW) mc.getSoundManager().stop();
     }
@@ -199,6 +199,7 @@ public final class ClientFx {
 
         CinematicCam.tick();
         ClientScares.tick();
+        BossFx.tick();
         tickEchoes(mc);
         if (drool > 0F) drool = Math.max(0F, drool - 0.008F);
         if (turnT >= 0) {
@@ -335,6 +336,7 @@ public final class ClientFx {
     private static float kickNow() { return kickAmp * (float) Math.exp(-(net.minecraft.Util.getMillis() - kickMs) / 160.0); }
 
     public static void onCamera(ViewportEvent.ComputeCameraAngles event) {
+        BossFx.camera(event);
         float amp = kickNow();
         if (js >= SCARE_AT && js < SCARE_AT + 26) amp = 9F * (1F - (js - SCARE_AT) / 26F) + 1.5F;
         if (rushing) amp = Math.max(amp, 3.5F);

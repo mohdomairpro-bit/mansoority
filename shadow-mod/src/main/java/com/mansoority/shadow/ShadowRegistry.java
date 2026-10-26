@@ -17,6 +17,7 @@ public final class ShadowRegistry {
     public static final DeferredRegister<ParticleType<?>> PARTICLES = DeferredRegister.create(ForgeRegistries.PARTICLE_TYPES, TheShadow.MODID);
     public static final RegistryObject<SimpleParticleType> WISP = PARTICLES.register("wisp", () -> new SimpleParticleType(true));
     public static final RegistryObject<SimpleParticleType> DROOL = PARTICLES.register("drool", () -> new SimpleParticleType(false));
+    public static final RegistryObject<SimpleParticleType> BILE = PARTICLES.register("bile", () -> new SimpleParticleType(false));
     public static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, TheShadow.MODID);
 
     public static final RegistryObject<EntityType<ShadowEntity>> SHADOW = ENTITIES.register("shadow",
@@ -34,8 +35,23 @@ public final class ShadowRegistry {
             () -> EntityType.Builder.<ShadeEntity>of(ShadeEntity::new, MobCategory.MONSTER)
                     .sized(0.55F, 1.6F).clientTrackingRange(8).fireImmune().build("shade"));
 
+    public static final RegistryObject<EntityType<BoneSpike>> SPIKE = ENTITIES.register("bone_spike",
+            () -> EntityType.Builder.<BoneSpike>of(BoneSpike::new, MobCategory.MISC).sized(1.2F, 3.2F).clientTrackingRange(8).updateInterval(2).fireImmune().build("bone_spike"));
+    public static final RegistryObject<EntityType<ThrownBlade>> THROWN_BLADE = ENTITIES.register("thrown_blade",
+            () -> EntityType.Builder.<ThrownBlade>of(ThrownBlade::new, MobCategory.MISC).sized(0.8F, 0.4F).clientTrackingRange(10).updateInterval(1).fireImmune().build("thrown_blade"));
+
     public static final DeferredRegister<net.minecraft.world.item.Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, TheShadow.MODID);
     public static final RegistryObject<net.minecraft.world.item.Item> SHADOW_BLADE = ITEMS.register("shadow_blade", ShadowBladeItem::new);
+    public static final RegistryObject<net.minecraft.world.item.Item> HOLLOW_HEART = ITEMS.register("hollow_heart", HollowHeartItem::new);
+
+    public static final DeferredRegister<net.minecraft.world.level.block.Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, TheShadow.MODID);
+    public static final DeferredRegister<net.minecraft.world.level.block.entity.BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, TheShadow.MODID);
+    public static final RegistryObject<net.minecraft.world.level.block.Block> SKULL_BLOCK = BLOCKS.register("mansoority_skull", SkullBlock::new);
+    public static final RegistryObject<net.minecraft.world.item.Item> SKULL_ITEM = ITEMS.register("mansoority_skull",
+            () -> new net.minecraft.world.item.BlockItem(SKULL_BLOCK.get(), new net.minecraft.world.item.Item.Properties().rarity(net.minecraft.world.item.Rarity.EPIC)));
+    @SuppressWarnings("ConstantConditions")
+    public static final RegistryObject<net.minecraft.world.level.block.entity.BlockEntityType<SkullBlockEntity>> SKULL_BE = BLOCK_ENTITIES.register("mansoority_skull",
+            () -> net.minecraft.world.level.block.entity.BlockEntityType.Builder.of(SkullBlockEntity::new, SKULL_BLOCK.get()).build(null));
 
     /** index in this list is what the network packets send */
     public static final List<RegistryObject<SoundEvent>> SOUND_LIST = new ArrayList<>();

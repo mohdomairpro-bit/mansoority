@@ -71,6 +71,7 @@ input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
     <div class="group"><h2>When you stare</h2><div class="clips" id="g-stare"></div></div>
     <div class="group"><h2>Spider form</h2><div class="clips" id="g-spider"></div></div>
     <div class="group"><h2>The grab</h2><div class="clips" id="g-grab"></div></div>
+    <div class="group"><h2>The boss</h2><div class="clips" id="g-boss"></div></div>
     <div class="group">
       <h2>Playback</h2>
       <div class="row"><button id="play" style="width:64px;text-align:center">Pause</button><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Frame"></div>
@@ -93,8 +94,13 @@ input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 "use strict";
-const GROUPS = { "g-stalk": ["idle", "peek", "walk", "crawl"], "g-stare": ["stareA", "neck"], "g-spider": ["fold", "scuttle"], "g-grab": ["grab", "lick"] };
-const LABEL = { idle: "Idle", peek: "Lurk", walk: "Walk", crawl: "Crawl", stareA: "Arms open", neck: "Neck", fold: "Fold", scuttle: "Scuttle", grab: "Grab", lick: "Lick" };
+const GROUPS = { "g-stalk": ["idle", "peek", "walk", "crawl"], "g-stare": ["stareA", "neck"], "g-spider": ["fold", "scuttle"], "g-grab": ["grab", "lick"],
+  "g-boss": ["intro_stare", "boss_idle", "boss_walk", "roar", "scream", "bite", "chew", "slam", "spray", "spikes", "stun", "blade_swing", "throw", "collapse", "dead", "rise"] };
+const LABEL = { idle: "Idle", peek: "Lurk", walk: "Walk", crawl: "Crawl", stareA: "Arms open", neck: "Neck", fold: "Fold", scuttle: "Scuttle", grab: "Grab", lick: "Lick",
+  intro_stare: "Eye to eye", boss_idle: "Stance", boss_walk: "Stalk", roar: "Roar", scream: "Scream", bite: "Bite", chew: "Chew", slam: "Slam", spray: "Stomach", spikes: "Spikes",
+  stun: "Stunned", blade_swing: "Blade", throw: "Throw", collapse: "Collapse", dead: "Dead", rise: "Rise" };
+// how far the face splits open in each clip (the mod does this in code, the slider overrides it)
+const AUTO_JAW = { lick: 1.2, scuttle: 1.0, roar: 1.6, scream: 1.5, bite: 1.4, chew: 0.9, spray: 0.6, stun: 0.5, dead: 0.4, collapse: 0.4, blade_swing: 0.35, intro_stare: 0.05, fold: 0.6 };
 const status = document.getElementById("status");
 
 // ---------------------------------------------------------------- the mod's own files: SHD3 mesh, SHA2 clips
@@ -279,7 +285,7 @@ function buildButtons() {
 document.getElementById("play").onclick = e => { view.playing = !view.playing; e.target.textContent = view.playing ? "Pause" : "Play"; };
 document.getElementById("scrub").oninput = e => { const c = A.clips[view.clip]; view.playing = false; document.getElementById("play").textContent = "Play"; view.t = e.target.value / 1000 * (c.frames - 1); view.fade = 1; };
 document.querySelectorAll('[id^="spd-"]').forEach(b => b.onclick = () => { view.speed = parseFloat(b.id.slice(4)); document.querySelectorAll('[id^="spd-"]').forEach(x => x.setAttribute("aria-pressed", x === b)); });
-document.getElementById("jaw").oninput = e => view.jaw = e.target.value / 100;
+document.getElementById("jaw").oninput = e => { view.jaw = e.target.value / 100; view.jawManual = true; };
 document.getElementById("bones").onclick = e => { view.bones = !view.bones; e.target.setAttribute("aria-pressed", view.bones); bonesLines.visible = view.bones; };
 ["front", "34", "side", "low"].forEach(v => document.getElementById("v-" + v).onclick = () => setView(v));
 
@@ -299,6 +305,7 @@ function frame(now) {
     }
     view.fade = Math.min(1, view.fade + ticks / 8);
     gridTex.offset.y = -view.scroll / 1.0 * 1;   // 1 tile = 1 m
+    if (!view.jawManual) view.jaw += ((AUTO_JAW[view.clip] ?? 0.03) - view.jaw) * Math.min(1, ticks * 0.3);
     pose(); skin();
   }
   controls.update(); renderer.render(scene, camera);

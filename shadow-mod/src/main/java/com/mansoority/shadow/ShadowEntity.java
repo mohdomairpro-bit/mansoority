@@ -72,6 +72,8 @@ public class ShadowEntity extends PathfinderMob {
     private Vec3 lastVictimPos, prevVictimPos;
     /** driven by the /shadow cinematic script instead of its own brain */
     public boolean scripted, noHarm;
+    /** it's hunting someone inside its own place (theshadow:hollow): there it bites for real */
+    public boolean hollowHunter;
     public void scriptStare(int v) { this.entityData.set(DATA_STARE, v); }
     public void scriptVariant(int v) { this.entityData.set(DATA_VARIANT, v); }
     /** cinematic: the mimic drops its disguise */
@@ -742,6 +744,7 @@ public class ShadowEntity extends PathfinderMob {
                 if (m == p ? d < 3.5 : true) bite(m);
             }
             this.discard();
+            if (hollowHunter && p.isAlive() && HollowPlace.is(p.level())) HollowPlace.hunt(p);   // and another one comes
             return;
         }
         boolean freeze = g > 18 && g < 30 && d > 12;    // halfway it stops dead for a moment... then comes faster
@@ -753,6 +756,10 @@ public class ShadowEntity extends PathfinderMob {
 
     /** a little damage when it catches you. never lethal: always leaves at least one heart */
     private void bite(ServerPlayer p) {
+        if (hollowHunter) {                                     // its place, during the fight: this can kill you
+            if (!p.isCreative() && !p.isSpectator()) p.hurt(this.damageSources().mobAttack(this), 7F);
+            return;
+        }
         if (noHarm || isDaytimeFor(p)) return;
         float dmg = ShadowConfig.CATCH_DAMAGE.get().floatValue();
         if (dmg <= 0F || p.isCreative() || p.isSpectator()) return;

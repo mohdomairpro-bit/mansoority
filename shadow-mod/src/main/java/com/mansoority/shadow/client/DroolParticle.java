@@ -12,7 +12,7 @@ import net.minecraft.core.particles.SimpleParticleType;
 public class DroolParticle extends TextureSheetParticle {
     private int hang;
 
-    DroolParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz, SpriteSet sprites) {
+    DroolParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz, SpriteSet sprites, boolean bile) {
         super(level, x, y, z, 0, 0, 0);
         this.xd = vx; this.yd = vy; this.zd = vz;
         this.hang = vy > 0.001 ? 0 : 4 + random.nextInt(10);
@@ -22,7 +22,8 @@ public class DroolParticle extends TextureSheetParticle {
         this.alpha = 0.9F;
         this.hasPhysics = true;
         float g = 0.85F + random.nextFloat() * 0.15F;
-        this.setColor(g, g * 0.97F, g * 0.85F);
+        if (bile) { this.setColor(0.55F * g, 0.62F * g, 0.18F * g); this.quadSize *= 1.6F; this.hang = 0; this.lifetime = 40 + random.nextInt(20); }
+        else this.setColor(g, g * 0.97F, g * 0.85F);
         this.pickSprite(sprites);
     }
 
@@ -37,11 +38,12 @@ public class DroolParticle extends TextureSheetParticle {
     public ParticleRenderType getRenderType() { return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT; }
 
     public static class Provider implements ParticleProvider<SimpleParticleType> {
-        private final SpriteSet sprites;
-        public Provider(SpriteSet sprites) { this.sprites = sprites; }
+        private final SpriteSet sprites; private final boolean bile;
+        public Provider(SpriteSet sprites) { this(sprites, false); }
+        public Provider(SpriteSet sprites, boolean bile) { this.sprites = sprites; this.bile = bile; }
         @Override
         public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z, double vx, double vy, double vz) {
-            return new DroolParticle(level, x, y, z, vx, vy, vz, sprites);
+            return new DroolParticle(level, x, y, z, vx, vy, vz, sprites, bile);
         }
     }
 }

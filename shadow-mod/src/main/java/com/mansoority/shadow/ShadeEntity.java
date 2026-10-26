@@ -35,7 +35,7 @@ public class ShadeEntity extends Monster {
 
     public void arm() {
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(ShadowRegistry.SHADOW_BLADE.get()));
-        this.setDropChance(EquipmentSlot.MAINHAND, 0.04F);
+        this.setDropChance(EquipmentSlot.MAINHAND, 0F);          // the blade only ever drops from Mansoority itself
     }
 
     @Override

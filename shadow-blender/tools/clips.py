@@ -266,6 +266,213 @@ def lick(f):
     return p
 
 
+# ================================================================ the boss: Mansoority in the End
+def predator(p, k=1.0):
+    """the fighting stance: half-crouched, head low and forward, limbs wide and ready"""
+    spider(p, 0.38 * k, 1.1)
+    p.rot("neck", 0.2 * k).rot("head", 0.15 * k)
+    return p
+
+def belly(p, amt):
+    """the stomach splits and the two halves swing out like doors"""
+    if "bellyL" in ORDER:
+        p.rot("bellyL", 0, -1.25 * amt, 0).rot("bellyR", 0, 1.25 * amt, 0)
+    return p
+
+@clip("boss_idle", 120)
+def boss_idle(f):
+    p = predator(P())
+    breathe(p, f, 2.2, 40)                                          # heavy, fast breathing
+    sw = math.sin(2 * PI * f / 120)
+    p.off("hips", 0.06 * sw, 0, 0).rot("chest", 0, 0.06 * sw, -0.05 * sw)
+    p.rot("head", wob(f, (60, 0.06)), wob(f, (120, 0.25), (40, 0.05)), 0.15 * math.sin(2 * PI * f / 60))
+    p.tongue(0.0)
+    return p
+
+BW_CYCLE, BW_STRIDE = 56, 1.15
+@clip("boss_walk", BW_CYCLE, speed=BW_STRIDE / BW_CYCLE)
+def boss_walk(f):
+    p = predator(P())
+    gait(p, f, BW_CYCLE, BW_STRIDE, 0.28, 0.7, {"legL": 0.0, "armL": 0.25, "legR": 0.5, "armR": 0.75})
+    ph = 2 * PI * f / BW_CYCLE
+    p.off("hips", 0.07 * math.sin(ph), -0.05 * abs(math.cos(ph)), 0).rot("hips", 0, 0.08 * math.sin(ph), -0.07 * math.sin(ph))
+    p.rot("chest", 0, -0.1 * math.sin(ph), 0.06 * math.sin(ph))
+    p.rot("head", 0, -0.06 * math.sin(ph), 0.08 * math.sin(ph * 0.5))
+    return p
+
+@clip("roar", 70, loop=False)
+def roar(f):
+    """rears up, arms off the ground and thrown wide, everything shaking"""
+    p = predator(P(), 1 - ease((f - 4) / 14) * 0.8)
+    up = ease_out((f - 6) / 14) * (1 - ease((f - 58) / 12))
+    p.rot("chest", -0.45 * up).rot("neck", -0.35 * up).rot("head", -0.45 * up).off("hips", 0, 0.12 * up, -0.05 * up)
+    for limb, s in (("armL", -1), ("armR", 1)):
+        p.feet[limb] = p.feet[limb] + np.array([0.55 * s * up, 1.7 * up, -0.05 * up])
+        p.pole[limb] = np.array([1.6 * s, 2.2, -0.3])
+        p.contact[limb] = up < 0.05
+    if 14 < f < 58:
+        sh = (f - 14) * 2.7
+        p.rot("head", 0.06 * math.sin(sh), 0.05 * math.sin(sh * 1.3), 0.08 * math.sin(sh * 0.9))
+        p.rot("chest", 0.02 * math.sin(sh * 1.7))
+    belly(p, 0.15 * up)
+    return p
+
+@clip("scream", 60, loop=False)
+def scream(f):
+    """low and forward: the neck stretches at you while it screams"""
+    p = predator(P(), 1.0 + 0.25 * ease(f / 10))
+    a = ease_out((f - 4) / 10) * (1 - ease((f - 50) / 10))
+    p.rot("neck", 0.45 * a).rot("head", -0.5 * a).off("neck", 0, 0.03 * a, 0.16 * a).off("head", 0, 0, 0.08 * a)
+    if 10 < f < 50: p.rot("head", 0.05 * math.sin(f * 3.1), 0.04 * math.sin(f * 2.3), 0.07 * math.sin(f * 2.7))
+    p.tongue(0.35 * a, pitch=0.5, wave=0.25, phase=f * 0.6, droop=1.0)
+    return p
+
+@clip("slam", 80, loop=False)
+def slam(f):
+    """crouch, leap, crash down on both hands, recover. the server moves it through the air between 22 and 44"""
+    crouch = ease((f - 0) / 18) * (1 - ease((f - 18) / 4))
+    air = ease((f - 22) / 6) * (1 - ease((f - 40) / 4))
+    hit = math.exp(-((f - 46) / 3.5) ** 2)
+    rec = ease((f - 52) / 24)
+    p = predator(P(), 1.0 + 0.6 * crouch + 0.7 * hit - 0.4 * air)
+    p.rot("chest", -0.25 * air + 0.35 * hit).rot("head", -0.3 * air + 0.25 * hit)
+    for limb, s in (("armL", -1), ("armR", 1)):                       # arms swing up in the air, then down
+        p.feet[limb] = p.feet[limb] + np.array([0.3 * s * air, 1.5 * air, -0.35 * air - 0.25 * crouch])
+        p.pole[limb] = np.array([1.8 * s, 2.0, 0.2])
+        p.contact[limb] = air < 0.1
+    for limb in ("legL", "legR"):
+        p.feet[limb] = p.feet[limb] + np.array([0, 0.35 * air, 0.15 * air])
+        p.contact[limb] = air < 0.1
+    p.off("hips", 0, -0.12 * hit * (1 - rec), 0)
+    return p
+
+@clip("bite", 60, loop=False)
+def bite(f):
+    """draws its head back, then the neck snaps out at you"""
+    p = predator(P())
+    back = ease((f - 0) / 14) * (1 - ease((f - 14) / 3))
+    out = ease_out((f - 15) / 5) * (1 - ease((f - 40) / 18))
+    p.rot("chest", -0.15 * back + 0.25 * out).rot("neck", -0.35 * back + 0.55 * out).rot("head", 0.3 * back - 0.45 * out)
+    p.off("neck", 0, 0.02 * out, -0.08 * back + 0.22 * out).off("head", 0, 0, 0.12 * out)
+    p.off("hips", 0, 0, -0.06 * back + 0.12 * out)
+    return p
+
+@clip("chew", 24)
+def chew(f):
+    """you're in its mouth: the head thrashes side to side"""
+    p = predator(P())
+    ph = 2 * PI * f / 24
+    p.rot("neck", 0.35, 0.25 * math.sin(ph), 0).rot("head", -0.2 + 0.12 * math.sin(2 * ph), 0.35 * math.sin(ph + 0.5), 0.3 * math.sin(ph))
+    p.off("neck", 0, 0, 0.12)
+    return p
+
+@clip("spray", 90, loop=False)
+def spray(f):
+    """stands tall, arms thrown back, the stomach opens and empties itself at you"""
+    up = ease((f - 2) / 14) * (1 - ease((f - 78) / 12))
+    p = predator(P(), 1 - 0.7 * up)
+    opn = ease_out((f - 12) / 10) * (1 - ease((f - 74) / 10))
+    heave = math.sin(f * 0.9) * opn if 22 < f < 72 else 0
+    p.rot("chest", -0.3 * up + 0.06 * heave).rot("neck", 0.2 * up).rot("head", 0.25 * up).off("hips", 0, 0.1 * up, 0)
+    for limb, s in (("armL", -1), ("armR", 1)):
+        p.feet[limb] = p.feet[limb] + np.array([0.7 * s * up, 1.3 * up, -0.55 * up])
+        p.pole[limb] = np.array([1.6 * s, 2.0, -0.6])
+        p.contact[limb] = up < 0.05
+    belly(p, opn * (1 + 0.08 * heave))
+    return p
+
+@clip("spikes", 60, loop=False)
+def spikes(f):
+    """rears, then drives both hands into the ground"""
+    up = ease_out((f - 2) / 14) * (1 - ease((f - 18) / 4))
+    down = ease((f - 20) / 4) * (1 - ease((f - 46) / 14))
+    p = predator(P(), 1 + 0.5 * down - 0.5 * up)
+    p.rot("chest", -0.3 * up + 0.4 * down).rot("head", -0.2 * up + 0.3 * down)
+    for limb, s in (("armL", -1), ("armR", 1)):
+        p.feet[limb] = p.feet[limb] + np.array([0.1 * s * up, 1.4 * up - 0.25 * down, 0.2 * up - 0.3 * down])
+        p.contact[limb] = up < 0.05 and down < 0.05          # buried in the ground: not "standing" on it
+    return p
+
+@clip("stun", 48)
+def stun(f):
+    """dazed: slumped to one side, head hanging, jaw slack, twitching"""
+    p = predator(P(), 1.3)
+    ph = 2 * PI * f / 48
+    p.off("hips", -0.1, -0.12, 0).rot("hips", 0, 0, 0.18).rot("chest", 0.25, 0, 0.15 + 0.03 * math.sin(ph))
+    p.rot("neck", 0.5).rot("head", 0.5, 0.1 * math.sin(ph), 0.5 + 0.05 * math.sin(ph * 2))
+    if f % 16 < 2: p.rot("head", 0.1, 0, -0.15)
+    p.tongue(0.5, pitch=0.9, droop=1.0, wave=0.1, phase=ph)
+    return p
+
+@clip("collapse", 50, loop=False)
+def collapse(f):
+    """it dies: legs give, it folds over onto its side"""
+    k = ease(f / 34); thud = math.exp(-((f - 34) / 3) ** 2)
+    p = spider(P(), 0.4 + 0.9 * k, 1.3)
+    p.off("hips", 0, -0.45 * k - 0.04 * thud, 0).rot("hips", 0.1 * k, 0, 1.15 * k).rot("chest", 0.3 * k, 0, 0.35 * k)
+    p.rot("neck", 0.5 * k).rot("head", 0.4 * k, 0.3 * k, 0.9 * k)
+    p.tongue(0.6 * k, pitch=1.0, droop=1.0)
+    return p
+
+@clip("dead", 40)
+def dead(f):
+    p = collapse(49)
+    if f in (11, 12, 27): p.rot("handR", -0.3)            # a finger twitches
+    return p
+
+def blend(a, b, k):
+    """a pose part-way between two poses (rotations, offsets, foot targets, poles)"""
+    p = P()
+    for bn in ORDER:
+        p.r[bn] = a.r[bn] * (1 - k) + b.r[bn] * k
+        p.t[bn] = a.t[bn] * (1 - k) + b.t[bn] * k
+    for limb in p.feet:
+        p.feet[limb] = a.feet[limb] * (1 - k) + b.feet[limb] * k
+        pa, pb = a.pole.get(limb), b.pole.get(limb)
+        if pa is not None or pb is not None:
+            dflt = np.array([0.35 * SIDE[limb[-1]], 0.75, 1.0]) if limb.startswith("leg") else np.array([1.6 * SIDE[limb[-1]], 1.4, 0.9])
+            p.pole[limb] = (pa if pa is not None else dflt) * (1 - k) + (pb if pb is not None else dflt) * k
+    return p
+
+@clip("rise", 70, loop=False)
+def rise(f):
+    """...and it gets back up, wrong, in jerks"""
+    k = 0.0
+    for at in (6, 18, 30, 44, 56): k += ease_out((f - at) / 4) / 5
+    p = blend(collapse(49), predator(P()), k)
+    p.rot("head", 0, 0, 0.5 * math.sin(f * 0.7) * (1 - k))
+    return p
+
+@clip("blade_swing", 36, loop=False)
+def blade_swing(f):
+    """phase 2: the blade in its teeth - the whole neck whips it across in front"""
+    p = predator(P(), 1.2)
+    wind = ease((f - 0) / 10) * (1 - ease((f - 12) / 3))
+    sw = ease_out((f - 13) / 6) * (1 - ease((f - 24) / 12))
+    p.rot("neck", 0.2, 0.7 * wind - 0.9 * sw, 0).rot("head", 0, 0.5 * wind - 0.6 * sw, -0.3 * wind + 0.4 * sw)
+    p.rot("chest", 0, 0.25 * wind - 0.3 * sw, 0).off("neck", 0, 0, 0.1 * sw)
+    return p
+
+@clip("throw", 40, loop=False)
+def throw(f):
+    """phase 3: it pulls the blade out of its own stomach and hurls it"""
+    p = predator(P())
+    pull = ease((f - 2) / 12) * (1 - ease((f - 16) / 4))
+    hurl = ease_out((f - 17) / 5) * (1 - ease((f - 26) / 14))
+    p.free.add("armR"); p.contact["armR"] = False
+    p.rot("armR", 0.6 * pull - 0.4 * hurl, 0, -0.3 * pull).rot("foreR", -1.4 * pull - 0.6 * hurl).rot("handR", 0.6 * pull + 0.9 * hurl)
+    p.rot("chest", 0.25 * pull - 0.2 * hurl, -0.3 * pull + 0.4 * hurl, 0)
+    belly(p, 0.5 * pull)
+    return p
+
+@clip("intro_stare", 100)
+def intro_stare(f):
+    """the opening: right in front of you, completely still, the head slowly tipping as it looks into your eyes"""
+    p = predator(P(), 0.6)
+    p.rot("neck", 0.35).off("neck", 0, 0, 0.14).rot("head", -0.25, 0, 0.35 * math.sin(2 * PI * f / 100))
+    breathe(p, f, 0.6, 50)
+    return p
+
 # ---------------------------------------------------------------- export
 def bake():
     out = {}

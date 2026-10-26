@@ -24,6 +24,8 @@ public class TheShadow {
         ShadowRegistry.SOUNDS.register(bus);
         ShadowRegistry.PARTICLES.register(bus);
         ShadowRegistry.ITEMS.register(bus);
+        ShadowRegistry.BLOCKS.register(bus);
+        ShadowRegistry.BLOCK_ENTITIES.register(bus);
         bus.addListener(this::onTabs);
         bus.addListener(this::onAttributes);
         bus.addListener(this::onSetup);
@@ -44,6 +46,8 @@ public class TheShadow {
 
     private void onTabs(net.minecraftforge.event.BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.COMBAT) event.accept(ShadowRegistry.SHADOW_BLADE);
+        if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.INGREDIENTS) event.accept(ShadowRegistry.HOLLOW_HEART);
+        if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.FUNCTIONAL_BLOCKS) event.accept(ShadowRegistry.SKULL_ITEM);
     }
 
     private void onSetup(FMLCommonSetupEvent event) {

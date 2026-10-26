@@ -28,7 +28,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     public static final float SCALE = ShadowEntity.MODEL_SCALE;
 
     private final Mimic wide, slim;
-    private static int tint = 255;
+    static int tint = 255;
 
     public ShadowRenderer(EntityRendererProvider.Context ctx) {
         super(ctx);
@@ -136,6 +136,10 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         float wantTint = e.getStage() == 0 && e.getRush() <= 0 ? 0.38F + e.smoothStare * 0.62F : 1F;
         e.tint += (wantTint - e.tint) * 0.1F;
         tint = (int) (255 * e.tint);
+        com.mansoority.shadow.MansoorityBoss boss = e instanceof com.mansoority.shadow.MansoorityBoss b ? b : null;
+        boolean black = boss != null && boss.has(com.mansoority.shadow.MansoorityBoss.F_BLACK);
+        if (black) tint = 34;                                   // the thing that tore out of it: black, with red eyes
+        glowR = 255; glowG = black ? 40 : 255; glowB = black ? 30 : 255;
         // feet on the real ground (close enough to see it, standing on something)
         ShadowSkeleton.fk(mesh);
         if (e.animState instanceof ShadowAnim.State st && ShadowAnim.get() != null && dist2 < 48 * 48 && vt <= 0F && mc.level != null) {
@@ -157,11 +161,18 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         }
         pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw + vt * vt * 540F));
         if (vt > 0F) pose.translate(0F, e.getBbHeight() * 0.5F * vt, 0F);
+        if (boss != null && boss.has(com.mansoority.shadow.MansoorityBoss.F_WALL)) {     // on the side of a pillar, belly to the stone
+            pose.translate(0F, 3.5F, -1.2F);
+            pose.mulPose(Axis.XP.rotationDegrees(-90F));
+            pose.translate(0F, -3.5F, 0F);
+        }
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);
         emit(mesh, mesh.solid, pose, buffers.getBuffer(Types.SKIN), light, false);
         if (mesh.glow.length > 0) emit(mesh, mesh.glow, pose, buffers.getBuffer(Types.GLOW), 0xF000F0, true);
         if (!far && dist2 < 40 * 40) Saliva.render(e, mesh, pose, buffers, light, age, ex, ey, ez, bodyYaw, SCALE * grow);
+        if (boss != null) BossLook.inModel(boss, mesh, pose, buffers, light, age);
         pose.popPose();
+        if (boss != null) BossLook.healthBar(boss, pose, buffers, this.entityRenderDispatcher.cameraOrientation(), this.getFont(), dist2);
         super.render(e, yaw, partialTick, pose, buffers, light);
     }
 
@@ -173,14 +184,16 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         return d;
     }
 
-    private static void emit(ShadowMesh m, int[] tris, PoseStack pose, VertexConsumer vc, int light, boolean glowPass) {
+    static int glowR = 255, glowG = 255, glowB = 255;
+
+    static void emit(ShadowMesh m, int[] tris, PoseStack pose, VertexConsumer vc, int light, boolean glowPass) {
         Matrix4f mat = pose.last().pose();
         Matrix3f nm = pose.last().normal();
         float[] P = m.outPos, N = m.outNrm, UV = m.uv;
-        int c = glowPass ? 255 : tint;
+        int r = glowPass ? glowR : tint, g = glowPass ? glowG : tint, b = glowPass ? glowB : tint;
         for (int v : tris) {
             vc.vertex(mat, P[v * 3], P[v * 3 + 1], P[v * 3 + 2])
-                    .color(c, c, c, 255)
+                    .color(r, g, b, 255)
                     .uv(glowPass ? 0.5F : UV[v * 2], glowPass ? 0.5F : UV[v * 2 + 1])
                     .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(light)

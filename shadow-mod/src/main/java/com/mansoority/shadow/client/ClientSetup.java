@@ -25,6 +25,8 @@ public final class ClientSetup {
         MinecraftForge.EVENT_BUS.addListener(CinematicCam::onHand);
         MinecraftForge.EVENT_BUS.addListener(CinematicCam::onGui);
         MinecraftForge.EVENT_BUS.addListener(CinematicCam::onInput);
+        MinecraftForge.EVENT_BUS.addListener(BossFx::fog);
+        MinecraftForge.EVENT_BUS.addListener(BossFx::fogColor);
         if (AutoTest.enabled()) MinecraftForge.EVENT_BUS.addListener(AutoTest::onClientTick);
     }
 
@@ -32,6 +34,8 @@ public final class ClientSetup {
         event.registerEntityRenderer(ShadowRegistry.SHADOW.get(), ShadowRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.BOSS.get(), ShadowRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.SHADE.get(), ShadeRenderer::new);
+        event.registerEntityRenderer(ShadowRegistry.SPIKE.get(), SpikeRenderer::new);
+        event.registerEntityRenderer(ShadowRegistry.THROWN_BLADE.get(), ThrownBladeRenderer::new);
     }
 
     private static void onLayers(EntityRenderersEvent.AddLayers event) {
@@ -45,11 +49,13 @@ public final class ClientSetup {
         event.registerAboveAll("theshadow_scares", ClientScares::render);
         event.registerAboveAll("theshadow_cinema", CinematicCam::render);
         event.registerAboveAll("theshadow_fx", ClientFx::renderOverlay);
+        event.registerAboveAll("theshadow_boss", BossFx::render);
     }
 
     private static void onParticles(net.minecraftforge.client.event.RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ShadowRegistry.WISP.get(), WispParticle.Provider::new);
         event.registerSpriteSet(ShadowRegistry.DROOL.get(), DroolParticle.Provider::new);
+        event.registerSpriteSet(ShadowRegistry.BILE.get(), sp -> new DroolParticle.Provider(sp, true));
     }
 
     private ClientSetup() {}

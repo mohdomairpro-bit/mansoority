@@ -36,5 +36,10 @@
  "subtitles.theshadow.voice_last": "\"One more\"",
  "subtitles.theshadow.boss_music_1": "Music",
  "subtitles.theshadow.boss_music_2": "Music",
- "subtitles.theshadow.boss_music_3": "Music"
+ "subtitles.theshadow.boss_music_3": "Music",
+ "item.theshadow.hollow_heart": "Hollow Heart",
+ "block.theshadow.mansoority_skull": "Mansoority's Skull",
+ "item.theshadow.mansoority_skull": "Mansoority's Skull",
+ "entity.theshadow.bone_spike": "Bone Spike",
+ "entity.theshadow.thrown_blade": "Thrown Blade"
 }

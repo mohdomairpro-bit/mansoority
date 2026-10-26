@@ -55,7 +55,49 @@ final class ShadowPose {
         int rush = e.getRush(), gr = e.getGrab();
         double moved = Math.hypot(e.getX() - e.xo, e.getZ() - e.zo);
         String clip = "idle"; float drive = -1F, speed = 1F;
-        if (e.getVanish() > 0) { clip = st.cur; speed = 0.4F; }
+        float bossMouth = -1F;
+        com.mansoority.shadow.MansoorityBoss boss = e instanceof com.mansoority.shadow.MansoorityBoss b ? b : null;
+        if (boss != null && gr <= 0) {
+            float el = boss.actionAge(age);
+            int a = boss.getAction();
+            boolean jaw = boss.has(com.mansoority.shadow.MansoorityBoss.F_JAW);
+            switch (a) {
+                case com.mansoority.shadow.MansoorityBoss.A_ROAR -> { clip = "roar"; drive = el; bossMouth = el > 8 && el < 62 ? 1.65F : 0.2F; }
+                case com.mansoority.shadow.MansoorityBoss.A_SCREAM -> { clip = "scream"; drive = el; bossMouth = el > 6 && el < 52 ? 1.7F : 0.3F; }
+                case com.mansoority.shadow.MansoorityBoss.A_BITE -> { clip = "bite"; drive = el; bossMouth = el < 14 ? 0.4F + el * 0.09F : el < 22 ? 1.75F : 0.3F; }
+                case com.mansoority.shadow.MansoorityBoss.A_CHEW -> { clip = "chew"; bossMouth = 0.5F + 0.5F * Math.abs(Mth.sin(el * 0.31F)); }
+                case com.mansoority.shadow.MansoorityBoss.A_SLAM -> { clip = "slam"; drive = el; bossMouth = el > 20 && el < 50 ? 1.2F : 0.2F; }
+                case com.mansoority.shadow.MansoorityBoss.A_SPRAY -> { clip = "spray"; drive = el; bossMouth = 0.5F; }
+                case com.mansoority.shadow.MansoorityBoss.A_SPIKES -> { clip = "spikes"; drive = el; bossMouth = el > 18 && el < 40 ? 1.4F : 0.2F; }
+                case com.mansoority.shadow.MansoorityBoss.A_STUN -> { clip = "stun"; bossMouth = 0.7F; }
+                case com.mansoority.shadow.MansoorityBoss.A_COLLAPSE -> { clip = "collapse"; drive = el; bossMouth = 0.9F; }
+                case com.mansoority.shadow.MansoorityBoss.A_DEAD -> { clip = "dead"; bossMouth = 0.6F; }
+                case com.mansoority.shadow.MansoorityBoss.A_RISE -> { clip = "rise"; drive = el; bossMouth = el > 28 && el < 40 ? 1.75F : 0.5F; }
+                case com.mansoority.shadow.MansoorityBoss.A_BLADE -> { clip = "blade_swing"; drive = el; bossMouth = 0.3F; }
+                case com.mansoority.shadow.MansoorityBoss.A_THROW -> { clip = "throw"; drive = el; bossMouth = el > 15 && el < 26 ? 1.5F : 0.3F; }
+                case com.mansoority.shadow.MansoorityBoss.A_INTRO -> { clip = "intro_stare"; }
+                case com.mansoority.shadow.MansoorityBoss.A_SIGNATURE -> {
+                    if (el < 30) { clip = "roar"; drive = el; bossMouth = el > 8 ? 1.75F : 0.3F; }
+                    else if (el < 64) clip = "boss_idle";
+                    else { clip = "slam"; drive = Math.min(79F, el - 64 + 36); bossMouth = 1.2F; }
+                }
+                case com.mansoority.shadow.MansoorityBoss.A_CHARGE, com.mansoority.shadow.MansoorityBoss.A_CLIMB, com.mansoority.shadow.MansoorityBoss.A_FETCH,
+                        com.mansoority.shadow.MansoorityBoss.A_RETREAT -> {
+                    if (e.getScuttle() > 0 || moved > 0.02) { clip = "scuttle"; speed = moved < 0.01 ? 0.3F : stride(A, "scuttle", moved, 1F); bossMouth = 1.0F; }
+                    else clip = "boss_idle";
+                }
+                default -> {
+                    if (e.getScuttle() > 0) { clip = "scuttle"; speed = stride(A, "scuttle", moved, 1F); }
+                    else if (moved > 0.02) { clip = "boss_walk"; speed = stride(A, "boss_walk", moved, 1F); }
+                    else clip = "boss_idle";
+                }
+            }
+            if (jaw && bossMouth < 1.3F) bossMouth = 1.45F;
+            if (boss.has(com.mansoority.shadow.MansoorityBoss.F_BLADE) && bossMouth < 0.3F) bossMouth = 0.3F;   // something clamped in its teeth
+            if (bossMouth < 0F) bossMouth = 0.08F;
+        }
+        if (boss != null && gr <= 0) { /* chosen above */ }
+        else if (e.getVanish() > 0) { clip = st.cur; speed = 0.4F; }
         else if (gr > 0) {
             if (gr < 24) { clip = "grab"; drive = gr + pt; }
             else if (e.getGrabMode() == ShadowEntity.GRAB_LICK) { clip = "lick"; speed = 1F; }
@@ -109,6 +151,7 @@ final class ShadowPose {
         }
         // the tongue needs the face open: it pushes the halves apart as it comes out
         if (clip.equals("lick")) mouth = Math.max(mouth, 1.1F);
+        if (bossMouth >= 0F) mouth = bossMouth + (bossMouth > 1F ? hash((int) age, id + 13) * 0.12F : 0F);
         mouth = Mth.clamp(mouth, 0F, 1.75F);
         jaw.yRot -= mouth; jawR.yRot += mouth;
         jaw.xRot += mouth * 0.12F; jawR.xRot += mouth * 0.12F;
