@@ -2,7 +2,7 @@ name: Render The Shadow (Blender)
 on:
   push:
     branches: [shadow-mod]
-    paths: ['shadow-blender/**', '.github/workflows/shadow-blender.yml']
+    paths: ['shadow-blender/build_shadow.py', 'shadow-blender/anim.py', 'shadow-blender/post.py']
   workflow_dispatch:
 permissions:
   contents: write
@@ -25,6 +25,15 @@ jobs:
           set -o pipefail
           mkdir -p out
           ./blender/blender -b --python-exit-code 1 -P shadow-blender/build_shadow.py -- "$PWD/out" ${{ github.event.inputs.what || 'all' }} 2>&1 | tee out/blender.log
+      - name: Skin the mesh and bake the IK clips (SHD3 + SHA2 for the mod)
+        if: always()
+        run: |
+          pip install -q numpy
+          cd shadow-blender/tools
+          python3 skin.py ../../out/shadow.mesh ../../out/shadow_skinned.mesh
+          python3 skin.py ../../out/shadow_lod.mesh ../../out/shadow_lod_skinned.mesh
+          python3 clips.py ../../out/shadow.mesh ../../out/clips
+          cp ../../out/clips/shadow.anim ../../out/shadow_ik.anim
       - name: Post-process jumpscare frames
         if: always()
         run: |
@@ -61,6 +70,9 @@ jobs:
             out/shadow.mesh
             out/shadow_lod.mesh
             out/shadow.anim
+            out/shadow_skinned.mesh
+            out/shadow_lod_skinned.mesh
+            out/shadow_ik.anim
             out/*.gif
             out/blender.log
             out/jumpscare_strip.jpg

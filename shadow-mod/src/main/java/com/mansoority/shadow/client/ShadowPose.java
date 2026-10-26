@@ -59,23 +59,23 @@ final class ShadowPose {
         else if (gr > 0) {
             if (gr < 24) { clip = "grab"; drive = gr + pt; }
             else if (e.getGrabMode() == ShadowEntity.GRAB_LICK) { clip = "lick"; speed = 1F; }
-            else { clip = "scuttle"; speed = 1.2F; }
+            else { clip = "scuttle"; speed = stride(A, "scuttle", moved, 1.0F); }
         } else if (rush > 0) {
             float r = rush + pt;
             float g = r - ShadowEntity.RUSH_GO;
             if (r < ShadowEntity.RUSH_STILL) { clip = "idle"; speed = 0.2F; }
-            else if (g < 0) { clip = "fold"; drive = (r - ShadowEntity.RUSH_STILL) * 45F / ShadowEntity.RUSH_FOLD; }
-            else { clip = "scuttle"; speed = (g > 18 && g < 30) ? 0F : 1.3F; }
-        } else if (e.getScuttle() > 0) { clip = "scuttle"; speed = 1.3F; }
+            else if (g < 0) { clip = "fold"; drive = (r - ShadowEntity.RUSH_STILL) * 63F / ShadowEntity.RUSH_FOLD; }
+            else { clip = "scuttle"; speed = moved < 0.01 ? 0F : stride(A, "scuttle", moved, 1.0F); }
+        } else if (e.getScuttle() > 0) { clip = "scuttle"; speed = stride(A, "scuttle", moved, 1.0F); }
         else if (stare > 0.03F) {
             switch (e.getVariant()) {
-                case 1 -> { clip = "crawl"; speed = moved > 0.01 ? 0.8F : 0.15F; }
-                case 2 -> { clip = moved > 0.01 ? "walk" : "idle"; speed = moved > 0.01 ? 1.4F : 0.1F; }
-                case 3 -> { clip = "neck"; drive = stare * 60F; }
-                default -> { clip = "stareA"; drive = stare * 60F; }
+                case 1 -> { clip = "crawl"; speed = moved > 0.005 ? stride(A, "crawl", moved, 0.8F) : 0.12F; }
+                case 2 -> { clip = moved > 0.005 ? "walk" : "idle"; speed = moved > 0.005 ? stride(A, "walk", moved, 1F) : 0.1F; }
+                case 3 -> { clip = "neck"; drive = stare * 79F; }
+                default -> { clip = "stareA"; drive = stare * 79F; }
             }
         } else if (e.getStage() == 0) { clip = "peek"; }
-        else if (moved > 0.03) { clip = "walk"; speed = (float) Math.min(2.0, moved * 6.0); }
+        else if (moved > 0.02) { clip = "walk"; speed = stride(A, "walk", moved, 1F); }
         A.play(st, clip, drive, speed, age);
         A.apply(st, m);
 
@@ -119,6 +119,13 @@ final class ShadowPose {
                 p.zRot += (hash((int) age + 7, i * 17 + id) - 0.5F) * 0.9F * v;
             }
         }
+    }
+
+    /** playback rate that makes the feet keep pace with how fast it's really moving (no skating) */
+    private static float stride(ShadowAnim A, String clip, double movedBlocksPerTick, float fallback) {
+        ShadowAnim.Clip c = A.clips.get(clip);
+        if (c == null || c.speed <= 0F) return fallback;
+        return (float) Math.max(0.25, Math.min(3.0, movedBlocksPerTick / (c.speed * ShadowEntity.MODEL_SCALE)));
     }
 
     private static void procedural(ShadowMesh m, ShadowEntity e, float age, float pt, net.minecraft.world.phys.Vec3 cam) {

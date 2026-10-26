@@ -90,7 +90,7 @@ public class MansoorityBoss extends ShadowEntity {
         double ang = t * (0.012 + phase() * 0.004) + this.getId();
         double r = 20 + 4 * Math.sin(t * 0.03);
         Vec3 want = new Vec3(c.x + Math.cos(ang) * r, this.getY(), c.z + Math.sin(ang) * r);
-        stepToward(sl, want, 0.18 + phase() * 0.07);
+        stepToward(sl, want, 0.12 + phase() * 0.04);
 
         if (--summonCd <= 0) { summon(sl, phase() == 1 ? 2 : phase() == 2 ? 3 : 4); summonCd = phase() == 1 ? 320 : 240; }
         if (phase() >= 2 && --darkCd <= 0) {
@@ -99,7 +99,7 @@ public class MansoorityBoss extends ShadowEntity {
             sound(ShadowRegistry.DRONE, 5F, 0.5F);
         }
         if (--attackCd <= 0) {
-            attackCd = phase() == 1 ? 90 : phase() == 2 ? 65 : 45;
+            attackCd = phase() == 1 ? 120 : phase() == 2 ? 90 : 65;
             float k = this.random.nextFloat();
             if (phase() >= 2 && k < 0.25F) startBlink(sl, near);
             else if (phase() == 3 && k < 0.45F) { stareT = 0; setVariantData(0); }
@@ -119,8 +119,8 @@ public class MansoorityBoss extends ShadowEntity {
     private void chargeTick(ServerLevel sl, List<ServerPlayer> near) {
         charge++;
         setScuttle(charge + 8);
-        if (charge < 12) { face(focus); chargeDir = focus.position().subtract(this.position()).multiply(1, 0, 1).normalize(); return; }   // crouch, aim
-        double sp = 0.55 + phase() * 0.12;
+        if (charge < 18) { face(focus); chargeDir = focus.position().subtract(this.position()).multiply(1, 0, 1).normalize(); return; }   // crouch, aim
+        double sp = 0.42 + phase() * 0.08;
         stepToward(sl, this.position().add(chargeDir.scale(4)), sp);
         float yaw = (float) (Mth.atan2(chargeDir.z, chargeDir.x) * (180F / Math.PI)) - 90F;
         this.setYRot(yaw); this.yBodyRot = yaw; this.yHeadRot = yaw;
@@ -133,7 +133,7 @@ public class MansoorityBoss extends ShadowEntity {
                 charge = 999;
             }
         }
-        if (charge > 40) { charge = -1; setScuttle(0); }
+        if (charge > 55) { charge = -1; setScuttle(0); }
     }
 
     private void startGrab() {

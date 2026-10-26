@@ -326,8 +326,16 @@ public final class ClientFx {
     }
 
     // ------------------------------------------------------------------ camera shake
+    private static float kickAmp; private static long kickMs;
+    /** a jolt (footsteps, slams): decays over a fraction of a second */
+    public static void kick(float amount) {
+        float cur = kickNow();
+        kickAmp = Math.max(cur, amount); kickMs = net.minecraft.Util.getMillis();
+    }
+    private static float kickNow() { return kickAmp * (float) Math.exp(-(net.minecraft.Util.getMillis() - kickMs) / 160.0); }
+
     public static void onCamera(ViewportEvent.ComputeCameraAngles event) {
-        float amp = 0F;
+        float amp = kickNow();
         if (js >= SCARE_AT && js < SCARE_AT + 26) amp = 9F * (1F - (js - SCARE_AT) / 26F) + 1.5F;
         if (rushing) amp = Math.max(amp, 3.5F);
         if (stare > 0.05F) {

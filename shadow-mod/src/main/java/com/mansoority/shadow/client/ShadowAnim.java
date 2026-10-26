@@ -18,8 +18,18 @@ public final class ShadowAnim {
 
     public static final class Clip {
         public final String name; public final boolean loop; public final float[][][] f;   // [frame][part][qx,qy,qz,qw,tx,ty,tz]
+        /** how far the body travels per frame (model metres) for walking clips: playback is matched to real speed */
+        public float speed;
+        /** per frame, which limbs touch the ground (bits: legL, legR, armL, armR) */
+        public byte[] contact;
         Clip(String n, boolean l, float[][][] f) { this.name = n; this.loop = l; this.f = f; }
         public int frames() { return f.length; }
+        public int contactAt(float frame) {
+            if (contact == null) return 0;
+            int n = f.length;
+            int i = loop ? Math.floorMod(Math.round(frame), n - 1) : Math.max(0, Math.min(n - 1, Math.round(frame)));
+            return contact[i];
+        }
     }
 
     public String[] parts;
@@ -38,7 +48,9 @@ public final class ShadowAnim {
     static ShadowAnim read(byte[] data) {
         ByteBuffer b = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         byte[] magic = new byte[4]; b.get(magic);
-        if (!"SHA1".equals(new String(magic, StandardCharsets.US_ASCII))) throw new IllegalStateException("bad anim header");
+        String tag = new String(magic, StandardCharsets.US_ASCII);
+        if (!"SHA1".equals(tag) && !"SHA2".equals(tag)) throw new IllegalStateException("bad anim header");
+        boolean v2 = "SHA2".equals(tag);
         ShadowAnim a = new ShadowAnim();
         int np = b.getInt(); a.parts = new String[np];
         for (int i = 0; i < np; i++) { byte[] nb = new byte[b.getShort()]; b.get(nb); a.parts[i] = new String(nb, StandardCharsets.UTF_8); }
@@ -46,10 +58,13 @@ public final class ShadowAnim {
         for (int c = 0; c < nc; c++) {
             byte[] nb = new byte[b.getShort()]; b.get(nb);
             int frames = b.getInt(); boolean loop = b.get() != 0;
+            float speed = 0F; byte[] contact = null;
+            if (v2) { speed = b.getFloat(); contact = new byte[frames]; b.get(contact); }
             float[][][] f = new float[frames][np][7];
             for (int i = 0; i < frames; i++) for (int p = 0; p < np; p++) for (int k = 0; k < 7; k++) f[i][p][k] = b.getFloat();
             String name = new String(nb, StandardCharsets.UTF_8);
-            a.clips.put(name, new Clip(name, loop, f));
+            Clip cl = new Clip(name, loop, f); cl.speed = speed; cl.contact = contact;
+            a.clips.put(name, cl);
         }
         return a;
     }
@@ -75,7 +90,11 @@ public final class ShadowAnim {
         public String cur = "idle", prev = null;
         public float curT, prevT, fade = 1F, lastAge = -1F;
         public final float[][] a, b;
+        /** ground following: smoothed height offsets per limb and for the body, last contact mask (for footsteps) */
+        public final float[] footDy = new float[4];
+        public float bodyDy; public int lastContact = -1; public float lastStepAge = -99F;
         State(int np) { a = new float[np][7]; b = new float[np][7]; }
+        public int contact(ShadowAnim A) { Clip c = A.clips.get(cur); return c == null ? 0 : c.contactAt(curT); }
     }
 
     public State newState() { return new State(parts.length); }

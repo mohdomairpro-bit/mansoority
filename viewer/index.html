@@ -1,0 +1,332 @@
+<meta charset="utf-8">
+<title>Mansoority Rig Viewer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: a full-height stage for the creature, a narrow control column beside it (stacks under it on phones) */
+:root {
+  --bg: #0b0c0d;          /* the dark it lives in */
+  --stage: #121415;
+  --panel: #16191a;
+  --line: #2a2f30;
+  --fg: #e6e1d6;          /* its skin: pale bone */
+  --dim: #8d918c;
+  --accent: #c9b98f;      /* old ivory */
+  --blood: #a33a2c;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--mono); font-size: 13px; overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 320px; }
+#stage { position: relative; min-width: 0; background: radial-gradient(120% 90% at 50% 40%, var(--stage), var(--bg)); }
+#stage canvas { display: block; width: 100%; height: 100%; outline: none; }
+.hud { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); top: 14px; pointer-events: none; display: grid; gap: 4px; }
+.hud .clip { font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: -0.01em; }
+.hud .meta { color: var(--dim); font-variant-numeric: tabular-nums; }
+.views { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 6px; }
+.panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; padding-block: 18px 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 20px; align-content: start; }
+h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 26px; letter-spacing: 0.02em; }
+.sub { color: var(--dim); margin-top: 4px; }
+h2 { margin: 0 0 8px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+.group { display: grid; gap: 6px; }
+.clips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 3px; padding: 7px 9px; cursor: pointer; text-align: left; }
+button:hover { border-color: var(--dim); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.clips button { display: flex; justify-content: space-between; gap: 6px; }
+.clips button small { color: var(--dim); font-variant-numeric: tabular-nums; }
+.clips button[aria-pressed="true"] small { color: #3b3d3c; }
+.views button { background: rgba(11, 12, 13, 0.7); padding: 6px 10px; }
+.row { display: flex; align-items: center; gap: 10px; }
+.row label { width: 64px; color: var(--dim); }
+input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.seg button { padding: 5px 9px; }
+.note { color: var(--dim); line-height: 1.55; margin: 0; }
+.note b { color: var(--fg); font-weight: 500; }
+#status { color: var(--blood); }
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .app { grid-template-columns: 1fr; grid-template-rows: 58vh auto; height: auto; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="app">
+  <div id="stage">
+    <div class="hud"><div class="clip" id="clipName">idle</div><div class="meta" id="clipMeta">loading the model…</div></div>
+    <div class="views" role="group" aria-label="Camera">
+      <button id="v-front">Front</button><button id="v-34">¾</button><button id="v-side">Side</button><button id="v-low">Low</button>
+    </div>
+  </div>
+  <aside class="panel">
+    <div><h1>MANSOORITY</h1><div class="sub">Rig review, round 1 · drag to orbit</div></div>
+    <div class="group"><h2>Stalking</h2><div class="clips" id="g-stalk"></div></div>
+    <div class="group"><h2>When you stare</h2><div class="clips" id="g-stare"></div></div>
+    <div class="group"><h2>Spider form</h2><div class="clips" id="g-spider"></div></div>
+    <div class="group"><h2>The grab</h2><div class="clips" id="g-grab"></div></div>
+    <div class="group">
+      <h2>Playback</h2>
+      <div class="row"><button id="play" style="width:64px;text-align:center">Pause</button><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Frame"></div>
+      <div class="row"><label for="spd-1">Speed</label><div class="seg" role="group" aria-label="Speed"><button id="spd-0.25">¼×</button><button id="spd-0.5">½×</button><button id="spd-1" aria-pressed="true">1×</button></div></div>
+      <div class="row"><label for="jaw">Face</label><input id="jaw" type="range" min="0" max="175" value="3" aria-label="How far the face splits open"></div>
+      <div class="row"><label for="bones">Bones</label><div class="seg"><button id="bones" aria-pressed="false">Show skeleton</button></div></div>
+    </div>
+    <div class="group">
+      <h2>In this round</h2>
+      <p class="note"><b>Skinned skeleton.</b> Knees, elbows, waist and neck bend as one skin instead of separate pieces.</p>
+      <p class="note"><b>Planted limbs.</b> Every clip places hands and feet with IK, so they grip the floor while the body moves. The floor scrolls at his real walking speed.</p>
+      <p class="note"><b>Spider form rebuilt.</b> The fold snaps down in five cracks with the feet sliding outward; the scuttle is a low diagonal trot with the joints held high.</p>
+      <p class="note"><b>Slower.</b> Walk and crawl cycles are about 40% slower than before.</p>
+      <p class="note" id="status"></p>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+"use strict";
+const GROUPS = { "g-stalk": ["idle", "peek", "walk", "crawl"], "g-stare": ["stareA", "neck"], "g-spider": ["fold", "scuttle"], "g-grab": ["grab", "lick"] };
+const LABEL = { idle: "Idle", peek: "Lurk", walk: "Walk", crawl: "Crawl", stareA: "Arms open", neck: "Neck", fold: "Fold", scuttle: "Scuttle", grab: "Grab", lick: "Lick" };
+const status = document.getElementById("status");
+
+// ---------------------------------------------------------------- the mod's own files: SHD3 mesh, SHA2 clips
+function readMesh(buf) {
+  const dv = new DataView(buf); let o = 4;
+  const tag = String.fromCharCode(...new Uint8Array(buf, 0, 4)); if (tag !== "SHD3") throw new Error("not a skinned mesh");
+  const nb = dv.getInt32(o, true); o += 4; const bones = [];
+  for (let i = 0; i < nb; i++) {
+    const l = dv.getInt16(o, true); o += 2; const name = new TextDecoder().decode(new Uint8Array(buf, o, l)); o += l;
+    const parent = dv.getInt32(o, true); o += 4;
+    const piv = [dv.getFloat32(o, true), dv.getFloat32(o + 4, true), dv.getFloat32(o + 8, true)]; o += 12;
+    bones.push({ name, parent, piv });
+  }
+  const nv = dv.getInt32(o, true); o += 4;
+  const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), b0 = new Uint8Array(nv), b1 = new Uint8Array(nv), w = new Float32Array(nv);
+  for (let i = 0; i < nv; i++) {
+    pos[i * 3] = dv.getFloat32(o, true); pos[i * 3 + 1] = dv.getFloat32(o + 4, true); pos[i * 3 + 2] = dv.getFloat32(o + 8, true); o += 12;
+    nrm[i * 3] = dv.getInt8(o) / 127; nrm[i * 3 + 1] = dv.getInt8(o + 1) / 127; nrm[i * 3 + 2] = dv.getInt8(o + 2) / 127; o += 3;
+    uv[i * 2] = dv.getFloat32(o, true); uv[i * 2 + 1] = dv.getFloat32(o + 4, true); o += 8;
+    b0[i] = dv.getUint8(o); b1[i] = dv.getUint8(o + 1); w[i] = dv.getUint8(o + 2) / 255; o += 3;
+  }
+  const lists = [];
+  for (let k = 0; k < 2; k++) { const t = dv.getInt32(o, true); o += 4; lists.push(new Uint32Array(buf.slice(o, o + t * 12))); o += t * 12; }
+  return { bones, pos, nrm, uv, b0, b1, w, solid: lists[0], glow: lists[1] };
+}
+function readAnim(buf) {
+  const dv = new DataView(buf); let o = 4;
+  const np = dv.getInt32(o, true); o += 4; const parts = [];
+  for (let i = 0; i < np; i++) { const l = dv.getInt16(o, true); o += 2; parts.push(new TextDecoder().decode(new Uint8Array(buf, o, l))); o += l; }
+  const nc = dv.getInt32(o, true); o += 4; const clips = {};
+  for (let c = 0; c < nc; c++) {
+    const l = dv.getInt16(o, true); o += 2; const name = new TextDecoder().decode(new Uint8Array(buf, o, l)); o += l;
+    const frames = dv.getInt32(o, true); const loop = dv.getUint8(o + 4) !== 0; const speed = dv.getFloat32(o + 5, true); o += 9;
+    const contact = new Uint8Array(buf.slice(o, o + frames)); o += frames;
+    const data = new Float32Array(buf.slice(o, o + frames * np * 7 * 4)); o += frames * np * 28;
+    clips[name] = { frames, loop, speed, contact, data };
+  }
+  return { parts, clips };
+}
+
+// ---------------------------------------------------------------- scene
+const stage = document.getElementById("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0b0c0d, 7, 16);
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 60);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.target.set(0, 1.2, 0.25); controls.minDistance = 1.2; controls.maxDistance = 12;
+scene.add(new THREE.HemisphereLight(0xd8dde6, 0x1b1a18, 0.75));
+const key = new THREE.DirectionalLight(0xfff1de, 1.35); key.position.set(-2.5, 4.5, 3.5); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3.5, bottom: -1, near: 0.5, far: 14 }); key.shadow.bias = -0.0006;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x9fb4ff, 0.55); rim.position.set(2.5, 2.5, -3.5); scene.add(rim);
+
+// floor: a stone grid that scrolls under him at his travel speed, so you can see the feet stay put
+const gc = document.createElement("canvas"); gc.width = gc.height = 256; const g2 = gc.getContext("2d");
+g2.fillStyle = "#1a1c1c"; g2.fillRect(0, 0, 256, 256); g2.strokeStyle = "#2c3030"; g2.lineWidth = 3; g2.strokeRect(0, 0, 256, 256);
+g2.strokeStyle = "#232626"; g2.lineWidth = 1; g2.beginPath(); g2.moveTo(128, 0); g2.lineTo(128, 256); g2.moveTo(0, 128); g2.lineTo(256, 128); g2.stroke();
+const gridTex = new THREE.CanvasTexture(gc); gridTex.wrapS = gridTex.wrapT = THREE.RepeatWrapping; gridTex.repeat.set(20, 20); gridTex.anisotropy = 8;
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: gridTex, roughness: 0.95 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+let M, A, geo, posAttr, nrmAttr, bonesLines, bonePts;
+const view = { clip: "idle", t: 0, speed: 1, playing: true, jaw: 0.03, prev: null, prevT: 0, fade: 1, bones: false, scroll: 0 };
+
+function setView(which) {
+  const c = { front: [0, 1.5, 6.6], "34": [-4.6, 2.3, 5.2], side: [6.6, 1.5, 0.3], low: [-2.6, 0.45, 5.2] }[which];
+  camera.position.set(...c); controls.target.set(0, which === "low" ? 1.6 : 1.3, 0.25); controls.update();
+  document.querySelectorAll(".views button").forEach(b => b.setAttribute("aria-pressed", b.id === "v-" + which));
+}
+
+// ---------------------------------------------------------------- skeleton maths (same as the mod)
+const mats = [];  // per bone: 12 floats (3x4)
+function quatToMat(qx, qy, qz, qw, out) {
+  const n = Math.hypot(qx, qy, qz, qw) || 1; qx /= n; qy /= n; qz /= n; qw /= n;
+  out[0] = 1 - 2 * (qy * qy + qz * qz); out[1] = 2 * (qx * qy - qz * qw); out[2] = 2 * (qx * qz + qy * qw);
+  out[4] = 2 * (qx * qy + qz * qw); out[5] = 1 - 2 * (qx * qx + qz * qz); out[6] = 2 * (qy * qz - qx * qw);
+  out[8] = 2 * (qx * qz - qy * qw); out[9] = 2 * (qy * qz + qx * qw); out[10] = 1 - 2 * (qx * qx + qy * qy);
+}
+function mul(a, b, out) {   // 3x4 affine
+  const r = new Float32Array(12);
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) r[i * 4 + j] = a[i * 4] * b[j] + a[i * 4 + 1] * b[4 + j] + a[i * 4 + 2] * b[8 + j];
+    r[i * 4 + 3] = a[i * 4] * b[3] + a[i * 4 + 1] * b[7] + a[i * 4 + 2] * b[11] + a[i * 4 + 3];
+  }
+  out.set(r);
+}
+function slerpInto(q, a, b, t) {
+  let d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]; const s = d < 0 ? -1 : 1; d *= s;
+  for (let k = 0; k < 4; k++) q[k] = a[k] + (b[k] * s - a[k]) * t;
+}
+function sampleClip(c, t, out) {   // out[bone] = [qx,qy,qz,qw,tx,ty,tz]
+  const n = c.frames, np = A.parts.length;
+  let fr = c.loop ? ((t % (n - 1)) + (n - 1)) % (n - 1) : Math.max(0, Math.min(n - 1, t));
+  const i0 = Math.floor(fr), i1 = Math.min(n - 1, i0 + 1), u = fr - i0;
+  for (let p = 0; p < np; p++) {
+    const a = c.data.subarray((i0 * np + p) * 7, (i0 * np + p) * 7 + 7), b = c.data.subarray((i1 * np + p) * 7, (i1 * np + p) * 7 + 7);
+    const q = out[p]; slerpInto(q, a, b, u);
+    for (let k = 4; k < 7; k++) q[k] = a[k] + (b[k] - a[k]) * u;
+  }
+}
+const sa = [], sb = [];
+function pose() {
+  const c = A.clips[view.clip];
+  sampleClip(c, view.t, sa);
+  if (view.prev && view.fade < 1) {
+    sampleClip(A.clips[view.prev], view.prevT, sb);
+    const w = view.fade * view.fade * (3 - 2 * view.fade);
+    for (let p = 0; p < sa.length; p++) { const q = [0, 0, 0, 0]; slerpInto(q, sb[p], sa[p], w); for (let k = 0; k < 4; k++) sa[p][k] = q[k]; for (let k = 4; k < 7; k++) sa[p][k] = sb[p][k] + (sa[p][k] - sb[p][k]) * w; }
+  }
+  const R = new Float32Array(12), L = new Float32Array(12);
+  M.bones.forEach((b, i) => {
+    const ai = A.parts.indexOf(b.name), s = sa[ai];
+    let qx = s[0], qy = s[1], qz = s[2], qw = s[3];
+    if (b.name === "jaw" || b.name === "jawR") {   // the face splits: extra yaw on each half (like the mod does in code)
+      const ang = (b.name === "jaw" ? -1 : 1) * view.jaw, pit = view.jaw * 0.12;
+      const hy = [0, Math.sin(ang / 2), 0, Math.cos(ang / 2)], hx = [Math.sin(pit / 2), 0, 0, Math.cos(pit / 2)];
+      const e = qmul(hy, hx); [qx, qy, qz, qw] = qmul([qx, qy, qz, qw], e);
+    }
+    quatToMat(qx, qy, qz, qw, R);
+    const [px, py, pz] = b.piv;
+    L[0] = R[0]; L[1] = R[1]; L[2] = R[2]; L[4] = R[4]; L[5] = R[5]; L[6] = R[6]; L[8] = R[8]; L[9] = R[9]; L[10] = R[10];
+    L[3] = s[4] + px - (R[0] * px + R[1] * py + R[2] * pz);
+    L[7] = s[5] + py - (R[4] * px + R[5] * py + R[6] * pz);
+    L[11] = s[6] + pz - (R[8] * px + R[9] * py + R[10] * pz);
+    if (!mats[i]) mats[i] = new Float32Array(12);
+    if (b.parent < 0) mats[i].set(L); else mul(mats[b.parent], L, mats[i]);
+  });
+}
+function qmul(a, b) { return [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0], a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]]; }
+function skin() {
+  const P = posAttr.array, N = nrmAttr.array, n = M.w.length;
+  for (let i = 0; i < n; i++) {
+    const m0 = mats[M.b0[i]], m1 = mats[M.b1[i]], w0 = M.w[i], w1 = 1 - w0;
+    const x = M.pos[i * 3], y = M.pos[i * 3 + 1], z = M.pos[i * 3 + 2];
+    const nx = M.nrm[i * 3], ny = M.nrm[i * 3 + 1], nz = M.nrm[i * 3 + 2];
+    P[i * 3] = w0 * (m0[0] * x + m0[1] * y + m0[2] * z + m0[3]) + w1 * (m1[0] * x + m1[1] * y + m1[2] * z + m1[3]);
+    P[i * 3 + 1] = w0 * (m0[4] * x + m0[5] * y + m0[6] * z + m0[7]) + w1 * (m1[4] * x + m1[5] * y + m1[6] * z + m1[7]);
+    P[i * 3 + 2] = w0 * (m0[8] * x + m0[9] * y + m0[10] * z + m0[11]) + w1 * (m1[8] * x + m1[9] * y + m1[10] * z + m1[11]);
+    N[i * 3] = w0 * (m0[0] * nx + m0[1] * ny + m0[2] * nz) + w1 * (m1[0] * nx + m1[1] * ny + m1[2] * nz);
+    N[i * 3 + 1] = w0 * (m0[4] * nx + m0[5] * ny + m0[6] * nz) + w1 * (m1[4] * nx + m1[5] * ny + m1[6] * nz);
+    N[i * 3 + 2] = w0 * (m0[8] * nx + m0[9] * ny + m0[10] * nz) + w1 * (m1[8] * nx + m1[9] * ny + m1[10] * nz);
+  }
+  posAttr.needsUpdate = true; nrmAttr.needsUpdate = true;
+  geo.computeBoundingSphere();
+  if (view.bones) {
+    const arr = bonesLines.geometry.attributes.position.array; let k = 0;
+    M.bones.forEach((b, i) => {
+      if (b.parent < 0) return; const m = mats[i], pm = mats[b.parent];
+      const a = M.bones[b.parent].piv, c = b.piv;
+      arr[k++] = pm[0] * a[0] + pm[1] * a[1] + pm[2] * a[2] + pm[3]; arr[k++] = pm[4] * a[0] + pm[5] * a[1] + pm[6] * a[2] + pm[7]; arr[k++] = pm[8] * a[0] + pm[9] * a[1] + pm[10] * a[2] + pm[11];
+      arr[k++] = m[0] * c[0] + m[1] * c[1] + m[2] * c[2] + m[3]; arr[k++] = m[4] * c[0] + m[5] * c[1] + m[6] * c[2] + m[7]; arr[k++] = m[8] * c[0] + m[9] * c[1] + m[10] * c[2] + m[11];
+    });
+    bonesLines.geometry.attributes.position.needsUpdate = true;
+  }
+}
+
+// ---------------------------------------------------------------- ui
+function pick(name) {
+  if (name === view.clip) { view.t = 0; return; }
+  view.prev = view.clip; view.prevT = view.t; view.fade = 0; view.clip = name; view.t = 0;
+  document.querySelectorAll(".clips button").forEach(b => b.setAttribute("aria-pressed", b.dataset.clip === name));
+  const c = A.clips[name];
+  document.getElementById("clipName").textContent = LABEL[name] || name;
+  document.getElementById("clipMeta").textContent = `${c.frames - 1} ticks · ${((c.frames - 1) / 20).toFixed(1)} s${c.loop ? " · loops" : ""}${c.speed ? ` · walks ${(c.speed * 20 * 4.6).toFixed(1)} blocks/s in game` : ""}`;
+}
+function buildButtons() {
+  for (const [gid, names] of Object.entries(GROUPS)) {
+    const g = document.getElementById(gid);
+    for (const n of names) {
+      if (!A.clips[n]) continue;
+      const b = document.createElement("button"); b.dataset.clip = n; b.setAttribute("aria-pressed", "false");
+      b.innerHTML = `<span>${LABEL[n]}</span><small>${((A.clips[n].frames - 1) / 20).toFixed(1)}s</small>`;
+      b.onclick = () => pick(n); g.appendChild(b);
+    }
+  }
+}
+document.getElementById("play").onclick = e => { view.playing = !view.playing; e.target.textContent = view.playing ? "Pause" : "Play"; };
+document.getElementById("scrub").oninput = e => { const c = A.clips[view.clip]; view.playing = false; document.getElementById("play").textContent = "Play"; view.t = e.target.value / 1000 * (c.frames - 1); view.fade = 1; };
+document.querySelectorAll('[id^="spd-"]').forEach(b => b.onclick = () => { view.speed = parseFloat(b.id.slice(4)); document.querySelectorAll('[id^="spd-"]').forEach(x => x.setAttribute("aria-pressed", x === b)); });
+document.getElementById("jaw").oninput = e => view.jaw = e.target.value / 100;
+document.getElementById("bones").onclick = e => { view.bones = !view.bones; e.target.setAttribute("aria-pressed", view.bones); bonesLines.visible = view.bones; };
+["front", "34", "side", "low"].forEach(v => document.getElementById("v-" + v).onclick = () => setView(v));
+
+function resize() { const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); }
+window.addEventListener("resize", resize);
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (M && A) {
+    const c = A.clips[view.clip], ticks = dt * 20 * view.speed;
+    if (view.playing) {
+      view.t += ticks; if (!c.loop && view.t > c.frames - 1) view.t = c.frames - 1;
+      if (view.prev) view.prevT += ticks;
+      view.scroll += c.speed * ticks;
+      document.getElementById("scrub").value = Math.round(((c.loop ? view.t % (c.frames - 1) : view.t) / (c.frames - 1)) * 1000);
+    }
+    view.fade = Math.min(1, view.fade + ticks / 8);
+    gridTex.offset.y = -view.scroll / 1.0 * 1;   // 1 tile = 1 m
+    pose(); skin();
+  }
+  controls.update(); renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+(async () => {
+  try {
+    const b64 = t => { const s = atob(t.trim()), a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a.buffer; };
+    const [mb, ab] = await Promise.all([fetch("mesh.txt").then(r => r.text()).then(b64), fetch("anim.txt").then(r => r.text()).then(b64)]);
+    M = readMesh(mb); A = readAnim(ab);
+    for (let p = 0; p < A.parts.length; p++) { sa.push(new Float32Array(7)); sb.push(new Float32Array(7)); }
+    geo = new THREE.BufferGeometry();
+    posAttr = new THREE.BufferAttribute(new Float32Array(M.pos), 3); posAttr.setUsage(THREE.DynamicDrawUsage);
+    nrmAttr = new THREE.BufferAttribute(new Float32Array(M.nrm), 3); nrmAttr.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute("position", posAttr); geo.setAttribute("normal", nrmAttr); geo.setAttribute("uv", new THREE.BufferAttribute(M.uv, 2));
+    const idx = new Uint32Array(M.solid.length + M.glow.length); idx.set(M.solid); idx.set(M.glow, M.solid.length);
+    geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    geo.addGroup(0, M.solid.length, 0); geo.addGroup(M.solid.length, M.glow.length, 1);
+    const tex = new THREE.TextureLoader().load("atlas.jpg"); tex.encoding = THREE.sRGBEncoding; tex.flipY = false; tex.anisotropy = 8;
+    const skinMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.62, metalness: 0, side: THREE.DoubleSide });
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xffe0a0 });
+    const mesh = new THREE.Mesh(geo, [skinMat, glowMat]); mesh.castShadow = true; mesh.frustumCulled = false; scene.add(mesh);
+    const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(M.bones.length * 6), 3));
+    bonesLines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xa33a2c, depthTest: false })); bonesLines.visible = false; bonesLines.renderOrder = 5; scene.add(bonesLines);
+    buildButtons(); pick("walk"); view.fade = 1;
+    document.getElementById("clipMeta").textContent += "";
+  } catch (e) { status.textContent = "Couldn't load the model: " + e.message; }
+})();
+setView("34"); resize(); requestAnimationFrame(frame);
+</script>

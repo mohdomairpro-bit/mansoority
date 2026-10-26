@@ -61,6 +61,8 @@ public class ShadowEntity extends PathfinderMob {
     private final java.util.List<Vec3> path = new java.util.ArrayList<>();
     /** client-side smoothed pose drivers (no snapping between states) */
     public float smoothStare, smoothRush, tint = 1F;
+    /** client: last frame time, for per-frame smoothing */
+    public long lastFrameMs;
     /** client: animation playback state */
     public Object animState;
     /** where it's gliding to (it walks now instead of blinking from spot to spot) */
@@ -186,7 +188,7 @@ public class ShadowEntity extends PathfinderMob {
         int end = mode == GRAB_LICK ? 150 : 170;
         if (mode == GRAB_DRAG && g > 30 && fleeDir != null) {            // scuttles off with you
             this.entityData.set(DATA_SCUTTLE, g);
-            double nx = this.getX() + fleeDir.x * 0.38, nz = this.getZ() + fleeDir.z * 0.38;
+            double nx = this.getX() + fleeDir.x * 0.26, nz = this.getZ() + fleeDir.z * 0.26;
             BlockPos s = findStand((ServerLevel) this.level(), nx, this.getY(), nz, 4);
             double ny = s != null ? this.getY() + (s.getY() - this.getY()) * 0.3 : this.getY();
             this.setPos(nx, ny, nz);
@@ -253,8 +255,8 @@ public class ShadowEntity extends PathfinderMob {
 
     private void fleeTick() {
         this.entityData.set(DATA_SCUTTLE, life + 8);
-        if (life > 70) { startVanish(); return; }
-        double sp = Math.min(0.6, 0.15 + life * 0.02);
+        if (life > 90) { startVanish(); return; }
+        double sp = Math.min(0.42, 0.12 + life * 0.012);
         double nx = this.getX() + fleeDir.x * sp, nz = this.getZ() + fleeDir.z * sp;
         BlockPos s = findStand((ServerLevel) this.level(), nx, this.getY(), nz, 4);
         double ny = s != null ? this.getY() + (s.getY() - this.getY()) * 0.3 : this.getY();
@@ -488,7 +490,7 @@ public class ShadowEntity extends PathfinderMob {
                 for (ServerPlayer m : inside) calm(m);
             }
             unseen++;
-            glideTick(0.32);
+            glideTick(0.2);
             if (stage >= 1 && unseen > 20 * 7 && life - lastTurn > 20 * 25) turnHead(player);
             creep(player);
         }
@@ -658,7 +660,7 @@ public class ShadowEntity extends PathfinderMob {
 
     /** only moves while you're NOT looking: blinks a few blocks closer */
     private void creep(ServerPlayer p) {
-        if (stage < 1 || unseen < 30 || unseen % 25 != 0) return;
+        if (stage < 1 || unseen < 40 || unseen % 35 != 0) return;
         double dist = Math.sqrt(this.distanceToSqr(p));
         if (dist < 8) return;
         Vec3 dir = p.position().subtract(this.position()).normalize();
@@ -693,7 +695,7 @@ public class ShadowEntity extends PathfinderMob {
     }
 
     /** final stage: it sprints straight at you, through anything, screaming. it never touches you: the scare hits first */
-    public static final int RUSH_STILL = 70, RUSH_FOLD = 45, RUSH_GO = RUSH_STILL + RUSH_FOLD;
+    public static final int RUSH_STILL = 90, RUSH_FOLD = 64, RUSH_GO = RUSH_STILL + RUSH_FOLD;
     public void startRush(ServerPlayer p) {
         // it comes from the side, 90 degrees off where you're looking, far enough that you see it coming
         double side = this.random.nextBoolean() ? 90 : -90;
@@ -730,7 +732,7 @@ public class ShadowEntity extends PathfinderMob {
             return;
         }
         int g = r - RUSH_GO;                            // 3) the scuttle
-        if (d < 2.4 || g > 140) {
+        if (d < 2.4 || g > 220) {
             for (ServerPlayer m : zoneMembers(p)) {      // it gets everyone inside the ring
                 ShadowNet.send(m, FxPacket.of(FxPacket.JUMPSCARE_NOW));
                 ShadowAdvancements.award(m, "run");
@@ -741,7 +743,7 @@ public class ShadowEntity extends PathfinderMob {
             return;
         }
         boolean freeze = g > 18 && g < 30 && d > 12;    // halfway it stops dead for a moment... then comes faster
-        double speed = freeze ? 0 : Math.min(d, 0.3 + g * (g > 30 ? 0.05 : 0.025));
+        double speed = freeze ? 0 : Math.min(d, Math.min(0.85, 0.2 + g * (g > 30 ? 0.03 : 0.014)));
         double ny = this.getY() + (p.getY() - this.getY()) * 0.25;
         this.setPos(this.getX() + dx / d * speed, ny, this.getZ() + dz / d * speed);
         if (!freeze && g % 3 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.3F + this.random.nextFloat() * 0.4F);

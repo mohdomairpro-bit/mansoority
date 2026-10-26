@@ -1,55 +1,57 @@
 package com.mansoority.shadow.client;
 
 import com.mansoority.shadow.TheShadow;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 
-/** the high-poly creature exported from Blender (shadow-blender/build_shadow.py) */
+/**
+ * the creature's skinned mesh (SHD3, written by shadow-blender/tools/skin.py): one shared vertex buffer where every
+ * vertex follows up to two bones, so joints bend like skin. bones keep the per-frame pose fields the animation writes.
+ */
 public final class ShadowMesh {
     public static final ResourceLocation LOCATION = new ResourceLocation(TheShadow.MODID, "models/shadow.mesh");
+    public static final ResourceLocation LOD = new ResourceLocation(TheShadow.MODID, "models/shadow_lod.mesh");
 
+    /** a bone. the pose fields are filled every frame (keyframes + procedural extras) */
     public static final class Part {
         public final String name;
-        public final int parent;
+        public final int index, parent;
         public final float px, py, pz;
-        public final float[] pos;      // xyz per vertex, 3 vertices per triangle
-        public final float[] nrm;
-        public final float[] uv;       // atlas uv per vertex
-        public final boolean[] glow;   // per triangle
-        public int[] solidTris, glowTris;
         public final List<Part> children = new ArrayList<>();
-        public float xRot, yRot, zRot; // animated each frame
-        public float tx, ty, tz;        // offset (model metres), applied before the pivot rotation
-        public final org.joml.Quaternionf anim = new org.joml.Quaternionf();   // keyframed rotation (Blender clips)
+        public float xRot, yRot, zRot;       // procedural extras, applied after the keyframed rotation
+        public float tx, ty, tz;             // offset (model metres)
+        public final org.joml.Quaternionf anim = new org.joml.Quaternionf();
 
-        Part(String name, int parent, float px, float py, float pz, int tris) {
-            this.name = name; this.parent = parent; this.px = px; this.py = py; this.pz = pz;
-            this.pos = new float[tris * 9]; this.nrm = new float[tris * 9];
-            this.uv = new float[tris * 6]; this.glow = new boolean[tris];
+        Part(String name, int index, int parent, float px, float py, float pz) {
+            this.name = name; this.index = index; this.parent = parent; this.px = px; this.py = py; this.pz = pz;
         }
-        public int triangles() { return glow.length; }
         public void reset() { xRot = yRot = zRot = 0F; tx = ty = tz = 0F; anim.identity(); }
     }
 
     public final List<Part> parts = new ArrayList<>();
     public final List<Part> roots = new ArrayList<>();
+    private final Map<String, Part> byName = new HashMap<>();
+    // vertices
+    public float[] pos, nrm, uv, w0;
+    public byte[] b0, b1;
+    public int[] solid, glow;            // triangle corner indices
+    /** skinned output, rewritten every time an entity is drawn (render thread only) */
+    public float[] outPos, outNrm;
 
-    public Part get(String name) {
-        for (Part p : parts) if (p.name.equals(name)) return p;
-        return null;
-    }
+    public Part get(String name) { return byName.get(name); }
+    public int vertexCount() { return w0.length; }
 
     private static ShadowMesh cached, cachedLod;
     private static boolean failed, failedLod;
-    public static final ResourceLocation LOD = new ResourceLocation(TheShadow.MODID, "models/shadow_lod.mesh");
 
     /** the far-away version: a fraction of the triangles */
     public static ShadowMesh lod() {
@@ -73,35 +75,34 @@ public final class ShadowMesh {
         return cached;
     }
 
-    public static void invalidate() { cached = null; failed = false; }
+    public static void invalidate() { cached = null; failed = false; cachedLod = null; failedLod = false; }
 
     static ShadowMesh read(byte[] data) throws IOException {
         ByteBuffer b = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         byte[] magic = new byte[4]; b.get(magic);
-        if (!"SHD2".equals(new String(magic, StandardCharsets.US_ASCII))) throw new IOException("bad mesh header");
+        if (!"SHD3".equals(new String(magic, StandardCharsets.US_ASCII))) throw new IOException("bad mesh header (need SHD3)");
         ShadowMesh mesh = new ShadowMesh();
         int count = b.getInt();
         for (int i = 0; i < count; i++) {
             byte[] nb = new byte[b.getShort()]; b.get(nb);
             int parent = b.getInt();
             float px = b.getFloat(), py = b.getFloat(), pz = b.getFloat();
-            int tris = b.getInt();
-            Part p = new Part(new String(nb, StandardCharsets.UTF_8), parent, px, py, pz, tris);
-            for (int v = 0; v < tris * 3; v++) {
-                p.pos[v * 3] = b.getFloat(); p.pos[v * 3 + 1] = b.getFloat(); p.pos[v * 3 + 2] = b.getFloat();
-                p.nrm[v * 3] = b.get() / 127F; p.nrm[v * 3 + 1] = b.get() / 127F; p.nrm[v * 3 + 2] = b.get() / 127F;
-                p.uv[v * 2] = b.getFloat(); p.uv[v * 2 + 1] = b.getFloat();
-                if ((b.get() & 255) != 0) p.glow[v / 3] = true;
-            }
-            int g = 0; for (boolean x : p.glow) if (x) g++;
-            p.glowTris = new int[g]; p.solidTris = new int[tris - g];
-            int gi = 0, si = 0;
-            for (int t = 0; t < tris; t++) { if (p.glow[t]) p.glowTris[gi++] = t; else p.solidTris[si++] = t; }
-            mesh.parts.add(p);
+            Part p = new Part(new String(nb, StandardCharsets.UTF_8), i, parent, px, py, pz);
+            mesh.parts.add(p); mesh.byName.put(p.name, p);
         }
-        for (Part p : mesh.parts) {
-            if (p.parent < 0) mesh.roots.add(p); else mesh.parts.get(p.parent).children.add(p);
+        for (Part p : mesh.parts) { if (p.parent < 0) mesh.roots.add(p); else mesh.parts.get(p.parent).children.add(p); }
+        int nv = b.getInt();
+        mesh.pos = new float[nv * 3]; mesh.nrm = new float[nv * 3]; mesh.uv = new float[nv * 2];
+        mesh.b0 = new byte[nv]; mesh.b1 = new byte[nv]; mesh.w0 = new float[nv];
+        for (int v = 0; v < nv; v++) {
+            mesh.pos[v * 3] = b.getFloat(); mesh.pos[v * 3 + 1] = b.getFloat(); mesh.pos[v * 3 + 2] = b.getFloat();
+            mesh.nrm[v * 3] = b.get() / 127F; mesh.nrm[v * 3 + 1] = b.get() / 127F; mesh.nrm[v * 3 + 2] = b.get() / 127F;
+            mesh.uv[v * 2] = b.getFloat(); mesh.uv[v * 2 + 1] = b.getFloat();
+            mesh.b0[v] = b.get(); mesh.b1[v] = b.get(); mesh.w0[v] = (b.get() & 255) / 255F;
         }
+        int ns = b.getInt(); mesh.solid = new int[ns * 3]; for (int i = 0; i < ns * 3; i++) mesh.solid[i] = b.getInt();
+        int ng = b.getInt(); mesh.glow = new int[ng * 3]; for (int i = 0; i < ng * 3; i++) mesh.glow[i] = b.getInt();
+        mesh.outPos = new float[nv * 3]; mesh.outNrm = new float[nv * 3];
         return mesh;
     }
 }

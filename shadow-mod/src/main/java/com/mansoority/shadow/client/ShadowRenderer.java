@@ -20,7 +20,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 
 public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     private static final ResourceLocation WHITE = new ResourceLocation(TheShadow.MODID, "textures/entity/white.png");
@@ -99,14 +98,31 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         return ATLAS;
     }
 
+    /** triangles as triangles (the stock entity types want quads: a quarter more vertices for nothing) */
+    static final class Types extends RenderType {
+        private Types(String a, com.mojang.blaze3d.vertex.VertexFormat b, com.mojang.blaze3d.vertex.VertexFormat.Mode c, int d, boolean e, boolean f, Runnable g, Runnable h) { super(a, b, c, d, e, f, g, h); }
+        static final RenderType SKIN = create("theshadow_skin", com.mojang.blaze3d.vertex.DefaultVertexFormat.NEW_ENTITY,
+                com.mojang.blaze3d.vertex.VertexFormat.Mode.TRIANGLES, 1 << 18, true, false,
+                CompositeState.builder().setShaderState(RENDERTYPE_ENTITY_CUTOUT_NO_CULL_SHADER)
+                        .setTextureState(new TextureStateShard(ATLAS, false, false)).setTransparencyState(NO_TRANSPARENCY)
+                        .setCullState(NO_CULL).setLightmapState(LIGHTMAP).setOverlayState(OVERLAY).createCompositeState(true));
+        static final RenderType GLOW = create("theshadow_glow", com.mojang.blaze3d.vertex.DefaultVertexFormat.NEW_ENTITY,
+                com.mojang.blaze3d.vertex.VertexFormat.Mode.TRIANGLES, 1 << 12, false, true,
+                CompositeState.builder().setShaderState(RENDERTYPE_EYES_SHADER).setTextureState(new TextureStateShard(WHITE, false, false))
+                        .setTransparencyState(ADDITIVE_TRANSPARENCY).setWriteMaskState(COLOR_WRITE).createCompositeState(false));
+    }
+
     @Override
     public void render(ShadowEntity e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         if (e.isMimic()) { renderMimic(e, partialTick, pose, buffers, light); return; }
         RingRenderer.renderWall(e, pose, buffers, partialTick);
         PortalRenderer.renderPortal(e, pose, buffers, partialTick);
         if (e.isHidden()) return;
-        net.minecraft.world.phys.Vec3 camPos = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-        boolean far = camPos.distanceToSqr(e.position()) > 56 * 56 && e.getGrab() <= 0;
+        Minecraft mc = Minecraft.getInstance();
+        net.minecraft.world.phys.Vec3 camPos = mc.gameRenderer.getMainCamera().getPosition();
+        double ex = Mth.lerp(partialTick, e.xo, e.getX()), ey = Mth.lerp(partialTick, e.yo, e.getY()), ez = Mth.lerp(partialTick, e.zo, e.getZ());
+        double dist2 = camPos.distanceToSqr(ex, ey, ez);
+        boolean far = dist2 > 30 * 30 && e.getGrab() <= 0;
         ShadowMesh mesh = far ? ShadowMesh.lod() : ShadowMesh.get();
         if (mesh == null) return;
         float age = e.tickCount + partialTick;
@@ -120,9 +136,16 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         float wantTint = e.getStage() == 0 && e.getRush() <= 0 ? 0.38F + e.smoothStare * 0.62F : 1F;
         e.tint += (wantTint - e.tint) * 0.1F;
         tint = (int) (255 * e.tint);
+        // feet on the real ground (close enough to see it, standing on something)
+        ShadowSkeleton.fk(mesh);
+        if (e.animState instanceof ShadowAnim.State st && ShadowAnim.get() != null && dist2 < 48 * 48 && vt <= 0F && mc.level != null) {
+            int contact = st.contact(ShadowAnim.get());
+            int touched = ShadowSkeleton.ground(mesh, st, contact, mc.level, ex, ey, ez, bodyYaw, SCALE * grow, Math.max(0.2F, frameDt(e)), e.getGrab() <= 0);
+            if (touched != 0 && age - st.lastStepAge > 2F) { st.lastStepAge = age; Footsteps.step(e, mesh, touched, ex, ey, ez, bodyYaw, SCALE * grow, dist2); }
+        }
+        ShadowSkeleton.skin(mesh);
         pose.pushPose();
         // two friends together never see it in the same place: while it's lurking, everyone else sees it somewhere else
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (e.getStage() == 0 && mc.player != null && mc.player.getId() != e.getTargetEntityId() && mc.level != null) {
             net.minecraft.world.entity.Entity t = mc.level.getEntity(e.getTargetEntityId());
             if (t != null) {
@@ -135,40 +158,33 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw + vt * vt * 540F));
         if (vt > 0F) pose.translate(0F, e.getBbHeight() * 0.5F * vt, 0F);
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);
-        VertexConsumer solid = buffers.getBuffer(RenderType.entityCutoutNoCull(ATLAS));
-        for (ShadowMesh.Part root : mesh.roots) draw(root, pose, solid, light, false);
-        VertexConsumer glow = buffers.getBuffer(RenderType.eyes(WHITE));
-        for (ShadowMesh.Part root : mesh.roots) draw(root, pose, glow, 0xF000F0, true);
+        emit(mesh, mesh.solid, pose, buffers.getBuffer(Types.SKIN), light, false);
+        if (mesh.glow.length > 0) emit(mesh, mesh.glow, pose, buffers.getBuffer(Types.GLOW), 0xF000F0, true);
         pose.popPose();
         super.render(e, yaw, partialTick, pose, buffers, light);
     }
 
-    private static void draw(ShadowMesh.Part p, PoseStack pose, VertexConsumer vc, int light, boolean glowPass) {
-        pose.pushPose();
-        if (p.tx != 0F || p.ty != 0F || p.tz != 0F) pose.translate(p.tx, p.ty, p.tz);
-        boolean animRot = p.anim.w < 0.99999F;
-        if (animRot || p.xRot != 0F || p.yRot != 0F || p.zRot != 0F) {
-            pose.translate(p.px, p.py, p.pz);
-            if (animRot) pose.mulPose(p.anim);
-            pose.mulPose(new Quaternionf().rotationZYX(p.zRot, p.yRot, p.xRot));
-            pose.translate(-p.px, -p.py, -p.pz);
+    /** render frames between ticks (ground smoothing runs per frame, not per tick) */
+    private static float frameDt(ShadowEntity e) {
+        long now = net.minecraft.Util.getMillis();
+        float d = e.lastFrameMs == 0 ? 1F : Math.min(5F, (now - e.lastFrameMs) / 50F);
+        e.lastFrameMs = now;
+        return d;
+    }
+
+    private static void emit(ShadowMesh m, int[] tris, PoseStack pose, VertexConsumer vc, int light, boolean glowPass) {
+        Matrix4f mat = pose.last().pose();
+        Matrix3f nm = pose.last().normal();
+        float[] P = m.outPos, N = m.outNrm, UV = m.uv;
+        int c = glowPass ? 255 : tint;
+        for (int v : tris) {
+            vc.vertex(mat, P[v * 3], P[v * 3 + 1], P[v * 3 + 2])
+                    .color(c, c, c, 255)
+                    .uv(glowPass ? 0.5F : UV[v * 2], glowPass ? 0.5F : UV[v * 2 + 1])
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
+                    .uv2(light)
+                    .normal(nm, N[v * 3], N[v * 3 + 1], N[v * 3 + 2])
+                    .endVertex();
         }
-        Matrix4f m = pose.last().pose();
-        Matrix3f n = pose.last().normal();
-        int[] list = glowPass ? p.glowTris : p.solidTris;
-        for (int t : list) {
-            for (int k = 0; k < 4; k++) {
-                int v = t * 3 + Math.min(k, 2);      // triangle sent as a quad with the last corner repeated
-                vc.vertex(m, p.pos[v * 3], p.pos[v * 3 + 1], p.pos[v * 3 + 2])
-                        .color(glowPass ? 255 : tint, glowPass ? 255 : tint, glowPass ? 255 : tint, 255)
-                        .uv(glowPass ? 0.5F : p.uv[v * 2], glowPass ? 0.5F : p.uv[v * 2 + 1])
-                        .overlayCoords(OverlayTexture.NO_OVERLAY)
-                        .uv2(light)
-                        .normal(n, p.nrm[v * 3], p.nrm[v * 3 + 1], p.nrm[v * 3 + 2])
-                        .endVertex();
-            }
-        }
-        for (ShadowMesh.Part c : p.children) draw(c, pose, vc, light, glowPass);
-        pose.popPose();
     }
 }
