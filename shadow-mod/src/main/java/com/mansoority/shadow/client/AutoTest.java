@@ -224,9 +224,9 @@ public final class AutoTest {
                 e.setNoAi(true); e.setYHeadRot(180F); e.yBodyRot = 180F;
                 ow.addFreshEntity(e);
             }
-            net.minecraft.core.BlockPos c = sp.blockPosition();
+            net.minecraft.core.BlockPos at = sp.blockPosition();
             int k = 0;
-            for (var b : ShadowRegistry.PALE_BLOCKS) { if (k > 7) break; ow.setBlock(c.offset(-4 + k++, 0, 8), b.get().defaultBlockState(), 3); }
+            for (var b : ShadowRegistry.PALE_BLOCKS) { if (k > 7) break; ow.setBlock(at.offset(-4 + k++, 0, 8), b.get().defaultBlockState(), 3); }
         });
         if (t == 5560) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); }
         if (t == 5575) shot(mc, "44_shade_armour");
@@ -235,9 +235,9 @@ public final class AutoTest {
         if (t == 5600) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             var src = server.createCommandSourceStack().withPermission(4).withSuppressedOutput().withLevel(sp.serverLevel());
-            net.minecraft.core.BlockPos c = sp.blockPosition().offset(0, 0, 40);
-            server.getCommands().performPrefixedCommand(src, "place template theshadow:lair " + c.getX() + " " + (c.getY() - 1) + " " + c.getZ());
-            sp.teleportTo(sp.serverLevel(), c.getX() + 10.5, c.getY() + 16, c.getZ() - 10, 0F, 40F);
+            net.minecraft.core.BlockPos sh = sp.blockPosition().offset(0, 0, 40);
+            server.getCommands().performPrefixedCommand(src, "place template theshadow:lair " + sh.getX() + " " + (sh.getY() - 1) + " " + sh.getZ());
+            sp.teleportTo(sp.serverLevel(), sh.getX() + 10.5, sh.getY() + 16, sh.getZ() - 10, 0F, 40F);
         });
         if (t == 5640) shot(mc, "46_shrine");
         if (t == 5700) mc.setScreen(new ShadowConfigScreen(null));
