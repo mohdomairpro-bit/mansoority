@@ -744,7 +744,7 @@ public class ShadowEntity extends PathfinderMob {
                 if (m == p ? d < 3.5 : true) bite(m);
             }
             this.discard();
-            if (hollowHunter && p.isAlive() && HollowPlace.is(p.level())) HollowPlace.hunt(p);   // and another one comes
+            if (hollowHunter && p.isAlive() && HollowPlace.in(p)) HollowPlace.hunt(p);   // and another one comes
             return;
         }
         boolean freeze = g > 18 && g < 30 && d > 12;    // halfway it stops dead for a moment... then comes faster

@@ -709,7 +709,7 @@ def bake_atlas(objs, size=2048):
     w.node_tree.nodes["Background"].inputs["Color"].default_value = (1, 1, 1, 1)
     w.node_tree.nodes["Background"].inputs["Strength"].default_value = 1.15
     scene.world = w
-    scene.cycles.samples = 40
+    scene.cycles.samples = int(os.environ.get("BAKE_SAMPLES", "40"))
     # albedo x soft sky light: the bump detail and the deep cavities end up painted into the texture
     bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR', 'DIRECT', 'INDIRECT'}, use_clear=True)
     import numpy as np

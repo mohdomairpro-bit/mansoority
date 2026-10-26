@@ -133,6 +133,27 @@ public class MansoorityBoss extends ShadowEntity {
     }
     public void restoreHp(float hp) { this.setHealth(Math.max(1F, Math.min(MAX_HP, hp))); }
 
+    /** test hooks (CI screenshots and /shadow bossdebug): skip the intro, force a move, jump to a phase */
+    public void debug(String what) {
+        if (!(this.level() instanceof ServerLevel sl)) return;
+        List<ServerPlayer> near = sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(96), pl -> !pl.isSpectator() && pl.isAlive());
+        if (near.isEmpty()) return;
+        focus = near.get(0);
+        switch (what) {
+            case "skipintro" -> { introT = -1; flag(F_INTRO, false); act(A_NONE); for (ServerPlayer p : near) ShadowCinematic.camFor(p, ShadowCinematic.OFF, 0, 0, 0, null, -1); }
+            case "phase2" -> { this.setHealth(MAX_HP * 0.55F); phaseTwo(sl); }
+            case "phase3" -> { fakeDone = true; flag(F_BLADE, false); flag(F_BLACK, true); this.entityData.set(DATA_PHASE, 3); this.setHealth(MAX_HP * 0.4F); act(A_ROAR); }
+            case "fakedeath" -> fakeDeath(sl);
+            case "flood" -> flood(sl);
+            case "signature" -> startSignature(sl);
+            case "eyes" -> { eyesCd = 0; pillarEyesUntil = 0; pillarEyes.clear(); }
+            default -> {
+                if (what.startsWith("act:")) start(sl, Integer.parseInt(what.substring(4)), near);
+            }
+        }
+        attackCd = 400;                                                         // hold still for the camera
+    }
+
     // ================================================================ the brain
     @Override
     protected boolean customTick() {
@@ -779,7 +800,7 @@ public class MansoorityBoss extends ShadowEntity {
             if (p == null) { HOLLOW.remove(e.getKey()); continue; }
             if (sl.getGameTime() >= e.getValue().until() || !p.isAlive()) {
                 HOLLOW.remove(e.getKey());
-                if (p.isAlive() && p.level().dimension() != sl.dimension()) {
+                if (p.isAlive() && HollowPlace.in(p)) {
                     Vec3 b = e.getValue().back();
                     p.teleportTo(sl, b.x, b.y, b.z, p.getYRot(), p.getXRot());
                     p.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 30, 0, false, false));

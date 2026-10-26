@@ -162,24 +162,46 @@ public final class AutoTest {
                 sp.teleportTo(end, 0.5, y, 40.5, 180F, 10F); sp.fallDistance = 0; log("to the end at y=" + y);
             }
         });
+        // ---- the boss: intro, then every move on demand
         if (t == 4100) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+            sp.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 20 * 600, 10, false, false));
             var b = com.mansoority.shadow.ShadowEvents.endBossCheck(sp, true);
             log("boss: " + (b != null));
         });
-        if (t == 4130) lookNear(mc, 0F);
-        if (t == 4140) shot(mc, "24_boss_emerge");
-        if (t == 4200) lookNear(mc, 0F);
-        if (t == 4210) shot(mc, "25_boss_fight");
-        if (t == 4300) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
-        if (t == 4310) shot(mc, "26_boss_shades");
-        if (t > 4100 && t < 4400 && t % 40 == 0) server.execute(() -> {
+        if (t == 4135) shot(mc, "24_boss_intro_wide");
+        if (t == 4330) shot(mc, "25_boss_intro_face");
+        if (t == 4400) boss(server, "skipintro");
+        if (t > 4400 && t < 5700 && t % 7 == 0) lookNear(mc, 0F);
+        String[][] seq = {{"4420", "act:" + com.mansoority.shadow.MansoorityBoss.A_SLAM}, {"4520", "act:" + com.mansoority.shadow.MansoorityBoss.A_SPRAY},
+                {"4630", "act:" + com.mansoority.shadow.MansoorityBoss.A_SPIKES}, {"4720", "act:" + com.mansoority.shadow.MansoorityBoss.A_BITE},
+                {"4830", "phase2"}, {"4930", "act:" + com.mansoority.shadow.MansoorityBoss.A_BLADE}, {"5000", "signature"},
+                {"5130", "phase3"}, {"5230", "act:" + com.mansoority.shadow.MansoorityBoss.A_THROW}, {"5330", "flood"}, {"5430", "act:" + com.mansoority.shadow.MansoorityBoss.A_SCREAM}};
+        for (String[] q : seq) if (t == Integer.parseInt(q[0])) { boss(server, q[1]); log("boss do " + q[1]); }
+        int[][] shots = {{4440, 0}, {4466, 1}, {4478, 2}, {4560, 3}, {4660, 4}, {4740, 5}, {4775, 6}, {4860, 7}, {4947, 8}, {5040, 9}, {5100, 10},
+                {5165, 11}, {5240, 12}, {5260, 13}, {5345, 14}, {5442, 15}};
+        String[] names = {"26_slam_crouch", "27_slam_land", "28_slam_wave", "29_spray", "30_spikes", "31_bite", "32_chew", "33_phase2_blade", "34_blade_swing",
+                "35_signature", "36_signature_smash", "37_phase3_black", "38_throw", "39_blade_flying", "40_flood", "41_scream_knockdown"};
+        for (int i = 0; i < shots.length; i++) if (t == shots[i][0]) shot(mc, names[i]);
+        if (t == 5500) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
+        if (t == 5520) shot(mc, "42_boss_third_person");
+        if (t == 5530) mc.options.setCameraType(CameraType.FIRST_PERSON);
+        if (t > 4100 && t < 5700 && t % 60 == 0) server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            if (sp.getHealth() < 10) sp.setHealth(20);
             log("boss fight hp=" + sp.getHealth() + " alive=" + sp.isAlive());
         });
-        if (t == 4400) mc.setScreen(new ShadowConfigScreen(null));
-        if (t == 4410) shot(mc, "27_config_screen");
-        if (t == 4415) { mc.setScreen(null); log("done"); mc.stop(); }
+        if (t == 5700) mc.setScreen(new ShadowConfigScreen(null));
+        if (t == 5710) shot(mc, "43_config_screen");
+        if (t == 5715) { mc.setScreen(null); log("done"); mc.stop(); }
+    }
+
+    private static void boss(MinecraftServer server, String what) {
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            for (var b : sp.serverLevel().getEntitiesOfClass(com.mansoority.shadow.MansoorityBoss.class, sp.getBoundingBox().inflate(150))) b.debug(what);
+        });
     }
 
     /** aim at the shadow's head, offset sideways by 'offset' degrees */

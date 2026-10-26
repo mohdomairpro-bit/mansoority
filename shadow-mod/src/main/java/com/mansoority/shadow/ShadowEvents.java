@@ -196,11 +196,11 @@ public class ShadowEvents {
     /** someone died in the fight: it counts */
     @SubscribeEvent
     public void onDeath(net.minecraftforge.event.entity.living.LivingDeathEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer p) || p.level().dimension() != net.minecraft.world.level.Level.END && !HollowPlace.is(p.level())) return;
+        if (!(event.getEntity() instanceof ServerPlayer p) || p.level().dimension() != net.minecraft.world.level.Level.END && !HollowPlace.in(p)) return;
         net.minecraft.server.level.ServerLevel end = p.server.getLevel(net.minecraft.world.level.Level.END);
         if (end == null) return;
         for (MansoorityBoss b : end.getEntitiesOfClass(MansoorityBoss.class, new net.minecraft.world.phys.AABB(-400, -64, -400, 400, 400, 400))) {
-            if (HollowPlace.is(p.level()) || b.distanceToSqr(p) < 120 * 120) { b.onPlayerKilled(p); return; }
+            if (HollowPlace.in(p) || b.distanceToSqr(p) < 120 * 120) { b.onPlayerKilled(p); return; }
         }
     }
 

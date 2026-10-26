@@ -159,7 +159,7 @@ public final class BossFx {
 
     static void fog(ViewportEvent.RenderFog e) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null && HollowPlace.is(mc.level)) {
+        if (mc.level != null && mc.player != null && HollowPlace.in(mc.player)) {
             e.setNearPlaneDistance(0F); e.setFarPlaneDistance(26F);
             e.setFogShape(com.mojang.blaze3d.shaders.FogShape.SPHERE); e.setCanceled(true);
         }
@@ -167,7 +167,7 @@ public final class BossFx {
 
     static void fogColor(ViewportEvent.ComputeFogColor e) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null && HollowPlace.is(mc.level)) { e.setRed(0.01F); e.setGreen(0.0F); e.setBlue(0.0F); }
+        if (mc.level != null && mc.player != null && HollowPlace.in(mc.player)) { e.setRed(0.01F); e.setGreen(0.0F); e.setBlue(0.0F); }
     }
 
     // ---------------------------------------------------------------- overlay: the dark, its words
