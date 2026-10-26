@@ -198,46 +198,46 @@ public final class AutoTest {
         });
         // stage 3: back to the overworld - spiders, Shade armour + ward, the shrine
         if (t == 5540) server.execute(() -> {
-            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-            for (var b : sp.serverLevel().getEntitiesOfClass(com.mansoority.shadow.MansoorityBoss.class, sp.getBoundingBox().inflate(200))) b.discard();
-            net.minecraft.server.level.ServerLevel ow = server.overworld();
-            ow.setDayTime(6000);
-            int x = ow.getSharedSpawnPos().getX() + 40, z = ow.getSharedSpawnPos().getZ() + 40;
-            int y = ow.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-            sp.teleportTo(ow, x + 0.5, y, z + 0.5, 0F, 10F);
-            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_HELMET.get()));
-            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_CHESTPLATE.get()));
-            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.LEGS, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_LEGGINGS.get()));
-            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_BOOTS.get()));
-            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, new net.minecraft.world.item.ItemStack(ShadowRegistry.PALE_WARD.get()));
-            log("stage3 at " + x + " " + y + " " + z);
+            ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
+            for (var s3b : s3p.serverLevel().getEntitiesOfClass(com.mansoority.shadow.MansoorityBoss.class, s3p.getBoundingBox().inflate(200))) s3b.discard();
+            net.minecraft.server.level.ServerLevel s3w = server.overworld();
+            s3w.setDayTime(6000);
+            int s3px = s3w.getSharedSpawnPos().getX() + 40, s3pz = s3w.getSharedSpawnPos().getZ() + 40;
+            int s3py = s3w.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, s3px, s3pz);
+            s3p.teleportTo(s3w, s3px + 0.5, s3py, s3pz + 0.5, 0F, 10F);
+            s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_HELMET.get()));
+            s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_CHESTPLATE.get()));
+            s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.LEGS, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_LEGGINGS.get()));
+            s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_BOOTS.get()));
+            s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, new net.minecraft.world.item.ItemStack(ShadowRegistry.PALE_WARD.get()));
+            log("stage3 s3at " + s3px + " " + s3py + " " + s3pz);
         });
         if (t == 5550) server.execute(() -> {
-            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-            net.minecraft.server.level.ServerLevel ow = sp.serverLevel();
-            for (int i = 0; i < 2; i++) {
-                var type = i == 0 ? ShadowRegistry.PALE_BITER.get() : ShadowRegistry.PALE_SPITTER.get();
-                var e = type.create(ow);
-                if (e == null) continue;
-                double px = sp.getX() + (i == 0 ? -1.6 : 1.8), pz = sp.getZ() + 4.5 + i;
-                e.moveTo(px, ow.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(px), (int) Math.floor(pz)), pz, 180F, 0F);
-                e.setNoAi(true); e.setYHeadRot(180F); e.yBodyRot = 180F;
-                ow.addFreshEntity(e);
+            ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel s3w = s3p.serverLevel();
+            for (int s3i = 0; s3i < 2; s3i++) {
+                var s3type = s3i == 0 ? ShadowRegistry.PALE_BITER.get() : ShadowRegistry.PALE_SPITTER.get();
+                var s3e = s3type.create(s3w);
+                if (s3e == null) continue;
+                double s3x = s3p.getX() + (s3i == 0 ? -1.6 : 1.8), s3z = s3p.getZ() + 4.5 + s3i;
+                s3e.moveTo(s3x, s3w.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(s3x), (int) Math.floor(s3z)), s3z, 180F, 0F);
+                s3e.setNoAi(true); s3e.setYHeadRot(180F); s3e.yBodyRot = 180F;
+                s3w.addFreshEntity(s3e);
             }
-            net.minecraft.core.BlockPos at = sp.blockPosition();
-            int k = 0;
-            for (var b : ShadowRegistry.PALE_BLOCKS) { if (k > 7) break; ow.setBlock(at.offset(-4 + k++, 0, 8), b.get().defaultBlockState(), 3); }
+            net.minecraft.core.BlockPos s3at = s3p.blockPosition();
+            int s3k = 0;
+            for (var s3b : ShadowRegistry.PALE_BLOCKS) { if (s3k > 7) break; s3w.setBlock(s3at.offset(-4 + s3k++, 0, 8), s3b.get().defaultBlockState(), 3); }
         });
         if (t == 5560) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); }
         if (t == 5575) shot(mc, "44_shade_armour");
         if (t == 5580) mc.options.setCameraType(CameraType.FIRST_PERSON);
         if (t == 5595) shot(mc, "45_pale_spiders");
         if (t == 5600) server.execute(() -> {
-            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-            var src = server.createCommandSourceStack().withPermission(4).withSuppressedOutput().withLevel(sp.serverLevel());
-            net.minecraft.core.BlockPos sh = sp.blockPosition().offset(0, 0, 40);
-            server.getCommands().performPrefixedCommand(src, "place template theshadow:lair " + sh.getX() + " " + (sh.getY() - 1) + " " + sh.getZ());
-            sp.teleportTo(sp.serverLevel(), sh.getX() + 10.5, sh.getY() + 16, sh.getZ() - 10, 0F, 40F);
+            ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
+            var s3src = server.createCommandSourceStack().withPermission(4).withSuppressedOutput().withLevel(s3p.serverLevel());
+            net.minecraft.core.BlockPos s3sh = s3p.blockPosition().offset(0, 0, 40);
+            server.getCommands().performPrefixedCommand(s3src, "place template theshadow:lair " + s3sh.getX() + " " + (s3sh.getY() - 1) + " " + s3sh.getZ());
+            s3p.teleportTo(s3p.serverLevel(), s3sh.getX() + 10.5, s3sh.getY() + 16, s3sh.getZ() - 10, 0F, 40F);
         });
         if (t == 5640) shot(mc, "46_shrine");
         if (t == 5700) mc.setScreen(new ShadowConfigScreen(null));
