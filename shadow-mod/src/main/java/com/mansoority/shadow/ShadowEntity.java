@@ -63,6 +63,8 @@ public class ShadowEntity extends PathfinderMob {
     public float smoothStare, smoothRush, tint = 1F;
     /** client: last frame time, for per-frame smoothing */
     public long lastFrameMs;
+    /** client: strings of spit across its mouth */
+    public Object salivaState;
     /** client: animation playback state */
     public Object animState;
     /** where it's gliding to (it walks now instead of blinking from spot to spot) */
@@ -726,9 +728,9 @@ public class ShadowEntity extends PathfinderMob {
             return;
         }
         if (r < RUSH_GO) {                              // 2) the turn: bones cracking as it folds down
-            if (r % 4 == 0) soundAround(ShadowRegistry.SNAP, 2.8F, 0.45F + this.random.nextFloat() * 0.35F);
+            if (r % 9 == 0) soundAround(ShadowRegistry.CRACK, 2.8F, 0.75F + this.random.nextFloat() * 0.3F);   // each fold step: bones cracking
             if (r == RUSH_STILL) ui(p, ShadowRegistry.RISER, 1F, 0.9F);
-            if (r == RUSH_GO - 6) soundAround(ShadowRegistry.SCREAM, 3.2F, 0.6F);
+            if (r == RUSH_GO - 10) soundAround(ShadowRegistry.ROAR, 3.4F, 1.0F);
             return;
         }
         int g = r - RUSH_GO;                            // 3) the scuttle
@@ -746,8 +748,7 @@ public class ShadowEntity extends PathfinderMob {
         double speed = freeze ? 0 : Math.min(d, Math.min(0.85, 0.2 + g * (g > 30 ? 0.03 : 0.014)));
         double ny = this.getY() + (p.getY() - this.getY()) * 0.25;
         this.setPos(this.getX() + dx / d * speed, ny, this.getZ() + dz / d * speed);
-        if (!freeze && g % 3 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.3F + this.random.nextFloat() * 0.4F);
-        if (g == 30) soundAround(ShadowRegistry.SCREAM, 3.2F, 0.75F);
+        if (g == 1 || g == 31) soundAround(ShadowRegistry.SCREECH, 3.4F, 0.95F + this.random.nextFloat() * 0.1F);
     }
 
     /** a little damage when it catches you. never lethal: always leaves at least one heart */

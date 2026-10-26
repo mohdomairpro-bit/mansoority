@@ -63,8 +63,11 @@ def slerp(a, b, t):
 
 # ---------------------------------------------------------------- the skeleton
 ORDER = ["hips", "chest", "neck", "head", "jaw", "jawR", "armL", "foreL", "handL",
-         "armR", "foreR", "handR", "legL", "shinL", "legR", "shinR"]
+         "armR", "foreR", "handR", "legL", "shinL", "legR", "shinR",
+         "eyeL", "eyeR", "tongue0", "tongue1", "tongue2", "tongue3", "tongue4", "tongue5", "bellyL", "bellyR"]
 PARENT = {"hips": None, "chest": "hips", "neck": "chest", "head": "neck", "jaw": "head", "jawR": "head"}
+PARENT.update({"eyeL": "head", "eyeR": "head", "bellyL": "chest", "bellyR": "chest", "tongue0": "head"})
+for _i in range(1, 6): PARENT["tongue%d" % _i] = "tongue%d" % (_i - 1)
 for s in "LR":
     PARENT.update({"arm" + s: "chest", "fore" + s: "arm" + s, "hand" + s: "fore" + s, "leg" + s: "hips", "shin" + s: "leg" + s})
 
@@ -84,8 +87,10 @@ for s in "LR":
 
 
 def set_pivots(piv):
-    """take the exact pivots from the exported mesh (jaw pivots only exist there)"""
+    """take the exact pivots from the exported mesh (jaw, eye, tongue and stomach pivots only exist there)"""
     for k, v in piv.items(): PIVOT[k] = np.asarray(v, float)
+    global ORDER
+    ORDER[:] = [b for b in ORDER if b in PIVOT]          # an older mesh without the new bones still works
 
 
 # the four limbs as two-bone chains: (upper bone, lower bone, end point at rest, side)

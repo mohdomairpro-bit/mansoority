@@ -2,6 +2,7 @@ name: Build The Shadow mod
 on:
   push:
     branches: [shadow-mod]
+    paths: ['shadow-mod/**', '.github/workflows/shadow-mod.yml']
   workflow_dispatch:
 concurrency:
   group: shadow-mod
@@ -80,6 +81,12 @@ jobs:
           mkdir -p shots_shader && for f in run/screenshots/*.png; do cp "$f" "shots_shader/shader_$(basename $f)"; done 2>/dev/null || true
           ls -la shots_shader
 
+      - name: Pack screenshots (one upload instead of dozens)
+        if: always()
+        run: |
+          cd shadow-mod
+          zip -q -r shots.zip shots shots_shader 2>/dev/null || true
+          ls -la shots.zip || true
       - name: Publish jar, logs, screenshots
         if: always()
         uses: softprops/action-gh-release@v2
@@ -94,6 +101,5 @@ jobs:
             shadow-mod/build.log
             shadow-mod/server.log
             shadow-mod/client.log
-            shadow-mod/shots/*.png
-            shadow-mod/shots_shader/*.png
+            shadow-mod/shots.zip
             shadow-mod/client_shader.log

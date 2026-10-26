@@ -33,7 +33,8 @@ final class Footsteps {
             var st = g.getSoundType();
             float heavy = boss ? 1F : scuttle ? 0.35F : 0.6F;
             mc.level.playLocalSound(w[0], w[1], w[2], st.getStepSound(), SoundSource.HOSTILE, 0.5F + heavy * 0.9F, st.getPitch() * (boss ? 0.45F : 0.6F), false);
-            if (boss) mc.level.playLocalSound(w[0], w[1], w[2], SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 1.3F, 0.45F + rnd.nextFloat() * 0.1F, false);
+            if (boss || (!scuttle && e.getStage() != 0)) mc.level.playLocalSound(w[0], w[1], w[2], com.mansoority.shadow.ShadowRegistry.STEP.get(), SoundSource.HOSTILE,
+                    boss ? 1.6F : 0.7F, (boss ? 0.8F : 1.1F) + rnd.nextFloat() * 0.12F, false);
             else if (scuttle) mc.level.playLocalSound(w[0], w[1], w[2], SoundEvents.SKELETON_STEP, SoundSource.HOSTILE, 0.45F, 1.25F + rnd.nextFloat() * 0.3F, false);
             int n = boss ? 14 : scuttle ? 4 : 7;
             BlockParticleOption dust = new BlockParticleOption(ParticleTypes.BLOCK, g);

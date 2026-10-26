@@ -16,6 +16,7 @@ public final class ShadowRegistry {
     public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, TheShadow.MODID);
     public static final DeferredRegister<ParticleType<?>> PARTICLES = DeferredRegister.create(ForgeRegistries.PARTICLE_TYPES, TheShadow.MODID);
     public static final RegistryObject<SimpleParticleType> WISP = PARTICLES.register("wisp", () -> new SimpleParticleType(true));
+    public static final RegistryObject<SimpleParticleType> DROOL = PARTICLES.register("drool", () -> new SimpleParticleType(false));
     public static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, TheShadow.MODID);
 
     public static final RegistryObject<EntityType<ShadowEntity>> SHADOW = ENTITIES.register("shadow",
@@ -49,6 +50,21 @@ public final class ShadowRegistry {
     public static final RegistryObject<SoundEvent> SNAP = sound("snap");
     public static final RegistryObject<SoundEvent> RISER = sound("riser");
     public static final RegistryObject<SoundEvent> FAR = sound("far");
+    // the body, the boss, its voice
+    public static final RegistryObject<SoundEvent> STEP = sound("step");
+    public static final RegistryObject<SoundEvent> SLAM = sound("slam");
+    public static final RegistryObject<SoundEvent> CRACK = sound("crack");
+    public static final RegistryObject<SoundEvent> ROAR = sound("roar");
+    public static final RegistryObject<SoundEvent> SCREECH = sound("screech");
+    public static final RegistryObject<SoundEvent> GURGLE = sound("gurgle");
+    public static final RegistryObject<SoundEvent> SPRAY = sound("spray");
+    public static final RegistryObject<SoundEvent> CRUNCH = sound("crunch");
+    public static final RegistryObject<SoundEvent> SPIKES = sound("spikes");
+    public static final RegistryObject<SoundEvent> FLOOD = sound("flood");
+    public static final RegistryObject<SoundEvent> V_DESTROY = sound("voice_destroy"), V_MINE = sound("voice_mine"), V_KNEEL = sound("voice_kneel"),
+            V_AGAIN = sound("voice_again"), V_TASTE = sound("voice_taste"), V_NOWHERE = sound("voice_nowhere"), V_SLOW = sound("voice_slow"),
+            V_STAY = sound("voice_stay"), V_YOURS = sound("voice_yours"), V_LAST = sound("voice_last");
+    public static final RegistryObject<SoundEvent> MUSIC_1 = sound("boss_music_1"), MUSIC_2 = sound("boss_music_2"), MUSIC_3 = sound("boss_music_3");
 
     private static RegistryObject<SoundEvent> sound(String name) {
         RegistryObject<SoundEvent> ro = SOUNDS.register(name,

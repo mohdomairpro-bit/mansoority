@@ -32,6 +32,22 @@ class P:
         self.pole = {}
         self.free = set()           # limbs posed by hand (FK) instead of planted
         self.contact = {k: True for k in REST_FOOT}
+        self.tongue(0.0)
+
+    def tongue(self, out, pitch=0.0, wave=0.0, phase=0.0, droop=0.0, side=0.0):
+        """out 0 = folded away down its throat, 1 = all the way out. the segments telescope into each other.
+        pitch tips the whole tongue (- up), wave sends a ripple down it, droop lets the tip hang."""
+        if "tongue0" not in ORDER: return self
+        d = PIVOT["tongue1"] - PIVOT["tongue0"]; seg = float(np.linalg.norm(d)); d = d / seg
+        r = 1.0 - out
+        self.t["tongue0"] = -d * 0.075 * r
+        for i in range(1, 6):
+            self.t["tongue%d" % i] = -d * seg * 0.94 * r
+        self.r["tongue0"] = np.array([pitch, side * 0.4, 0.0])
+        for i in range(1, 6):
+            k = i / 5
+            self.r["tongue%d" % i] = np.array([wave * math.sin(phase - i * 0.75) + droop * k * 0.35, side * 0.15 * math.sin(phase * 0.5 - i), 0.0])
+        return self
 
     def rot(self, bone, x=0, y=0, z=0): self.r[bone] += (x, y, z); return self
     def off(self, bone, x=0, y=0, z=0): self.t[bone] += (x, y, z); return self
@@ -170,6 +186,8 @@ def stareA(f):
         p.pole[limb] = np.array([2.0 * s, 1.0 + op, 0.4])
         p.contact[limb] = op < 0.05
     p.rot("armL", 0, 0, 0.25 * op).rot("armR", 0, 0, -0.25 * op)
+    tg = ease((f - 48) / 30)
+    if tg > 0: p.tongue(0.4 * tg, pitch=0.25, wave=0.12 * tg, phase=f * 0.25, droop=0.9)
     if f > 60:                                                      # the head starts to tremble
         p.rot("head", 0.03 * math.sin(f * 2.1), 0.03 * math.sin(f * 1.7), 0.04 * math.sin(f * 2.9))
     return p
@@ -214,6 +232,7 @@ def scuttle(f):
     p.off("hips", 0.035 * math.sin(ph), 0.03 * abs(math.sin(ph)), 0).rot("hips", 0.04 * math.sin(2 * ph), 0.12 * math.sin(ph), 0.05 * math.sin(ph))
     p.rot("chest", 0, -0.1 * math.sin(ph), 0)
     p.rot("head", 0.06 * math.sin(2 * ph + 1), 0.08 * math.sin(ph * 3 + 2), 0.12 * math.sin(ph + 1))
+    p.tongue(0.55, pitch=0.35, wave=0.3, phase=ph * 2, droop=0.8, side=math.sin(ph))
     return p
 
 
@@ -241,6 +260,9 @@ def lick(f):
     lean = 0.5 + 0.5 * math.sin(ph)
     p.rot("chest", 0.08 * lean).rot("neck", 0.32 + 0.14 * lean).rot("head", 0.28 + 0.15 * lean, 0, 0.25 * math.sin(ph + 0.6))
     p.off("neck", 0, 0, 0.05 * lean)
+    out = ease_out(f / 9) * (1 - ease((f - 31) / 9))
+    stroke = 2 * PI * (f - 6) / 13                                   # two long strokes upward per cycle
+    p.tongue(out, pitch=-0.55 * out - 0.25 * math.sin(stroke) * out, wave=0.42 * out, phase=stroke, droop=0.2 * (1 - out))
     return p
 
 

@@ -26,7 +26,8 @@ for s in "LR":
     SEGS["hand" + s] = [("joint2" + s, "wrist" + s), ("wrist" + s, "hand" + s)]
     SEGS["leg" + s] = [("hip" + s, "knee" + s)]
     SEGS["shin" + s] = [("knee" + s, "ankle" + s), ("ankle" + s, "toe" + s)]
-RIGID = {"head", "jaw", "jawR"}          # the skull and the two halves of the face stay hard
+RIGID = {"head", "jaw", "jawR", "eyeL", "eyeR"}          # the skull, the two halves of the face and the eyes stay hard
+BELLY_Y = (1.46, 1.71)                                   # (MC y) the stretch of stomach that splits open
 
 
 def seg_dist(p, a, b):
@@ -51,10 +52,14 @@ def main(src, dst, power=4.0):
         glow_tri.append(p["glow"])
     P = np.concatenate(allp); N = np.concatenate(alln); UV = np.concatenate(alluv); H = np.concatenate(home)
     G = np.concatenate(glow_tri)
-    key = np.concatenate([np.round(P * 2000), np.round(N * 20), np.round(UV * 8192)], axis=1).astype(np.int64)
+    # the stomach is split down the middle: corners on the seam must stay on their own side
+    cen = np.repeat(P.reshape(-1, 3, 3).mean(axis=1), 3, axis=0)
+    seam = (np.abs(P[:, 0]) < 0.003) & (P[:, 1] > BELLY_Y[0]) & (P[:, 1] < BELLY_Y[1]) & (P[:, 2] > 0)
+    side = np.where(seam, np.sign(cen[:, 0]), 0)
+    key = np.concatenate([np.round(P * 2000), np.round(N * 20), np.round(UV * 8192), side[:, None]], axis=1).astype(np.int64)
     uniq, first, inv = np.unique(key, axis=0, return_index=True, return_inverse=True)
     inv = inv.reshape(-1)
-    vp, vn, vuv, vh = P[first], N[first], UV[first], H[first]
+    vp, vn, vuv, vh, vside = P[first], N[first], UV[first], H[first], side[first]
     print("corners", len(P), "-> vertices", len(vp))
     # 2) weights: own bone + its parent/children, inverse-distance^power, best two
     nv = len(vp)
@@ -62,7 +67,7 @@ def main(src, dst, power=4.0):
     dist = {n: (part_dist(vp, n) if n in SEGS else None) for n in names}
     for hi, hn in enumerate(names):
         sel = np.where(vh == hi)[0]
-        if len(sel) == 0 or hn in RIGID: continue
+        if len(sel) == 0 or hn in RIGID or hn not in SEGS: continue
         cands = [hn] + ([parent[hn]] if parent[hn] and parent[hn] in SEGS else []) + [c for c in children[hn] if c in SEGS]
         if hn == "neck": cands.append("head")
         D = []
@@ -79,6 +84,32 @@ def main(src, dst, power=4.0):
         ci = np.array([names.index(c) for c in cands])
         b0[sel] = ci[top]; b1[sel] = ci[sec]
         w0[sel] = wt / (wt + ws)
+    # 2b) the tongue: one bone per segment along its length, blended at each joint
+    if "tongue0" in names:
+        T = [np.asarray(parts[names.index("tongue%d" % i)]["pivot"]) for i in range(6)]
+        seg = np.linalg.norm(T[1] - T[0]); axis = (T[5] - T[0]) / np.linalg.norm(T[5] - T[0])
+        sel = np.where(vh == names.index("tongue0"))[0]
+        s_ = ((vp[sel] - T[0]) @ axis) / seg - 0.5
+        i0 = np.clip(np.floor(s_), 0, 5).astype(int); fr = np.clip(s_ - np.floor(s_), 0, 1)
+        i1 = np.clip(i0 + 1, 0, 5)
+        fr = np.where(s_ < 0, 0.0, np.where(s_ >= 5, 0.0, fr))
+        ti = np.array([names.index("tongue%d" % i) for i in range(6)])
+        b0[sel] = ti[i0]; b1[sel] = ti[i1]; w0[sel] = 1 - fr * fr * (3 - 2 * fr)
+    # 2c) the stomach: skin over the belly follows two "door" bones, fading out toward the edges (it stretches, then tears at the seam)
+    if "bellyL" in names:
+        sm = lambda a, b, x: np.clip((x - a) / (b - a), 0, 1) ** 2 * (3 - 2 * np.clip((x - a) / (b - a), 0, 1))
+        mid = (BELLY_Y[0] + BELLY_Y[1]) / 2; half = (BELLY_Y[1] - BELLY_Y[0]) / 2
+        body = np.isin(vh, [names.index(n) for n in ("hips", "chest") if n in names])
+        wy = 1 - sm(half * 0.55, half * 1.05, np.abs(vp[:, 1] - mid))
+        wx = 1 - sm(0.07, 0.13, np.abs(vp[:, 0]))
+        wf = sm(0.1, 0.45, vn[:, 2]) * (vp[:, 2] > -0.02)
+        W = wy * wx * wf * body
+        sel = np.where(W > 0.01)[0]
+        sidev = np.where(vside[sel] != 0, vside[sel], np.sign(vp[sel, 0]))
+        bb = np.where(sidev < 0, names.index("bellyL"), names.index("bellyR"))
+        keep = np.where(w0[sel] >= 0.5, b0[sel], b1[sel])
+        b1[sel] = keep; b0[sel] = bb; w0[sel] = W[sel]
+        print("belly vertices:", len(sel))
     # 3) triangles
     tri = inv.reshape(-1, 3)
     solid, glow = tri[~G], tri[G]

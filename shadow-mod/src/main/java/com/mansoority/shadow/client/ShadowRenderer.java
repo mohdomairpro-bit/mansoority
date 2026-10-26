@@ -160,6 +160,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);
         emit(mesh, mesh.solid, pose, buffers.getBuffer(Types.SKIN), light, false);
         if (mesh.glow.length > 0) emit(mesh, mesh.glow, pose, buffers.getBuffer(Types.GLOW), 0xF000F0, true);
+        if (!far && dist2 < 40 * 40) Saliva.render(e, mesh, pose, buffers, light, age, ex, ey, ez, bodyYaw, SCALE * grow);
         pose.popPose();
         super.render(e, yaw, partialTick, pose, buffers, light);
     }

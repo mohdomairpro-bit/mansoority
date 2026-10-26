@@ -107,9 +107,12 @@ final class ShadowPose {
             head.zRot += (hash(win, id + 1) - 0.5F) * 0.8F * tw;
             mouth += hash(win, id + 3) * 0.25F * tw;
         }
+        // the tongue needs the face open: it pushes the halves apart as it comes out
+        if (clip.equals("lick")) mouth = Math.max(mouth, 1.1F);
         mouth = Mth.clamp(mouth, 0F, 1.75F);
         jaw.yRot -= mouth; jawR.yRot += mouth;
         jaw.xRot += mouth * 0.12F; jawR.xRot += mouth * 0.12F;
+        eyes(m, e, age, stare, cam, look);
         int vanish = e.getVanish();
         if (vanish > 0) {
             float v = Math.min(1F, vanish / 12F);
@@ -118,6 +121,32 @@ final class ShadowPose {
                 p.xRot += (hash((int) age, i * 31 + id) - 0.5F) * 0.9F * v;
                 p.zRot += (hash((int) age + 7, i * 17 + id) - 0.5F) * 0.9F * v;
             }
+        }
+    }
+
+    /**
+     * the eyes: they find you and stay on you, roll a little on their own, and every few seconds it blinks
+     * (the orbs sink back into the sockets). while you stare back it doesn't blink at all.
+     */
+    private static void eyes(ShadowMesh m, ShadowEntity e, float age, float stare, net.minecraft.world.phys.Vec3 cam, float look) {
+        ShadowMesh.Part l = m.get("eyeL"), r = m.get("eyeR");
+        if (l == null || r == null) return;
+        double dx = cam.x - e.getX(), dz = cam.z - e.getZ();
+        float toCam = (float) (Mth.atan2(dz, dx) * (180F / Math.PI)) - 90F;
+        float rel = Mth.wrapDegrees(toCam - e.yBodyRot) * Mth.DEG_TO_RAD;
+        float yaw = Mth.clamp(-rel, -0.55F, 0.55F), pitch = Mth.clamp(look * 0.4F, -0.45F, 0.45F);
+        int id = e.getId();
+        float drift = stare > 0.2F ? 0F : 1F;
+        yaw += Mth.sin(age * 0.07F + id) * 0.12F * drift; pitch += Mth.sin(age * 0.05F + id * 3) * 0.06F * drift;
+        int win = (int) (age / 70F);                                 // a blink every ~3.5 s, at a random moment
+        float local = age - win * 70F - hash(win, id + 21) * 50F;
+        float blink = stare > 0.15F || local < 0F || local > 5F ? 0F : Mth.sin(local / 5F * Mth.PI);
+        for (ShadowMesh.Part p : new ShadowMesh.Part[]{l, r}) {
+            p.yRot += yaw; p.xRot += pitch;
+            p.tz -= 0.018F * blink;                                  // sinks back into the socket
+        }
+        if (stare > 0.6F) {                                          // wide and twitching
+            l.zRot += (hash((int) age, id + 31) - 0.5F) * 0.3F; r.zRot += (hash((int) age, id + 37) - 0.5F) * 0.3F;
         }
     }
 

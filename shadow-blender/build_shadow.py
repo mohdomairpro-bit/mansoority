@@ -171,6 +171,17 @@ def sculpt_body(ob):
         v.co = p + n * d
 sculpt_body(body)
 
+# ------------------------------------------------------------------ the stomach: split down the front so it can open like two doors
+BELLY_Z = (1.46, 1.71)
+def split_belly(ob):
+    bm_ = bmesh.new(); bm_.from_mesh(ob.data)
+    bmesh.ops.bisect_plane(bm_, geom=bm_.verts[:] + bm_.edges[:] + bm_.faces[:], plane_co=(0, 0, 0), plane_no=(1, 0, 0))
+    seam = [e for e in bm_.edges if all(abs(v.co.x) < 1e-5 and BELLY_Z[0] < v.co.z < BELLY_Z[1] and v.co.y < -0.01 for v in e.verts)]
+    bmesh.ops.split_edges(bm_, edges=seam)
+    bm_.to_mesh(ob.data); bm_.free()
+    print("[SHADOW] belly seam edges:", len(seam))
+split_belly(body)
+
 claws = []
 for tip, dirn in FINGER_TIPS:
     bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.011, radius2=0.0008, depth=0.075, location=(0, 0, 0))
@@ -402,6 +413,72 @@ JAW_PIVOTS = {"jaw": head_xf @ Vector((-0.070, 0.005, -0.09)), "jawR": head_xf @
 JAW_PIVOT_W = JAW_PIVOTS["jaw"]
 HEAD_PARTS["head"].append(throat)
 
+def to_head(o):
+    o.matrix_world = head_xf @ o.matrix_world
+    return o
+
+# ------------------------------------------------------------------ eyes: milky orbs deep in the sockets that follow you
+EXTRA_PIVOTS = {}
+EYE_OBJS = {"eyeL": [], "eyeR": []}
+for o_ in glints: HEAD_PARTS["head"].remove(o_)
+glints.clear()
+for (c, r), nm in zip(SOCKETS, ("eyeL", "eyeR")):
+    yb = front_y(c.x, c.z)
+    yb = c.y if yb is None else yb
+    ctr = Vector((c.x, yb + 0.016, c.z - 0.002))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=16, radius=0.0175, location=ctr)
+    orb = to_head(bpy.context.active_object); orb.name = "eye" + nm[-1]
+    for p_ in orb.data.polygons: p_.use_smooth = True
+    eyes.append(orb); EYE_OBJS[nm].append(orb)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=0.0023, location=ctr + Vector((0.0015, -0.0168, 0.0035)))
+    gl = to_head(bpy.context.active_object); gl.name = "glint" + nm[-1]
+    glints.append(gl); EYE_OBJS[nm].append(gl)
+    EXTRA_PIVOTS[nm] = head_xf @ ctr
+
+# ------------------------------------------------------------------ the tongue: long, flat, wet. it lives folded down its throat
+TONGUE_N, TONGUE_L = 6, 0.44
+T_ROOT = Vector((0.0, -0.030, -0.078)); T_DIR = Vector((0.0, -1.0, -0.28)).normalized()
+T_SIDE = Vector((1, 0, 0)); T_UP = T_DIR.cross(T_SIDE).normalized()
+if T_UP.z < 0: T_UP = -T_UP
+tv, tr = [], []
+for i in range(25):
+    t = i / 24
+    tv.append(T_ROOT + T_DIR * (TONGUE_L * t)); tr.append(0.026 * (1 - t) ** 0.55 + 0.0045)
+tongue = skin_object("tongue", tv, [(i, i + 1) for i in range(24)], tr, 0, 2)
+apply_mods(tongue)
+for v in tongue.data.vertices:
+    rel = v.co - T_ROOT
+    along = rel.dot(T_DIR); base = T_ROOT + T_DIR * along
+    off = v.co - base
+    x = off.dot(T_SIDE); up = off.dot(T_UP)
+    t = max(0.0, min(1.0, along / TONGUE_L))
+    up *= 0.5                                                                     # flat
+    x *= 1.25
+    up -= 0.007 * math.exp(-(x / 0.007) ** 2) * (1 if up > 0 else 0) * (1 - t * 0.6)      # groove down the middle
+    bump = 0.0016 * noise.noise(v.co * 260) + 0.0009 * noise.noise(v.co * 900)        # papillae
+    v.co = base + T_SIDE * x + T_UP * up + off.normalized() * bump
+    v.co.z -= 0.035 * t * t                                                       # droops at the tip
+for p_ in tongue.data.polygons: p_.use_smooth = True
+to_head(tongue)
+TONGUE_OBJS = [tongue]
+for i in range(TONGUE_N):
+    EXTRA_PIVOTS["tongue%d" % i] = head_xf @ (T_ROOT + T_DIR * (TONGUE_L * i / TONGUE_N))
+
+# ------------------------------------------------------------------ inside the stomach: a wet sac ringed with teeth, behind the split
+SAC_C = Vector((0, 0.035, 1.585))
+bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=20, radius=1, location=SAC_C)
+sac = bpy.context.active_object; sac.name = "sac"; sac.scale = (0.072, 0.045, 0.098); apply_mods(sac)
+for v in sac.data.vertices: v.co += v.normal * 0.004 * noise.noise(v.co * 60)
+for p_ in sac.data.polygons: p_.use_smooth = True
+SAC_OBJS = [sac]
+random.seed(31)
+for k in range(18):
+    a = k / 18 * 2 * math.pi
+    rim = SAC_C + Vector((math.cos(a) * 0.050, -0.032, math.sin(a) * 0.072))
+    SAC_OBJS.append(tooth(rim, random.uniform(0.012, 0.02), 0.0032, (SAC_C + Vector((0, -0.02, 0))) - rim))
+for sx_, nm in ((-1, "bellyL"), (1, "bellyR")):
+    EXTRA_PIVOTS[nm] = Vector((0.105 * sx_, -0.035, 1.585))
+
 # ------------------------------------------------------------------ colour (per-vertex) + ambient occlusion
 def mat_color(kind, co):
     n = noise.noise(co * 18) * 0.5 + noise.noise(co * 70) * 0.25
@@ -419,6 +496,8 @@ def mat_color(kind, co):
     if kind == "tooth":  return Vector((0.55, 0.48, 0.32)) * (0.6 + 0.5 * (noise.noise(co * 300) * 0.5 + 0.5))
     if kind == "throat": return Vector((0.035, 0.002, 0.004))
     if kind == "glint":  return Vector((1.0, 0.88, 0.55))
+    if kind == "tongue": return Vector((0.30, 0.040, 0.055)) * (0.75 + 0.5 * (noise.noise(co * 40) * 0.5 + 0.5))
+    if kind == "sac":    return Vector((0.24, 0.025, 0.035)) * (0.7 + 0.6 * (noise.noise(co * 30) * 0.5 + 0.5))
     if kind == "claw":   return Vector((0.05, 0.04, 0.035))
     return Vector((0.5, 0.5, 0.5))
 
@@ -432,8 +511,10 @@ for o in glints: KIND[o.name] = "glint"
 for o in claws: KIND[o.name] = "claw"
 for o in tendrils: KIND[o.name] = "bone"
 for o in eyes: KIND[o.name] = "eye"
+KIND[tongue.name] = "tongue"; KIND[sac.name] = "sac"
+for o in SAC_OBJS[1:]: KIND[o.name] = "tooth"
 
-ALL = [body] + extra + [skull, void, jaw, jawR, throat] + hair + eyes + upper + lower + lowerR + glints + drips + claws + tendrils
+ALL = [body] + extra + [skull, void, jaw, jawR, throat] + hair + eyes + upper + lower + lowerR + glints + drips + claws + tendrils + TONGUE_OBJS + SAC_OBJS
 # join a temporary copy of everything for AO ray casts
 def world_tris(objs):
     vs, fs = [], []
@@ -470,8 +551,16 @@ for o in ALL:
             d = (v.co - centre).normalized()
             fwd = (head_xf.to_3x3() @ Vector((0, -1, 0))).normalized()
             ang = math.acos(max(-1, min(1, d.dot(fwd))))
-            c = Vector((0.004, 0.003, 0.003))                                         # all-black eyes
-        occ = 1.0 if kind in ("glint", "skin", "claw", "hair") else (0.25 + 0.75 * ao(p, n))   # skin gets AO from the bake
+            dl = v.co.normalized()                                                    # milky eyes: black pinprick, clouded iris, bloodshot
+            ang = math.acos(max(-1, min(1, dl.dot(Vector((0, -1, 0))))))
+            if ang < 0.22: c = Vector((0.004, 0.003, 0.003))
+            elif ang < 0.62:
+                streak = 0.5 + 0.5 * noise.noise(Vector((math.atan2(dl.x, dl.z) * 6, ang * 3, 0)))
+                c = Vector((0.40, 0.39, 0.35)) * (0.7 + 0.45 * streak) * (1 - 0.45 * (ang - 0.22) / 0.4)
+            else:
+                vein = 1 - abs(noise.noise(v.co * 400))
+                c = Vector((0.07, 0.012, 0.014)) + (Vector((0.25, 0.02, 0.02)) if vein > 0.9 else Vector((0, 0, 0)))
+        occ = 1.0 if kind in ("glint", "skin", "claw", "hair", "eye", "tongue") else (0.25 + 0.75 * ao(p, n))   # skin gets AO from the bake
         if kind == "face":
             lp = head_inv @ p
             ln = (head_inv.to_3x3() @ n).normalized()
@@ -570,7 +659,7 @@ def make_mat(name, rough, spec, emit=0.0, sss=0.0):
     return mt
 MAT = {"skin": make_mat("skin", 0.45, 0.45), "face": make_mat("face", 0.6, 0.3, sss=0.05), "hair": make_mat("hair", 0.5, 0.4), "saliva": make_mat("saliva", 0.02, 1.0), "void": make_mat("void", 1.0, 0.0),
        "bone": make_mat("bone", 0.7, 0.3), "tooth": make_mat("tooth", 0.25, 0.7),
-       "throat": make_mat("throat", 0.15, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=6), "claw": make_mat("claw", 0.3, 0.6)}
+       "throat": make_mat("throat", 0.15, 0.9), "tongue": make_mat("tongue", 0.12, 0.8, sss=0.1), "sac": make_mat("sac", 0.1, 0.9), "eye": make_mat("eye", 0.08, 0.9), "glint": make_mat("glint", 0.1, 0.5, emit=6), "claw": make_mat("claw", 0.3, 0.6)}
 for o in ALL:
     o.data.materials.clear(); o.data.materials.append(MAT[KIND[o.name]])
 
@@ -586,7 +675,7 @@ def empty(name, loc, parent=None):
 head_rig = empty("head_rig", J["head0"][0])
 jaw_rig = empty("jaw_rig", JAW_PIVOTS["jaw"], head_rig)
 jawR_rig = empty("jawR_rig", JAW_PIVOTS["jawR"], head_rig)
-for rig, objs in ((head_rig, HEAD_PARTS["head"]), (jaw_rig, HEAD_PARTS["jaw"]), (jawR_rig, HEAD_PARTS["jawR"])):
+for rig, objs in ((head_rig, HEAD_PARTS["head"] + eyes + glints + TONGUE_OBJS), (jaw_rig, HEAD_PARTS["jaw"]), (jawR_rig, HEAD_PARTS["jawR"])):
     for o in objs:
         mw = o.matrix_world.copy()
         o.parent = rig
@@ -632,9 +721,9 @@ def bake_atlas(objs, size=2048):
     print("[SHADOW] atlas baked")
 
 # small/flat-coloured parts don't waste atlas space: they sample a painted swatch
-SOLID = {"glint": (1.0, 0.86, 0.5), "hair": (0.025, 0.02, 0.022), "void": (0, 0, 0), "throat": (0.14, 0.01, 0.01), "eye": (0.004, 0.004, 0.004), "claw": (0.06, 0.05, 0.045)}
+SOLID = {"glint": (1.0, 0.86, 0.5), "hair": (0.025, 0.02, 0.022), "void": (0, 0, 0), "throat": (0.14, 0.01, 0.01), "claw": (0.06, 0.05, 0.045)}
 SWATCH = {k: (0.002 + i * 0.004, 0.998) for i, k in enumerate(SOLID)}
-DECIMATE = {"bone": 0.5, "skin": 0.13, "face": 0.16, "void": 0.1, "hair": 0.3, "throat": 0.25, "eye": 0.5, "tooth": 0.6, "claw": 0.6}
+DECIMATE = {"bone": 0.35, "skin": 0.13, "face": 0.16, "void": 0.1, "hair": 0.2, "throat": 0.25, "eye": 0.6, "tooth": 0.4, "claw": 0.4, "tongue": 0.35, "sac": 0.5}
 
 def export():
     # part per face: body faces go to nearest bone segment
@@ -652,7 +741,7 @@ def export():
     bake_atlas([o for o in ALL if KIND[o.name] not in SOLID], 4096)
     global TRIS, TRIS_LOD
     TRIS = build_tris(nearest_part, 1.0)
-    TRIS_LOD = build_tris(nearest_part, 0.3, skip=("hair", "tooth", "saliva", "glint", "bone"))   # far away: a much lighter model
+    TRIS_LOD = build_tris(nearest_part, 0.3, skip=("hair", "tooth", "saliva", "glint", "bone", "sac", "tongue"))   # far away: a much lighter model
     write_mesh(os.path.join(OUT, "shadow.mesh"), TRIS)
     write_mesh(os.path.join(OUT, "shadow_lod.mesh"), TRIS_LOD)
     hc = head_xf @ Vector((0, -0.05, 0))
@@ -661,7 +750,10 @@ def export():
     print("[SHADOW] tris per part:", {k: len(v) // 3 for k, v in TRIS.items()})
     print("[SHADOW] lod tris:", sum(len(v) // 3 for v in TRIS_LOD.values()))
 
-ORDER = ["hips", "chest", "neck", "head", "jaw", "jawR", "armL", "foreL", "handL", "armR", "foreR", "handR", "legL", "shinL", "legR", "shinR"]
+ORDER = ["hips", "chest", "neck", "head", "jaw", "jawR", "armL", "foreL", "handL", "armR", "foreR", "handR", "legL", "shinL", "legR", "shinR",
+         "eyeL", "eyeR", "tongue0", "tongue1", "tongue2", "tongue3", "tongue4", "tongue5", "bellyL", "bellyR"]
+PARTS.update({"eyeL": ("head", None), "eyeR": ("head", None), "bellyL": ("chest", None), "bellyR": ("chest", None)})
+for _i in range(6): PARTS["tongue%d" % _i] = ("head" if _i == 0 else "tongue%d" % (_i - 1), None)
 def mc(v): return (v.x, v.z, -v.y)        # blender -> minecraft (y up, faces +z)
 
 def build_tris(nearest_part, factor, skip=()):
@@ -688,6 +780,10 @@ def build_tris(nearest_part, factor, skip=()):
                 tris[part].append((ws[k], n, uv, emis))
         if src is not o: bpy.data.objects.remove(src)
     for o in [body] + extra + claws: add_obj(o)
+    for nm_, objs_ in EYE_OBJS.items():
+        for o in objs_: add_obj(o, nm_)
+    for o in TONGUE_OBJS: add_obj(o, "tongue0")
+    for o in SAC_OBJS: add_obj(o, "chest")
     for o in HEAD_PARTS["head"]: add_obj(o, "head")
     for o in HEAD_PARTS["jaw"]: add_obj(o, "jaw")
     for o in HEAD_PARTS["jawR"]: add_obj(o, "jawR")
@@ -695,7 +791,7 @@ def build_tris(nearest_part, factor, skip=()):
 
 def write_mesh(path, tris):
     order = ORDER
-    piv = {k: (JAW_PIVOTS[k] if k in JAW_PIVOTS else J[PARTS[k][1]][0]) for k in order}
+    piv = {k: (JAW_PIVOTS[k] if k in JAW_PIVOTS else EXTRA_PIVOTS[k] if k in EXTRA_PIVOTS else J[PARTS[k][1]][0]) for k in order}
     with open(path, "wb") as f:
         f.write(b"SHD2"); f.write(struct.pack("<i", len(order)))
         for k in order:

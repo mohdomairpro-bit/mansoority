@@ -49,6 +49,7 @@ public final class ClientSetup {
 
     private static void onParticles(net.minecraftforge.client.event.RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ShadowRegistry.WISP.get(), WispParticle.Provider::new);
+        event.registerSpriteSet(ShadowRegistry.DROOL.get(), DroolParticle.Provider::new);
     }
 
     private ClientSetup() {}
