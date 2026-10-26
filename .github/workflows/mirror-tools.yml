@@ -1,0 +1,21 @@
+name: Mirror build tools
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Blender 4.2 LTS
+        run: |
+          curl -sL -o blender-4.2.3-linux-x64.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz
+          ls -la
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tools-mirror
+          name: Build tools (mirror)
+          prerelease: true
+          make_latest: false
+          files: blender-4.2.3-linux-x64.tar.xz
