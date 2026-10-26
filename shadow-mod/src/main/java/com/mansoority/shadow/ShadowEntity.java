@@ -91,7 +91,9 @@ public class ShadowEntity extends PathfinderMob {
     public ShadowEntity(EntityType<? extends ShadowEntity> type, Level level) {
         super(type, level);
         this.xpReward = 0;
-        this.noCulling = false;        // frustum-culled: costs nothing while it's behind you
+        // EntityCulling (in the pack) hid it behind leaves/walls: opt out of occlusion culling.
+        // the renderer still does its own frustum check, so it costs nothing while it's behind you
+        this.noCulling = true;
         this.setInvulnerable(true);
         this.setInvisible(true);      // minimaps/radars (Xaero's etc.) skip invisible mobs; our own renderer draws it anyway
         this.setPersistenceRequired();
@@ -211,9 +213,10 @@ public class ShadowEntity extends PathfinderMob {
         if (g >= end) {
             p.stopRiding();
             Vec3 drop = mode == GRAB_LICK && grabHome != null ? grabHome : p.position();
-            BlockPos s = findStand((ServerLevel) this.level(), drop.x, drop.y, drop.z, 8);
-            if (s != null) p.teleportTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5);
+            Vec3 safe = safeSpot((ServerLevel) this.level(), drop);
+            p.teleportTo(safe.x, safe.y, safe.z);
             p.fallDistance = 0;
+            watchStuck(p);
             GRABBED.remove(p.getUUID());
             ShadowAdvancements.award(p, mode == GRAB_LICK ? "mostly" : "dragged");
             ShadowMark.mark(p);
@@ -400,8 +403,16 @@ public class ShadowEntity extends PathfinderMob {
 
     @Override
     public void remove(RemovalReason reason) {
-        for (Entity pass : this.getPassengers()) { GRABBED.remove(pass.getUUID()); pass.fallDistance = 0; }
+        java.util.List<Entity> riders = java.util.List.copyOf(this.getPassengers());
         this.ejectPassengers();
+        for (Entity pass : riders) {
+            GRABBED.remove(pass.getUUID()); pass.fallDistance = 0;
+            if (pass instanceof ServerPlayer sp && this.level() instanceof ServerLevel sl) {   // never leave anyone inside the ground
+                Vec3 safe = safeSpot(sl, sp.position());
+                sp.teleportTo(safe.x, safe.y, safe.z);
+                watchStuck(sp);
+            }
+        }
         if (!this.level().isClientSide && this.level() instanceof ServerLevel sl && reason != RemovalReason.CHANGED_DIMENSION) {
             path.add(this.position());
             ShadowTrails.add(sl, path);
@@ -848,6 +859,59 @@ public class ShadowEntity extends PathfinderMob {
             }
         }
         return null;
+    }
+
+    /** getting off its hand: where you are if that's open air, otherwise the nearest open spot above you */
+    @Override
+    public Vec3 getDismountLocationForPassenger(net.minecraft.world.entity.LivingEntity passenger) {
+        if (this.level() instanceof ServerLevel sl) {
+            BlockPos b = BlockPos.containing(passenger.position());
+            if (fits(sl, b)) return passenger.position();
+            return safeSpot(sl, passenger.position());
+        }
+        return passenger.position();
+    }
+
+    private static boolean fits(ServerLevel l, BlockPos b) {
+        return l.getBlockState(b).getCollisionShape(l, b).isEmpty() && l.getBlockState(b.above()).getCollisionShape(l, b.above()).isEmpty()
+                && !l.getFluidState(b).is(net.minecraft.tags.FluidTags.LAVA);
+    }
+
+    /**
+     * somewhere a player can stand. in open air: straight down to the ground. inside the ground: straight UP to the
+     * first open spot (never down into a cave). last resort: the surface of that column.
+     */
+    public static Vec3 safeSpot(ServerLevel l, Vec3 at) {
+        BlockPos b = BlockPos.containing(at);
+        if (fits(l, b)) {
+            for (int i = 0; i < 48 && b.getY() - i > l.getMinBuildHeight(); i++) {
+                BlockPos q = b.below(i);
+                if (!fits(l, q)) break;
+                BlockPos under = q.below();
+                if (!l.getBlockState(under).getCollisionShape(l, under).isEmpty() || !l.getFluidState(under).isEmpty())
+                    return new Vec3(at.x, q.getY(), at.z);
+            }
+            return at;           // over the void (the End): leave it to the fall handling
+        }
+        for (int i = 1; i < 64 && b.getY() + i < l.getMaxBuildHeight(); i++) {
+            BlockPos q = b.above(i);
+            if (fits(l, q) && !l.getBlockState(q.below()).getCollisionShape(l, q.below()).isEmpty()) return new Vec3(at.x, q.getY(), at.z);
+        }
+        int top = l.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, b.getX(), b.getZ());
+        return new Vec3(b.getX() + 0.5, top, b.getZ() + 0.5);
+    }
+
+    /** for a few seconds after it lets go of someone: if they end up inside a block, pop them out */
+    public static final java.util.Map<UUID, Long> STUCK_WATCH = new java.util.HashMap<>();
+    public static void watchStuck(ServerPlayer p) { STUCK_WATCH.put(p.getUUID(), p.level().getGameTime() + 100); }
+    public static void stuckTick(ServerPlayer p) {
+        Long until = STUCK_WATCH.get(p.getUUID());
+        if (until == null) return;
+        if (p.level().getGameTime() > until) { STUCK_WATCH.remove(p.getUUID()); return; }
+        if (p.isPassenger() || !p.isInWall()) return;
+        Vec3 safe = safeSpot(p.serverLevel(), p.position());
+        p.teleportTo(safe.x, safe.y, safe.z);
+        p.fallDistance = 0;
     }
 
     public static boolean anyNear(ServerPlayer p, double r) {

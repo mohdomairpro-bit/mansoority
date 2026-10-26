@@ -39,6 +39,13 @@ public final class ShadowCinematic {
             for (ShadeEntity sh : p.serverLevel().getEntitiesOfClass(ShadeEntity.class, p.getBoundingBox().inflate(100))) sh.discard();
         }
         cam(p, OFF, 0, 0, 0, null, -1);
+        if (r != null) {
+            p.stopRiding();
+            ShadowEntity.GRABBED.remove(p.getUUID());
+            if (p.isInWall()) { Vec3 s = ShadowEntity.safeSpot(p.serverLevel(), p.position()); p.teleportTo(s.x, s.y, s.z); }
+            p.fallDistance = 0;
+            ShadowEntity.watchStuck(p);
+        }
         if (r != null) p.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
     }
 

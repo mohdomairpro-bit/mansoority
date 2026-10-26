@@ -205,14 +205,32 @@ public final class ClientScares {
                 g.drawString(mc.font, Component.literal(msg), 4, y, 0xFFFFFF | ((int) (a * 255) << 24), true);
             }
         }
-        if (markLeft > 0) {
-            // a faint black handprint at the edge of your vision while you carry its mark
-            float a = Math.min(1F, markLeft / 200F) * (0.10F + 0.04F * Mth.sin((mc.level != null ? mc.level.getGameTime() : 0) * 0.05F));
-            com.mojang.blaze3d.systems.RenderSystem.enableBlend();
-            g.setColor(0.05F, 0.05F, 0.05F, a);
-            int s = (int) (h * 0.55F);
-            g.blit(HAND, w - s + s / 4, h - s + s / 5, s, s, 512F, 0F, -512, 512, 512, 512);
-            g.setColor(1F, 1F, 1F, 1F);
+        if (markLeft > 0 && mc.level != null) {
+            // its mark: the edges of your vision darken for a moment now and then (a soft vignette, nothing stuck on screen)
+            long gt = mc.level.getGameTime();
+            int total = markLeft;
+            float fresh = Math.max(0F, (total - (24000 - 300)) / 300F);          // the first 15 seconds after it lets go
+            int cyc = (int) (gt % 1800);                                         // then a short pulse every 90 seconds
+            float pulse = cyc < 60 ? Mth.sin(cyc / 60F * (float) Math.PI) : 0F;
+            float a = Math.max(fresh, pulse) * 0.55F;
+            if (a > 0.01F) vignette(g, w, h, a);
+        }
+    }
+
+    /** black closing in from every edge: strips of falling opacity */
+    static void vignette(GuiGraphics g, int w, int h, float strength) {
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        int steps = 16, depth = (int) (Math.min(w, h) * 0.28F);
+        for (int i = 0; i < steps; i++) {
+            float k = 1F - i / (float) steps;
+            int al = (int) (strength * k * k * 255 / 2.2F);
+            if (al <= 0) continue;
+            int c = al << 24;
+            int o = i * depth / steps, o2 = (i + 1) * depth / steps;
+            g.fill(0, o, w, o2, c);                      // top
+            g.fill(0, h - o2, w, h - o, c);              // bottom
+            g.fill(o, o2, o2, h - o2, c);                // left
+            g.fill(w - o2, o2, w - o, h - o2, c);        // right
         }
     }
 

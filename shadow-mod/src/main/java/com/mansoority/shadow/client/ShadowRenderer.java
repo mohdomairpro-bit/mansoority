@@ -87,6 +87,13 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         (isSlim ? slim : wide).render(e, e.getYRot(), pt, pose, buffers, light);
     }
 
+    /** noCulling keeps EntityCulling's occlusion test off it; we still skip it when it's outside the view */
+    @Override
+    public boolean shouldRender(ShadowEntity e, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
+        if (!e.shouldRender(x, y, z)) return false;
+        return frustum.isVisible(e.getBoundingBoxForCulling().inflate(1.0));
+    }
+
     @Override
     public ResourceLocation getTextureLocation(ShadowEntity entity) {
         return ATLAS;

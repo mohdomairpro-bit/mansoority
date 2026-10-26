@@ -161,6 +161,7 @@ public class MansoorityBoss extends ShadowEntity {
             double yaw = Math.toRadians(this.getYRot() + (this.random.nextBoolean() ? 70 : -70));
             focus.setDeltaMovement(-Math.sin(yaw) * 1.7, 0.8, Math.cos(yaw) * 1.7);
             focus.hurtMarked = true;
+            ShadowEntity.watchStuck(focus);
             hit(focus, 5F);
             sound(ShadowRegistry.SCREAM, 4F, 0.9F);
             grabT = -1; setGrab(0, 0);

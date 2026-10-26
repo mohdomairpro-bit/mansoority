@@ -56,6 +56,7 @@ public class ShadowEvents {
         if (p.tickCount % 40 == 20) lairCheck(p);
         Long nf = MansoorityBoss.NOFALL.get(p.getUUID());
         if (nf != null) { p.fallDistance = 0; if (p.onGround() && p.level().getGameTime() > nf - 90 || p.level().getGameTime() > nf) MansoorityBoss.NOFALL.remove(p.getUUID()); }
+        ShadowEntity.stuckTick(p);
         ShadowCinematic.tick(p);
         if (ShadowCinematic.running(p)) return;
         if (p.tickCount % 1200 != 600) return; // once a minute

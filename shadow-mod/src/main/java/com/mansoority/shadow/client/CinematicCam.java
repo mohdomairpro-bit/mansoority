@@ -119,6 +119,7 @@ public final class CinematicCam {
         cam.setYRot(ny); cam.setXRot(npi); cam.setYHeadRot(ny); cam.yHeadRotO = yaw;
         pos = np; yaw = ny; pitch = npi;
         if (mc.getCameraEntity() != cam) mc.setCameraEntity(cam);
+        mc.crosshairPickEntity = null;
     }
 
     private static Vec3 unblock(Minecraft mc, Vec3 from, Vec3 to) {
@@ -139,6 +140,19 @@ public final class CinematicCam {
     }
 
     public static void onLogout() { active = false; chapter = -1; cam = null; bars = 0F; }
+
+    /**
+     * no attacking, using or picking while the film runs or while it holds you. the camera is a dummy, so the crosshair
+     * can land on your own body: hitting yourself gets you kicked ("Attempting to attack an invalid entity")
+     */
+    public static void onInput(net.minecraftforge.client.event.InputEvent.InteractionKeyMappingTriggered e) {
+        Minecraft mc = Minecraft.getInstance();
+        boolean held = mc.player != null && mc.player.getVehicle() instanceof com.mansoority.shadow.ShadowEntity;
+        if (!active && !held) return;
+        if (!active && held && e.isUseItem()) return;          // eating while dangling is fine
+        e.setCanceled(true);
+        e.setSwingHand(false);
+    }
 
     /** hide the hand and the whole HUD while the film is running */
     public static void onHand(RenderHandEvent e) { if (active) e.setCanceled(true); }

@@ -24,6 +24,7 @@ public final class ClientSetup {
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onLogout);
         MinecraftForge.EVENT_BUS.addListener(CinematicCam::onHand);
         MinecraftForge.EVENT_BUS.addListener(CinematicCam::onGui);
+        MinecraftForge.EVENT_BUS.addListener(CinematicCam::onInput);
         if (AutoTest.enabled()) MinecraftForge.EVENT_BUS.addListener(AutoTest::onClientTick);
     }
 
