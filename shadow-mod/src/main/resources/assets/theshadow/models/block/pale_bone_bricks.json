@@ -1,0 +1,6 @@
+{
+ "parent": "minecraft:block/cube_all",
+ "textures": {
+  "all": "theshadow:block/pale_bone_bricks"
+ }
+}

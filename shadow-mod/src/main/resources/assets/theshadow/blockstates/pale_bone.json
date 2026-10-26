@@ -1,0 +1,16 @@
+{
+ "variants": {
+  "axis=y": {
+   "model": "theshadow:block/pale_bone"
+  },
+  "axis=z": {
+   "model": "theshadow:block/pale_bone_horizontal",
+   "x": 90
+  },
+  "axis=x": {
+   "model": "theshadow:block/pale_bone_horizontal",
+   "x": 90,
+   "y": 90
+  }
+ }
+}

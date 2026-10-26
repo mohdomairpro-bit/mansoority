@@ -1,0 +1,8 @@
+{
+ "type": "minecraft:stonecutting",
+ "ingredient": {
+  "item": "theshadow:pale_bone_bricks"
+ },
+ "result": "theshadow:pale_bone_brick_slab",
+ "count": 2
+}

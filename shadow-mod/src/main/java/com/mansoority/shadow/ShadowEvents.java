@@ -54,6 +54,7 @@ public class ShadowEvents {
         if (p.tickCount % 40 == 0) ShadowMark.tick(p);
         if (p.tickCount % 100 == 50) ShadowEvents.endBossCheck(p, false);
         if (p.tickCount % 40 == 20) lairCheck(p);
+        if (p.tickCount % 20 == 5) ShadowGear.tick(p);
         Long nf = MansoorityBoss.NOFALL.get(p.getUUID());
         if (nf != null) { p.fallDistance = 0; if (p.onGround() && p.level().getGameTime() > nf - 90 || p.level().getGameTime() > nf) MansoorityBoss.NOFALL.remove(p.getUUID()); }
         ShadowEntity.stuckTick(p);
@@ -241,7 +242,16 @@ public class ShadowEvents {
     /** nothing hurts you while it's holding you (falling, suffocating in a wall, mobs) */
     @SubscribeEvent
     public void onAttack(net.minecraftforge.event.entity.living.LivingAttackEvent event) {
-        if (event.getEntity() instanceof ServerPlayer p && (ShadowEntity.GRABBED.contains(p.getUUID()) || ShadowCinematic.running(p))) event.setCanceled(true);
+        if (event.getEntity() instanceof ServerPlayer p && (ShadowEntity.GRABBED.contains(p.getUUID()) || ShadowCinematic.running(p))) { event.setCanceled(true); return; }
+        // the Pale Ward: anything shot at you is turned aside
+        if (event.getEntity() instanceof ServerPlayer p && event.getSource().getDirectEntity() instanceof net.minecraft.world.entity.projectile.Projectile pr
+                && ShadowGear.warded(p, pr)) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+        if (event.getEntity() instanceof net.minecraft.world.entity.player.Player)
+            event.setAmount(ShadowGear.reduce(event.getEntity(), event.getSource().getEntity(), event.getAmount()));
     }
 
     private static final String[] WARNINGS = {

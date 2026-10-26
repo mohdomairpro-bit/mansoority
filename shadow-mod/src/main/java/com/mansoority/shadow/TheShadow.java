@@ -42,12 +42,23 @@ public class TheShadow {
         event.put(ShadowRegistry.SHADOW.get(), ShadowEntity.createAttributes().build());
         event.put(ShadowRegistry.BOSS.get(), MansoorityBoss.createAttributes().build());
         event.put(ShadowRegistry.SHADE.get(), ShadeEntity.createAttributes().build());
+        event.put(ShadowRegistry.PALE_BITER.get(), PaleSpider.biter().build());
+        event.put(ShadowRegistry.PALE_SPITTER.get(), PaleSpider.spitter().build());
     }
 
     private void onTabs(net.minecraftforge.event.BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.COMBAT) event.accept(ShadowRegistry.SHADOW_BLADE);
         if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.INGREDIENTS) event.accept(ShadowRegistry.HOLLOW_HEART);
         if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.FUNCTIONAL_BLOCKS) event.accept(ShadowRegistry.SKULL_ITEM);
+        if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.COMBAT) {
+            event.accept(ShadowRegistry.PALE_WARD);
+            event.accept(ShadowRegistry.SHADE_HELMET); event.accept(ShadowRegistry.SHADE_CHESTPLATE);
+            event.accept(ShadowRegistry.SHADE_LEGGINGS); event.accept(ShadowRegistry.SHADE_BOOTS);
+        }
+        if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.INGREDIENTS) { event.accept(ShadowRegistry.PALE_SILK); event.accept(ShadowRegistry.SHADE_ESSENCE); }
+        if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.SPAWN_EGGS) { event.accept(ShadowRegistry.BITER_EGG); event.accept(ShadowRegistry.SPITTER_EGG); }
+        if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.BUILDING_BLOCKS)
+            for (var b : ShadowRegistry.PALE_BLOCKS) event.accept(b.get());
     }
 
     private void onSetup(FMLCommonSetupEvent event) {

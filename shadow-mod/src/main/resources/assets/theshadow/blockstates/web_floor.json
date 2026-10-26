@@ -1,0 +1,10 @@
+{
+ "variants": {
+  "temp=false": {
+   "model": "theshadow:block/web_floor"
+  },
+  "temp=true": {
+   "model": "theshadow:block/web_floor"
+  }
+ }
+}

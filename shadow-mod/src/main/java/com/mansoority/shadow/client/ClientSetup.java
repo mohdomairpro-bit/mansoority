@@ -38,6 +38,9 @@ public final class ClientSetup {
         event.registerEntityRenderer(ShadowRegistry.SPIKE.get(), SpikeRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.THROWN_BLADE.get(), ThrownBladeRenderer::new);
         event.registerBlockEntityRenderer(ShadowRegistry.SKULL_BE.get(), SkullRenderer::new);
+        event.registerEntityRenderer(ShadowRegistry.PALE_BITER.get(), PaleSpiderRenderer::new);
+        event.registerEntityRenderer(ShadowRegistry.PALE_SPITTER.get(), PaleSpiderRenderer::new);
+        event.registerEntityRenderer(ShadowRegistry.WEB_SHOT.get(), net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
     }
 
     private static void onLayers(EntityRenderersEvent.AddLayers event) {

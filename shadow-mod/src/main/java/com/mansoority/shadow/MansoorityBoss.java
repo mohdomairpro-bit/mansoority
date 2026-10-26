@@ -622,6 +622,23 @@ public class MansoorityBoss extends ShadowEntity {
     }
 
     private void summon(ServerLevel sl, int n) {
+        // from phase two his white spiders come too, crawling out of the dark at the edge of the arena
+        if (getPhase() >= 2) {
+            int spiders = sl.getEntitiesOfClass(PaleSpider.class, this.getBoundingBox().inflate(80)).size();
+            for (int i = 0; i < n && spiders + i < 6; i++) {
+                double a = this.random.nextDouble() * Math.PI * 2;
+                Vec3 c = focus.position();
+                BlockPos s = findStand(sl, c.x + Math.cos(a) * 12, c.y, c.z + Math.sin(a) * 12, 10);
+                if (s == null) continue;
+                PaleSpider sp = (this.random.nextInt(3) == 0 ? ShadowRegistry.PALE_SPITTER : ShadowRegistry.PALE_BITER).get().create(sl);
+                if (sp == null) continue;
+                sp.moveTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5, this.random.nextFloat() * 360F, 0);
+                sp.setTarget(focus);
+                sp.setPersistenceRequired();
+                sl.addFreshEntity(sp);
+                sl.sendParticles(net.minecraft.core.particles.ParticleTypes.POOF, sp.getX(), sp.getY() + 0.4, sp.getZ(), 12, 0.5, 0.2, 0.5, 0.02);
+            }
+        }
         int alive = sl.getEntitiesOfClass(ShadeEntity.class, this.getBoundingBox().inflate(80)).size();
         for (int i = 0; i < n && alive + i < 6; i++) {
             double a = this.random.nextDouble() * Math.PI * 2;
@@ -1073,6 +1090,7 @@ public class MansoorityBoss extends ShadowEntity {
             // the blade only ever comes from here. the heart too
             sl.addFreshEntity(new ItemEntity(sl, this.getX(), this.getY() + 2, this.getZ(), new ItemStack(ShadowRegistry.SHADOW_BLADE.get())));
             if (!showcase) sl.addFreshEntity(new ItemEntity(sl, this.getX(), this.getY() + 2.5, this.getZ(), new ItemStack(ShadowRegistry.HOLLOW_HEART.get())));
+            if (!showcase) sl.addFreshEntity(new ItemEntity(sl, this.getX(), this.getY() + 2.5, this.getZ(), new ItemStack(ShadowRegistry.SHADE_ESSENCE.get(), 10 + this.random.nextInt(5))));
             ExperienceOrb.award(sl, this.position().add(0, 2, 0), 3000);
             for (ServerPlayer pl : sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(128))) ShadowAdvancements.award(pl, "boss");
             if (!showcase) {

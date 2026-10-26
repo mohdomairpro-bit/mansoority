@@ -1,0 +1,9 @@
+{
+ "type": "minecraft:smelting",
+ "ingredient": {
+  "item": "theshadow:pale_bone_bricks"
+ },
+ "result": "theshadow:cracked_pale_bone_bricks",
+ "experience": 0.1,
+ "cookingtime": 200
+}

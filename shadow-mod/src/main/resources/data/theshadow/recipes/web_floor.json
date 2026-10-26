@@ -1,0 +1,15 @@
+{
+ "type": "minecraft:crafting_shaped",
+ "pattern": [
+  "SS"
+ ],
+ "key": {
+  "S": {
+   "item": "theshadow:pale_silk"
+  }
+ },
+ "result": {
+  "item": "theshadow:web_floor",
+  "count": 3
+ }
+}

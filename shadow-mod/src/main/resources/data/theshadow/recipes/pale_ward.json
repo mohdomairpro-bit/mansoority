@@ -1,0 +1,23 @@
+{
+ "type": "minecraft:crafting_shaped",
+ "pattern": [
+  "SBS",
+  "SHS",
+  "SBS"
+ ],
+ "key": {
+  "S": {
+   "item": "theshadow:pale_silk"
+  },
+  "B": {
+   "item": "theshadow:pale_bone"
+  },
+  "H": {
+   "item": "minecraft:shield"
+  }
+ },
+ "result": {
+  "item": "theshadow:pale_ward",
+  "count": 1
+ }
+}

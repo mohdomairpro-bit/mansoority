@@ -1,0 +1,13 @@
+{
+ "variants": {
+  "type=bottom": {
+   "model": "theshadow:block/pale_bone_brick_slab"
+  },
+  "type=top": {
+   "model": "theshadow:block/pale_bone_brick_slab_top"
+  },
+  "type=double": {
+   "model": "theshadow:block/pale_bone_bricks"
+  }
+ }
+}

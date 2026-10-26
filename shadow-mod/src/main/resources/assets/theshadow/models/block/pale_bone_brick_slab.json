@@ -1,0 +1,8 @@
+{
+ "parent": "minecraft:block/slab",
+ "textures": {
+  "bottom": "theshadow:block/pale_bone_bricks",
+  "top": "theshadow:block/pale_bone_bricks",
+  "side": "theshadow:block/pale_bone_bricks"
+ }
+}

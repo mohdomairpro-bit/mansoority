@@ -47,6 +47,7 @@ public class ThrownBlade extends Entity {
         Entity boss = sl.getEntity(bossId);
         for (ServerPlayer p : sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().expandTowards(this.getDeltaMovement()).inflate(1.2))) {
             if (p.isCreative() || p.isSpectator() || !hit.add(p.getUUID())) continue;
+            if (ShadowGear.warded(p, null)) continue;                              // the ward turns even this
             p.hurt(boss instanceof LivingEntity le ? this.damageSources().mobAttack(le) : this.damageSources().magic(), 12F);
             p.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DARKNESS, 80, 0, false, false));
             sl.playSound(null, p.blockPosition(), ShadowRegistry.CRUNCH.get(), net.minecraft.sounds.SoundSource.HOSTILE, 1.2F, 1.3F);

@@ -1,0 +1,35 @@
+{
+ "type": "minecraft:crafting_shapeless",
+ "ingredients": [
+  {
+   "item": "minecraft:diamond_chestplate"
+  },
+  {
+   "item": "theshadow:shade_essence"
+  },
+  {
+   "item": "theshadow:shade_essence"
+  },
+  {
+   "item": "theshadow:shade_essence"
+  },
+  {
+   "item": "theshadow:shade_essence"
+  },
+  {
+   "item": "theshadow:shade_essence"
+  },
+  {
+   "item": "theshadow:shade_essence"
+  },
+  {
+   "item": "theshadow:shade_essence"
+  },
+  {
+   "item": "theshadow:shade_essence"
+  }
+ ],
+ "result": {
+  "item": "theshadow:shade_chestplate"
+ }
+}

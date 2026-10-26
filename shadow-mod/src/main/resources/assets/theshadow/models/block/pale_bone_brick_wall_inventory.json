@@ -1,0 +1,6 @@
+{
+ "parent": "minecraft:block/wall_inventory",
+ "textures": {
+  "wall": "theshadow:block/pale_bone_bricks"
+ }
+}

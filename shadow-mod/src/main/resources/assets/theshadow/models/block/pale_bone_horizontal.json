@@ -1,0 +1,7 @@
+{
+ "parent": "minecraft:block/cube_column_horizontal",
+ "textures": {
+  "end": "theshadow:block/pale_bone_top",
+  "side": "theshadow:block/pale_bone_side"
+ }
+}

@@ -1,0 +1,13 @@
+{
+ "replace": false,
+ "values": [
+  "theshadow:pale_bone",
+  "theshadow:pale_bone_bricks",
+  "theshadow:cracked_pale_bone_bricks",
+  "theshadow:chiseled_pale_bone",
+  "theshadow:pale_bone_tiles",
+  "theshadow:pale_bone_brick_stairs",
+  "theshadow:pale_bone_brick_slab",
+  "theshadow:pale_bone_brick_wall"
+ ]
+}
