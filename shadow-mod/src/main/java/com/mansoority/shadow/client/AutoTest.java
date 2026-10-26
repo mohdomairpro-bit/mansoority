@@ -196,6 +196,50 @@ public final class AutoTest {
             if (sp.getHealth() < 10) sp.setHealth(20);
             log("boss fight hp=" + sp.getHealth() + " alive=" + sp.isAlive());
         });
+        // stage 3: back to the overworld - spiders, Shade armour + ward, the shrine
+        if (t == 5540) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            for (var b : sp.serverLevel().getEntitiesOfClass(com.mansoority.shadow.MansoorityBoss.class, sp.getBoundingBox().inflate(200))) b.discard();
+            net.minecraft.server.level.ServerLevel ow = server.overworld();
+            ow.setDayTime(6000);
+            int x = ow.getSharedSpawnPos().getX() + 40, z = ow.getSharedSpawnPos().getZ() + 40;
+            int y = ow.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+            sp.teleportTo(ow, x + 0.5, y, z + 0.5, 0F, 10F);
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_HELMET.get()));
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_CHESTPLATE.get()));
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.LEGS, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_LEGGINGS.get()));
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_BOOTS.get()));
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, new net.minecraft.world.item.ItemStack(ShadowRegistry.PALE_WARD.get()));
+            log("stage3 at " + x + " " + y + " " + z);
+        });
+        if (t == 5550) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel ow = sp.serverLevel();
+            for (int i = 0; i < 2; i++) {
+                var type = i == 0 ? ShadowRegistry.PALE_BITER.get() : ShadowRegistry.PALE_SPITTER.get();
+                var e = type.create(ow);
+                if (e == null) continue;
+                double px = sp.getX() + (i == 0 ? -1.6 : 1.8), pz = sp.getZ() + 4.5 + i;
+                e.moveTo(px, ow.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(px), (int) Math.floor(pz)), pz, 180F, 0F);
+                e.setNoAi(true); e.setYHeadRot(180F); e.yBodyRot = 180F;
+                ow.addFreshEntity(e);
+            }
+            net.minecraft.core.BlockPos c = sp.blockPosition();
+            int k = 0;
+            for (var b : ShadowRegistry.PALE_BLOCKS) { if (k > 7) break; ow.setBlock(c.offset(-4 + k++, 0, 8), b.get().defaultBlockState(), 3); }
+        });
+        if (t == 5560) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); }
+        if (t == 5575) shot(mc, "44_shade_armour");
+        if (t == 5580) mc.options.setCameraType(CameraType.FIRST_PERSON);
+        if (t == 5595) shot(mc, "45_pale_spiders");
+        if (t == 5600) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            var src = server.createCommandSourceStack().withPermission(4).withSuppressedOutput().withLevel(sp.serverLevel());
+            net.minecraft.core.BlockPos c = sp.blockPosition().offset(0, 0, 40);
+            server.getCommands().performPrefixedCommand(src, "place template theshadow:lair " + c.getX() + " " + (c.getY() - 1) + " " + c.getZ());
+            sp.teleportTo(sp.serverLevel(), c.getX() + 10.5, c.getY() + 16, c.getZ() - 10, 0F, 40F);
+        });
+        if (t == 5640) shot(mc, "46_shrine");
         if (t == 5700) mc.setScreen(new ShadowConfigScreen(null));
         if (t == 5710) shot(mc, "43_config_screen");
         if (t == 5715) { mc.setScreen(null); log("done"); mc.stop(); }
