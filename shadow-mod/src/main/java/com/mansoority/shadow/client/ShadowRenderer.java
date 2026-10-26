@@ -177,10 +177,9 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);
         emit(mesh, mesh.solid, pose, buffers.getBuffer(Types.SKIN), light, false);
         if (mesh.glow.length > 0) emit(mesh, mesh.glow, pose, buffers.getBuffer(Types.GLOW), 0xF000F0, true);
-        if (boss != null && !far) {     // the boss always reads against the dark: a thin outline, ember red once it's turned black
+        if (black && !far) {            // the black form reads against the dark: an ember-red outline that breathes
             float pulse = 0.75F + 0.25F * Mth.sin(age * 0.12F);
-            if (black) rim(mesh, pose, buffers.getBuffer(Types.RIM), 0.010F, (int) (150 * pulse), (int) (14 * pulse), 8);
-            else rim(mesh, pose, buffers.getBuffer(Types.RIM), 0.007F, 34, 36, 44);
+            rim(mesh, pose, buffers.getBuffer(Types.RIM), 0.010F, (int) (150 * pulse), (int) (14 * pulse), 8);
         }
         if (!far && dist2 < 40 * 40) Saliva.render(e, mesh, pose, buffers, light, age, ex, ey, ez, bodyYaw, SCALE * grow);
         if (boss != null) BossLook.inModel(boss, mesh, pose, buffers, light, age);
