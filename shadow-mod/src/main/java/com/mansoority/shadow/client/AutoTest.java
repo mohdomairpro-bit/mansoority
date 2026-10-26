@@ -42,6 +42,10 @@ public final class AutoTest {
                 sp.serverLevel().getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(false, server);
                 sp.serverLevel().getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(false, server);   // no zombies/spiders ruining shots
                 sp.serverLevel().setWeatherParameters(6000, 0, false, false);
+                // clear the canopy so the stalk shots show it, not a wall of leaves
+                net.minecraft.core.BlockPos c = sp.blockPosition();
+                for (net.minecraft.core.BlockPos q : net.minecraft.core.BlockPos.betweenClosed(c.offset(-20, -2, -20), c.offset(20, 20, 20)))
+                    if (sp.serverLevel().getBlockState(q).is(net.minecraft.tags.BlockTags.LEAVES)) sp.serverLevel().setBlock(q, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
                 ShadowEntity e = ShadowEntity.spawnAround(sp, 1, 0, 10);
                 log("spawned day: " + (e != null));
             });

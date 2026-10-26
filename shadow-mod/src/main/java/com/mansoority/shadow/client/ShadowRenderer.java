@@ -110,6 +110,11 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
                 com.mojang.blaze3d.vertex.VertexFormat.Mode.TRIANGLES, 1 << 12, false, true,
                 CompositeState.builder().setShaderState(RENDERTYPE_EYES_SHADER).setTextureState(new TextureStateShard(WHITE, false, false))
                         .setTransparencyState(ADDITIVE_TRANSPARENCY).setWriteMaskState(COLOR_WRITE).createCompositeState(false));
+        /** a shell pushed out along the normals, wound inside-out: only its edge shows past the body - a glowing outline */
+        static final RenderType RIM = create("theshadow_rim", com.mojang.blaze3d.vertex.DefaultVertexFormat.NEW_ENTITY,
+                com.mojang.blaze3d.vertex.VertexFormat.Mode.TRIANGLES, 1 << 18, false, true,
+                CompositeState.builder().setShaderState(RENDERTYPE_EYES_SHADER).setTextureState(new TextureStateShard(WHITE, false, false))
+                        .setTransparencyState(ADDITIVE_TRANSPARENCY).setCullState(CULL).setWriteMaskState(COLOR_WRITE).createCompositeState(false));
     }
 
     @Override
@@ -138,7 +143,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         tint = (int) (255 * e.tint);
         com.mansoority.shadow.MansoorityBoss boss = e instanceof com.mansoority.shadow.MansoorityBoss b ? b : null;
         boolean black = boss != null && boss.has(com.mansoority.shadow.MansoorityBoss.F_BLACK);
-        if (black) tint = 34;                                   // the thing that tore out of it: black, with red eyes
+        if (black) tint = 46;                                   // the thing that tore out of it: black, with red eyes
         glowR = 255; glowG = black ? 40 : 255; glowB = black ? 30 : 255;
         // feet on the real ground (close enough to see it, standing on something)
         ShadowSkeleton.fk(mesh);
@@ -172,6 +177,11 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);
         emit(mesh, mesh.solid, pose, buffers.getBuffer(Types.SKIN), light, false);
         if (mesh.glow.length > 0) emit(mesh, mesh.glow, pose, buffers.getBuffer(Types.GLOW), 0xF000F0, true);
+        if (boss != null && !far) {     // the boss always reads against the dark: a thin outline, ember red once it's turned black
+            float pulse = 0.75F + 0.25F * Mth.sin(age * 0.12F);
+            if (black) rim(mesh, pose, buffers.getBuffer(Types.RIM), 0.010F, (int) (150 * pulse), (int) (14 * pulse), 8);
+            else rim(mesh, pose, buffers.getBuffer(Types.RIM), 0.007F, 34, 36, 44);
+        }
         if (!far && dist2 < 40 * 40) Saliva.render(e, mesh, pose, buffers, light, age, ex, ey, ez, bodyYaw, SCALE * grow);
         if (boss != null) BossLook.inModel(boss, mesh, pose, buffers, light, age);
         pose.popPose();
@@ -188,6 +198,22 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     }
 
     static int glowR = 255, glowG = 255, glowB = 255;
+
+    static void rim(ShadowMesh m, PoseStack pose, VertexConsumer vc, float w, int r, int g, int b) {
+        Matrix4f mat = pose.last().pose();
+        Matrix3f nm = pose.last().normal();
+        float[] P = m.outPos, N = m.outNrm;
+        int[] t = m.solid;
+        for (int i = 0; i + 2 < t.length; i += 3) {
+            for (int k = 2; k >= 0; k--) {                    // reversed winding
+                int v = t[i + k];
+                float nx = N[v * 3], ny = N[v * 3 + 1], nz = N[v * 3 + 2];
+                vc.vertex(mat, P[v * 3] + nx * w, P[v * 3 + 1] + ny * w, P[v * 3 + 2] + nz * w)
+                        .color(r, g, b, 255).uv(0.5F, 0.5F).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(0xF000F0)
+                        .normal(nm, nx, ny, nz).endVertex();
+            }
+        }
+    }
 
     static void emit(ShadowMesh m, int[] tris, PoseStack pose, VertexConsumer vc, int light, boolean glowPass) {
         Matrix4f mat = pose.last().pose();

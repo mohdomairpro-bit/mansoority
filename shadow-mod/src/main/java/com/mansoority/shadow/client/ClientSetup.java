@@ -26,6 +26,7 @@ public final class ClientSetup {
         MinecraftForge.EVENT_BUS.addListener(CinematicCam::onGui);
         MinecraftForge.EVENT_BUS.addListener(CinematicCam::onInput);
         MinecraftForge.EVENT_BUS.addListener(BossFx::fog);
+        MinecraftForge.EVENT_BUS.addListener(BossFx::renderLevel);
         MinecraftForge.EVENT_BUS.addListener(BossFx::fogColor);
         if (AutoTest.enabled()) MinecraftForge.EVENT_BUS.addListener(AutoTest::onClientTick);
     }
@@ -36,6 +37,7 @@ public final class ClientSetup {
         event.registerEntityRenderer(ShadowRegistry.SHADE.get(), ShadeRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.SPIKE.get(), SpikeRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.THROWN_BLADE.get(), ThrownBladeRenderer::new);
+        event.registerBlockEntityRenderer(ShadowRegistry.SKULL_BE.get(), SkullRenderer::new);
     }
 
     private static void onLayers(EntityRenderersEvent.AddLayers event) {

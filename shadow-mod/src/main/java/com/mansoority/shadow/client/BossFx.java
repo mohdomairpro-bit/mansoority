@@ -29,7 +29,7 @@ public final class BossFx {
             "I CAN TASTE YOU", "TOO SLOW", "something is watching the dragon", "STAY WITH ME", "ONE MORE"};
     private record Ring(Vec3 c, float speed, float max, int start) {}
     private record Mark(Vec3 c, float r, int until) {}
-    private record Eyes(Vec3 at, int until) {}
+    private record Eyes(Vec3 at, float yaw, int until) {}
     private static final List<Ring> RINGS = new ArrayList<>();
     private static final List<Mark> MARKS = new ArrayList<>();
     private static final List<Eyes> EYES = new ArrayList<>();
@@ -39,7 +39,7 @@ public final class BossFx {
         switch (p.kind) {
             case FxPacket.RING_WAVE -> RINGS.add(new Ring(new Vec3(p.x, p.y, p.z), p.volume, p.pitch, tick));
             case FxPacket.TELEGRAPH -> MARKS.add(new Mark(new Vec3(p.x, p.y, p.z), p.volume, tick + p.sound));
-            case FxPacket.PILLAR_EYES -> EYES.add(new Eyes(new Vec3(p.x, p.y, p.z), tick + p.sound));
+            case FxPacket.PILLAR_EYES -> EYES.add(new Eyes(new Vec3(p.x, p.y, p.z), p.volume, tick + p.sound));
             case FxPacket.LINE -> { line = p.sound; lineT = 0; }
             case FxPacket.KNOCKDOWN -> knock = p.sound;
             case FxPacket.FLOOD -> flood = p.sound;
@@ -86,13 +86,7 @@ public final class BossFx {
                 mc.level.addParticle(new DustParticleOptions(new Vector3f(0.85F, 0.05F, 0.05F), 2.0F), m.c.x + Math.cos(a) * m.r, m.c.y + 0.15, m.c.z + Math.sin(a) * m.r, 0, 0, 0);
             }
         }
-        // its eyes, open in the pillars
-        for (int i = EYES.size() - 1; i >= 0; i--) {
-            Eyes e = EYES.get(i);
-            if (tick > e.until) { EYES.remove(i); continue; }
-            if (tick % 2 == 0) for (int s = -1; s <= 1; s += 2)
-                mc.level.addParticle(new DustParticleOptions(new Vector3f(1F, 0.15F, 0.08F), 2.6F), e.at.x + s * 0.8, e.at.y, e.at.z, 0, 0, 0);
-        }
+        for (int i = EYES.size() - 1; i >= 0; i--) if (tick > EYES.get(i).until) EYES.remove(i);
         // the stomach emptying itself
         if (sprayT > 0) {
             sprayT--;
@@ -146,6 +140,38 @@ public final class BossFx {
 
     private static void stopMusic() {
         if (playing != null) { Minecraft.getInstance().getSoundManager().stop(playing); playing = null; playingPhase = 0; }
+    }
+
+    // ---------------------------------------------------------------- its eyes, open in the pillars (drawn glowing, through the dark)
+    private static final net.minecraft.resources.ResourceLocation EYE_TEX = new net.minecraft.resources.ResourceLocation(com.mansoority.shadow.TheShadow.MODID, "textures/entity/pillar_eyes.png");
+
+    static void renderLevel(net.minecraftforge.client.event.RenderLevelStageEvent e) {
+        if (e.getStage() != net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_PARTICLES || EYES.isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        Vec3 cam = e.getCamera().getPosition();
+        var ps = e.getPoseStack();
+        var buf = mc.renderBuffers().bufferSource();
+        var vc = buf.getBuffer(net.minecraft.client.renderer.RenderType.eyes(EYE_TEX));
+        for (Eyes ey : EYES) {
+            int left = ey.until - tick, age = 400 - left;
+            float open = Mth.clamp(Math.min(age, left) / 20F, 0F, 1F);
+            int blinkWin = (tick / 50) % 4, local = tick % 50;
+            float lid = blinkWin == 2 && local < 6 ? Mth.sin(local / 6F * (float) Math.PI) : 0F;   // now and then it blinks
+            float hgt = 1.2F * open * (1F - lid * 0.95F);
+            if (hgt < 0.02F) continue;
+            ps.pushPose();
+            ps.translate(ey.at.x - cam.x, ey.at.y - cam.y, ey.at.z - cam.z);
+            ps.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-ey.yaw));
+            var m = ps.last().pose();
+            float w = 3.2F;
+            int a = (int) (255 * open);
+            vc.vertex(m, -w, -hgt, 0).color(255, 255, 255, a).uv(0F, 1F).overlayCoords(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).uv2(0xF000F0).normal(0, 0, 1).endVertex();
+            vc.vertex(m, w, -hgt, 0).color(255, 255, 255, a).uv(1F, 1F).overlayCoords(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).uv2(0xF000F0).normal(0, 0, 1).endVertex();
+            vc.vertex(m, w, hgt, 0).color(255, 255, 255, a).uv(1F, 0F).overlayCoords(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).uv2(0xF000F0).normal(0, 0, 1).endVertex();
+            vc.vertex(m, -w, hgt, 0).color(255, 255, 255, a).uv(0F, 0F).overlayCoords(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).uv2(0xF000F0).normal(0, 0, 1).endVertex();
+            ps.popPose();
+        }
+        buf.endBatch(net.minecraft.client.renderer.RenderType.eyes(EYE_TEX));
     }
 
     // ---------------------------------------------------------------- camera: thrown to the ground
