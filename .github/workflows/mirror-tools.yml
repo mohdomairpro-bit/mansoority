@@ -1,6 +1,8 @@
 name: Mirror build tools
 on:
-  workflow_dispatch:
+  push:
+    branches: [shadow-mod]
+    paths: ['.github/workflows/mirror-tools.yml']
 permissions:
   contents: write
 jobs:
@@ -19,3 +21,4 @@ jobs:
           prerelease: true
           make_latest: false
           files: blender-4.2.3-linux-x64.tar.xz
+# v1
