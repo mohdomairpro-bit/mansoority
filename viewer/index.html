@@ -73,6 +73,13 @@ input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
     <div class="group"><h2>The grab</h2><div class="clips" id="g-grab"></div></div>
     <div class="group"><h2>The boss</h2><div class="clips" id="g-boss"></div></div>
     <div class="group">
+      <h2>Walk test</h2>
+      <div class="seg" role="group" aria-label="Walk test">
+        <button data-walk="off" aria-pressed="true">Off</button><button data-walk="walk">Walk</button><button data-walk="run">Run</button><button data-walk="turn">Turn</button>
+      </div>
+      <p class="note">Walks him around blocky hills with the same stepping code the mod uses: each foot stays put until it has to step.</p>
+    </div>
+    <div class="group">
       <h2>Playback</h2>
       <div class="row"><button id="play" style="width:64px;text-align:center">Pause</button><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Frame"></div>
       <div class="row"><label for="spd-1">Speed</label><div class="seg" role="group" aria-label="Speed"><button id="spd-0.25">¼×</button><button id="spd-0.5">½×</button><button id="spd-1" aria-pressed="true">1×</button></div></div>
@@ -168,6 +175,7 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStan
 floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 
 let M, A, geo, posAttr, nrmAttr, bonesLines, bonePts;
+const creature = new THREE.Group(); scene.add(creature);
 const view = { clip: "idle", t: 0, speed: 1, playing: true, jaw: 0.03, prev: null, prevT: 0, fade: 1, bones: false, scroll: 0 };
 
 function setView(which) {
@@ -207,6 +215,8 @@ function sampleClip(c, t, out) {   // out[bone] = [qx,qy,qz,qw,tx,ty,tz]
   }
 }
 const sa = [], sb = [];
+// per bone, this frame: keyframed rotation LQ, offset LT, extra euler EX (applied after LQ, like the mod)
+const LQ = [], LT = [], EX = [], WM = [];
 function pose() {
   const c = A.clips[view.clip];
   sampleClip(c, view.t, sa);
@@ -215,23 +225,30 @@ function pose() {
     const w = view.fade * view.fade * (3 - 2 * view.fade);
     for (let p = 0; p < sa.length; p++) { const q = [0, 0, 0, 0]; slerpInto(q, sb[p], sa[p], w); for (let k = 0; k < 4; k++) sa[p][k] = q[k]; for (let k = 4; k < 7; k++) sa[p][k] = sb[p][k] + (sa[p][k] - sb[p][k]) * w; }
   }
-  const R = new Float32Array(12), L = new Float32Array(12);
   M.bones.forEach((b, i) => {
-    const ai = A.parts.indexOf(b.name), s = sa[ai];
-    let qx = s[0], qy = s[1], qz = s[2], qw = s[3];
-    if (b.name === "jaw" || b.name === "jawR") {   // the face splits: extra yaw on each half (like the mod does in code)
-      const ang = (b.name === "jaw" ? -1 : 1) * view.jaw, pit = view.jaw * 0.12;
-      const hy = [0, Math.sin(ang / 2), 0, Math.cos(ang / 2)], hx = [Math.sin(pit / 2), 0, 0, Math.cos(pit / 2)];
-      const e = qmul(hy, hx); [qx, qy, qz, qw] = qmul([qx, qy, qz, qw], e);
-    }
-    quatToMat(qx, qy, qz, qw, R);
+    const ai = A.parts.indexOf(b.name);
+    if (!LQ[i]) { LQ[i] = new THREE.Quaternion(); LT[i] = new THREE.Vector3(); EX[i] = [0, 0, 0]; WM[i] = new THREE.Matrix4(); }
+    if (ai < 0) { LQ[i].set(0, 0, 0, 1); LT[i].set(0, 0, 0); }
+    else { const s = sa[ai]; LQ[i].set(s[0], s[1], s[2], s[3]).normalize(); LT[i].set(s[4], s[5], s[6]); }
+    EX[i][0] = EX[i][1] = EX[i][2] = 0;
+    if (b.name === "jaw" || b.name === "jawR") { EX[i][1] = (b.name === "jaw" ? -1 : 1) * view.jaw; EX[i][0] = view.jaw * 0.12; }
+  });
+  fk();
+}
+const _T = new THREE.Matrix4(), _R = new THREE.Matrix4(), _E = new THREE.Matrix4(), _P = new THREE.Matrix4(), _Pi = new THREE.Matrix4(), _Lm = new THREE.Matrix4();
+const _eu = new THREE.Euler();
+function fk() {
+  M.bones.forEach((b, i) => {
     const [px, py, pz] = b.piv;
-    L[0] = R[0]; L[1] = R[1]; L[2] = R[2]; L[4] = R[4]; L[5] = R[5]; L[6] = R[6]; L[8] = R[8]; L[9] = R[9]; L[10] = R[10];
-    L[3] = s[4] + px - (R[0] * px + R[1] * py + R[2] * pz);
-    L[7] = s[5] + py - (R[4] * px + R[5] * py + R[6] * pz);
-    L[11] = s[6] + pz - (R[8] * px + R[9] * py + R[10] * pz);
+    _T.makeTranslation(LT[i].x + px, LT[i].y + py, LT[i].z + pz);
+    _R.makeRotationFromQuaternion(LQ[i]);
+    _eu.set(EX[i][0], EX[i][1], EX[i][2], "ZYX"); _E.makeRotationFromEuler(_eu);
+    _Pi.makeTranslation(-px, -py, -pz);
+    _Lm.copy(_T).multiply(_R).multiply(_E).multiply(_Pi);
+    if (b.parent < 0) WM[i].copy(_Lm); else WM[i].multiplyMatrices(WM[b.parent], _Lm);
     if (!mats[i]) mats[i] = new Float32Array(12);
-    if (b.parent < 0) mats[i].set(L); else mul(mats[b.parent], L, mats[i]);
+    const e = WM[i].elements, o = mats[i];
+    o[0] = e[0]; o[1] = e[4]; o[2] = e[8]; o[3] = e[12]; o[4] = e[1]; o[5] = e[5]; o[6] = e[9]; o[7] = e[13]; o[8] = e[2]; o[9] = e[6]; o[10] = e[10]; o[11] = e[14];
   });
 }
 function qmul(a, b) { return [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0], a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]]; }
@@ -262,6 +279,158 @@ function skin() {
   }
 }
 
+
+// ================================================================ walk test: the same stepping code the mod uses, on blocky hills
+const BLOCK = 1 / 4.6;                       // one Minecraft block in model metres
+const LIMB = [["legL", "shinL"], ["legR", "shinR"], ["foreL", "handL"], ["foreR", "handR"]];
+const END = [[-0.27, 0.05, 0.10], [0.27, 0.05, 0.10], [-0.67, 0.15, 0.68], [0.67, 0.15, 0.68]];
+const DIAG = [3, 2, 1, 0], SIDE = [2, 3, 0, 1];
+const walk = { on: false, mode: "walk", x: 0, z: 0, y: 0, yaw: 0, ang: 0, legs: null, neutral: {} };
+const bi = name => M.bones.findIndex(b => b.name === name);
+function terrain(ix, iz) {                    // block height (in blocks) of a column
+  const h = 2.2 * Math.sin(ix * 0.07) + 1.6 * Math.cos(iz * 0.09 + 1) + 1.2 * Math.sin((ix + iz) * 0.13) + (((ix * 73856093) ^ (iz * 19349663)) % 7 === 0 ? 1 : 0);
+  return Math.round(h);
+}
+const groundAt = (x, z) => (terrain(Math.floor(x / BLOCK), Math.floor(z / BLOCK)) + 1) * BLOCK;
+let terrainMesh = null;
+function buildTerrain() {
+  const N = 70, geom = new THREE.BoxGeometry(BLOCK, BLOCK, BLOCK);
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.95, vertexColors: false, color: 0x6f6a5f });
+  terrainMesh = new THREE.InstancedMesh(geom, mat, N * N * 3);
+  const m4 = new THREE.Matrix4(), col = new THREE.Color(); let k = 0;
+  for (let ix = -N / 2; ix < N / 2; ix++) for (let iz = -N / 2; iz < N / 2; iz++) {
+    const h = terrain(ix, iz);
+    for (let d = 0; d < 2; d++) {
+      m4.makeTranslation((ix + 0.5) * BLOCK, (h - d + 0.5) * BLOCK, (iz + 0.5) * BLOCK); terrainMesh.setMatrixAt(k, m4);
+      const g = d === 0 ? 0.36 + ((ix * 7 + iz * 13) % 5) * 0.015 : 0.27; col.setRGB(g, g * 0.97, g * 0.9); terrainMesh.setColorAt(k, col); k++;
+    }
+  }
+  terrainMesh.count = k; terrainMesh.receiveShadow = true; terrainMesh.visible = false; scene.add(terrainMesh);
+}
+function endPos(i) { const lo = bi(LIMB[i][1]); return new THREE.Vector3(...END[i]).applyMatrix4(WM[lo]); }
+function jointPos(b) { const p = M.bones[b].piv; return new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(WM[b]); }
+function twoBone(i, target) {                 // port of ShadowSkeleton.twoBone
+  const up = bi(LIMB[i][0]), lo = bi(LIMB[i][1]); if (up < 0 || lo < 0) return;
+  const pole = jointPos(lo);
+  const par = M.bones[up].parent, inv = par < 0 ? new THREE.Matrix4() : WM[par].clone().invert();
+  const h = new THREE.Vector3(...M.bones[up].piv), k0 = new THREE.Vector3(...M.bones[lo].piv), e0 = new THREE.Vector3(...END[i]);
+  const T = target.clone().applyMatrix4(inv), P = pole.applyMatrix4(inv).sub(h);
+  const l1 = k0.distanceTo(h), l2 = e0.distanceTo(k0);
+  const dv = T.clone().sub(h); const d = Math.min(Math.max(dv.length(), Math.abs(l1 - l2) + 1e-4), l1 + l2 - 1e-4);
+  const u = dv.clone().normalize(), a = (l1 * l1 - l2 * l2 + d * d) / (2 * d), hg = Math.sqrt(Math.max(l1 * l1 - a * a, 0));
+  const pp = P.clone().sub(u.clone().multiplyScalar(P.dot(u))); if (pp.lengthSq() < 1e-10) pp.set(0, 1, 0).cross(u); pp.normalize();
+  const K = h.clone().add(u.clone().multiplyScalar(a)).add(pp.multiplyScalar(hg)), Te = h.clone().add(u.clone().multiplyScalar(d));
+  const x0 = k0.clone().sub(h).normalize(), n0 = k0.clone().sub(h).cross(e0.clone().sub(k0)); if (n0.lengthSq() < 1e-10) n0.copy(x0).cross(new THREE.Vector3(0, 0, 1)); n0.normalize();
+  const x1 = K.clone().sub(h).normalize(), n1 = K.clone().sub(h).cross(Te.clone().sub(K)); if (n1.lengthSq() < 1e-12) return; n1.normalize();
+  const B0 = new THREE.Matrix4().makeBasis(x0, n0, x0.clone().cross(n0)), B1 = new THREE.Matrix4().makeBasis(x1, n1, x1.clone().cross(n1));
+  const RA = B1.clone().multiply(B0.clone().transpose());
+  const want = Te.clone().sub(K).applyMatrix4(RA.clone().transpose());
+  LQ[up].setFromRotationMatrix(RA); EX[up] = [0, 0, 0];
+  LQ[lo].setFromUnitVectors(e0.clone().sub(k0).normalize(), want.normalize()); EX[lo] = [0, 0, 0];
+  fk();
+}
+const LOCO = ["walk", "boss_walk", "crawl", "scuttle"];
+function neutral(clip) {                      // average limb position over a walking clip = its home under the body
+  if (walk.neutral[clip]) return walk.neutral[clip];
+  const saveQ = LQ.map(q => q.clone()), saveT = LT.map(t => t.clone()), saveE = EX.map(e => e.slice());
+  const c = A.clips[clip], n = c.frames - 1, sum = [0, 1, 2, 3].map(() => new THREE.Vector3()), fr = A.parts.map(() => new Float32Array(7));
+  for (let f = 0; f < n; f++) {
+    sampleClip(c, f, fr);
+    M.bones.forEach((b, i) => { const ai = A.parts.indexOf(b.name); if (ai < 0) { LQ[i].set(0, 0, 0, 1); LT[i].set(0, 0, 0); } else { const v = fr[ai]; LQ[i].set(v[0], v[1], v[2], v[3]).normalize(); LT[i].set(v[4], v[5], v[6]); } EX[i] = [0, 0, 0]; });
+    fk(); for (let l = 0; l < 4; l++) sum[l].add(endPos(l));
+  }
+  sum.forEach(v => v.divideScalar(n));
+  LQ.forEach((q, i) => q.copy(saveQ[i])); LT.forEach((t, i) => t.copy(saveT[i])); EX.forEach((e, i) => EX[i] = saveE[i]); fk();
+  return walk.neutral[clip] = sum;
+}
+const toWorld = (v) => { const c = Math.cos(walk.yaw), s = Math.sin(walk.yaw); return new THREE.Vector3(walk.x + v.x * c + v.z * s, walk.y + v.y, walk.z - v.x * s + v.z * c); };
+const toModel = (w) => { const c = Math.cos(walk.yaw), s = Math.sin(walk.yaw), dx = w.x - walk.x, dz = w.z - walk.z; return new THREE.Vector3(dx * c - dz * s, w.y - walk.y, dx * s + dz * c); };
+const dust = [];
+function puff(p) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(0.02, 0.06, 20), new THREE.MeshBasicMaterial({ color: 0xbdb5a5, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.position.set(p.x, p.y + 0.01, p.z); scene.add(m); dust.push({ m, t: 0 });
+}
+function legs(vx, vz, dt) {                   // port of Legs.update (scale = 1: model metres)
+  const L = walk.legs || (walk.legs = { plant: [null, null, null, null], from: [], to: [], step: [false, false, false, false], t: [0, 0, 0, 0], dur: [0, 0, 0, 0], lift: [0, 0, 0, 0], air: [0, 0, 0, 0], bodyDy: 0, pitch: 0, roll: 0, sway: 0 });
+  const clip = view.clip, loco = LOCO.includes(clip), home = loco ? neutral(clip) : null;
+  const c = A.clips[clip], fi = c.loop ? Math.round(view.t) % (c.frames - 1) : Math.min(c.frames - 1, Math.round(view.t)), contact = c.contact[fi];
+  const spm = Math.hypot(vx, vz);
+  const thr = Math.min(0.42, Math.max(0.20, 0.20 + spm * 3.2)), stepDur = Math.min(11, Math.max(3.5, 11 - spm * 60)), maxSteps = spm > 0.004 ? 2 : 1, trot = spm > 0.06;
+  const free = [false, false, false, false], want = [];
+  for (let i = 0; i < 4; i++) {
+    const f = endPos(i);
+    if (!((contact >> i) & 1) && f.y > END[i][1] + 0.3) { free[i] = true; L.plant[i] = null; L.step[i] = false; L.air[i] = 1; continue; }
+    const d = loco ? home[i].clone() : f.clone();
+    const w = toWorld(d); w.x += vx * stepDur * 0.55; w.z += vz * stepDur * 0.55; w.y = groundAt(w.x, w.z);
+    want[i] = w;
+    if (!L.plant[i]) { L.plant[i] = w.clone(); continue; }
+    if (Math.hypot(L.plant[i].x - w.x, L.plant[i].z - w.z) > thr * 5) { L.plant[i] = w.clone(); L.step[i] = false; }
+  }
+  let busy = L.step.filter(Boolean).length;
+  for (let round = 0; round < 2 && busy < maxSteps; round++) {
+    let best = -1, bestErr = thr;
+    for (let i = 0; i < 4; i++) {
+      if (free[i] || L.step[i] || !want[i]) continue;
+      if (maxSteps === 1 && busy > 0) continue;
+      if (trot && busy > 0 && !L.step.some((s, j) => s && DIAG[j] === i)) continue;
+      if (L.step[SIDE[i]] && L.t[SIDE[i]] < 0.5) continue;
+      const err = Math.hypot(L.plant[i].x - want[i].x, L.plant[i].z - want[i].z);
+      if (err > bestErr) { bestErr = err; best = i; }
+    }
+    if (best < 0) break;
+    const i = best; L.from[i] = L.plant[i].clone(); L.to[i] = want[i].clone(); L.t[i] = 0; L.dur[i] = stepDur; L.step[i] = true; busy++;
+    L.lift[i] = Math.min(1.6, 0.25 + L.from[i].distanceTo(L.to[i]) * 4.6 * 0.35) * BLOCK;
+  }
+  for (let i = 0; i < 4; i++) {
+    if (!L.step[i]) { L.air[i] = Math.max(0, L.air[i] - dt * 0.25); continue; }
+    if (want[i]) { L.to[i].x += (want[i].x - L.to[i].x) * 0.15; L.to[i].z += (want[i].z - L.to[i].z) * 0.15; L.to[i].y = groundAt(L.to[i].x, L.to[i].z); }
+    L.t[i] = Math.min(1, L.t[i] + dt / L.dur[i]); const u = L.t[i], e = u * u * (3 - 2 * u);
+    L.plant[i] = L.from[i].clone().lerp(L.to[i], e); L.plant[i].y += Math.sin(u * Math.PI) * L.lift[i] + Math.max(0, L.to[i].y - L.from[i].y) * Math.sin(u * Math.PI) * 0.5;
+    L.air[i] = Math.sin(u * Math.PI);
+    if (u >= 1) { L.step[i] = false; L.plant[i] = L.to[i].clone(); puff(L.plant[i]); }
+  }
+  let front = 0, back = 0, left = 0, right = 0, nf = 0, nb = 0, nl = 0, nr = 0, lowest = 1e9;
+  for (let i = 0; i < 4; i++) { if (free[i] || !L.plant[i]) continue; const h = (L.step[i] ? L.to[i].y : L.plant[i].y) - walk.y; lowest = Math.min(lowest, h); if (i >= 2) { front += h; nf++; } else { back += h; nb++; } if (i % 2 === 0) { left += h; nl++; } else { right += h; nr++; } }
+  const k = Math.min(1, dt * 0.3);
+  L.bodyDy += ((lowest < 1e8 ? Math.min(0.35, Math.max(-0.45, lowest)) : 0) - L.bodyDy) * k;
+  L.pitch += (Math.max(-0.5, Math.min(0.5, nf && nb ? Math.atan2(front / nf - back / nb, 0.74) : 0)) - L.pitch) * k;
+  L.roll += (Math.max(-0.35, Math.min(0.35, nl && nr ? Math.atan2(right / nr - left / nl, 0.9) : 0)) - L.roll) * k;
+  let ws = 0; for (let i = 0; i < 4; i++) if (L.step[i]) ws += (i % 2 === 0 ? 1 : -1) * L.air[i];
+  L.sway += (ws * 0.035 - L.sway) * Math.min(1, dt * 0.25);
+  const hips = bi("hips"); LT[hips].y += L.bodyDy; LT[hips].x += L.sway; EX[hips][0] -= L.pitch * 0.75; EX[hips][2] -= L.roll * 0.6;
+  fk();
+  for (let i = 0; i < 4; i++) { if (free[i] || !L.plant[i]) continue; const mp = toModel(L.plant[i]); mp.y += END[i][1]; twoBone(i, mp); }
+  // fingers and toes: spread and press down when planted, curl in the air
+  const NAMES = [["toeL0", "toeL1", "toeL2", "toeL3"], ["toeR0", "toeR1", "toeR2", "toeR3"], ["fingerL0", "fingerL1", "fingerL2", "fingerL3"], ["fingerR0", "fingerR1", "fingerR2", "fingerR3"]];
+  let any = false;
+  for (let l = 0; l < 4; l++) { const a = free[l] ? 0.6 : L.air[l], side = l % 2 === 0 ? -1 : 1;
+    for (let q = 0; q < 4; q++) { const b = bi(NAMES[l][q]); if (b < 0) continue; any = true; const sp = (q - 1.5) / 1.5;
+      if (l >= 2) { EX[b][0] += 0.9 * a - 0.15 * (1 - a); EX[b][2] += side * sp * 0.28 * (1 - a); }
+      else { EX[b][0] += (q === 3 ? -0.8 : 0.75) * a - 0.1 * (1 - a); EX[b][1] += sp * 0.22 * (1 - a) * side; } } }
+  if (any) fk();
+}
+function walkTick(ticks) {
+  const speeds = { walk: 0.18 * BLOCK, run: 0.7 * BLOCK, turn: 0 };
+  const sp = speeds[walk.mode] ?? 0, R = 30 * BLOCK;
+  let vx = 0, vz = 0;
+  if (walk.mode === "turn") { walk.yaw += 0.02 * ticks; }
+  else {
+    walk.ang += sp / R * ticks;
+    const nx = Math.cos(walk.ang) * R, nz = Math.sin(walk.ang) * R;
+    vx = (nx - walk.x) / Math.max(ticks, 1e-3); vz = (nz - walk.z) / Math.max(ticks, 1e-3);
+    walk.x = nx; walk.z = nz;
+    walk.yaw = Math.atan2(-Math.sin(walk.ang), Math.cos(walk.ang)) * 0 + (-walk.ang);   // facing along the circle
+  }
+  walk.y += (groundAt(walk.x, walk.z) - walk.y) * Math.min(1, 0.35 * ticks);
+  return [vx, vz];
+}
+function setWalk(mode) {
+  walk.mode = mode; walk.on = mode !== "off"; walk.legs = null;
+  document.querySelectorAll("[data-walk]").forEach(b => b.setAttribute("aria-pressed", b.dataset.walk === mode));
+  terrainMesh.visible = walk.on; floor.visible = !walk.on;
+  if (walk.on) pick(mode === "run" ? "scuttle" : mode === "turn" ? "idle" : "walk"); else { creature.position.set(0, 0, 0); creature.rotation.set(0, 0, 0); }
+}
+
 // ---------------------------------------------------------------- ui
 function pick(name) {
   if (name === view.clip) { view.t = 0; return; }
@@ -288,6 +457,7 @@ document.querySelectorAll('[id^="spd-"]').forEach(b => b.onclick = () => { view.
 document.getElementById("jaw").oninput = e => { view.jaw = e.target.value / 100; view.jawManual = true; };
 document.getElementById("bones").onclick = e => { view.bones = !view.bones; e.target.setAttribute("aria-pressed", view.bones); bonesLines.visible = view.bones; };
 ["front", "34", "side", "low"].forEach(v => document.getElementById("v-" + v).onclick = () => setView(v));
+document.querySelectorAll("[data-walk]").forEach(b => b.onclick = () => setWalk(b.dataset.walk));
 
 function resize() { const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); }
 window.addEventListener("resize", resize);
@@ -304,9 +474,17 @@ function frame(now) {
       document.getElementById("scrub").value = Math.round(((c.loop ? view.t % (c.frames - 1) : view.t) / (c.frames - 1)) * 1000);
     }
     view.fade = Math.min(1, view.fade + ticks / 8);
-    gridTex.offset.y = -view.scroll / 1.0 * 1;   // 1 tile = 1 m
+    if (!walk.on) gridTex.offset.y = -view.scroll / 1.0 * 1;   // 1 tile = 1 m
     if (!view.jawManual) view.jaw += ((AUTO_JAW[view.clip] ?? 0.03) - view.jaw) * Math.min(1, ticks * 0.3);
-    pose(); skin();
+    pose();
+    if (walk.on && view.playing) {
+      const [vx, vz] = walkTick(ticks);
+      creature.position.set(walk.x, walk.y, walk.z); creature.rotation.set(0, walk.yaw, 0);
+      legs(vx, vz, ticks);
+      controls.target.lerp(new THREE.Vector3(walk.x, walk.y + 1.2, walk.z), 0.1);
+    }
+    for (let i = dust.length - 1; i >= 0; i--) { const d = dust[i]; d.t += ticks; const k = d.t / 14; d.m.scale.setScalar(1 + k * 3); d.m.material.opacity = 0.8 * (1 - k); if (k >= 1) { scene.remove(d.m); dust.splice(i, 1); } }
+    skin();
   }
   controls.update(); renderer.render(scene, camera);
   requestAnimationFrame(frame);
@@ -328,9 +506,10 @@ function frame(now) {
     const tex = new THREE.TextureLoader().load("atlas.jpg"); tex.encoding = THREE.sRGBEncoding; tex.flipY = false; tex.anisotropy = 8;
     const skinMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.62, metalness: 0, side: THREE.DoubleSide });
     const glowMat = new THREE.MeshBasicMaterial({ color: 0xffe0a0 });
-    const mesh = new THREE.Mesh(geo, [skinMat, glowMat]); mesh.castShadow = true; mesh.frustumCulled = false; scene.add(mesh);
+    const mesh = new THREE.Mesh(geo, [skinMat, glowMat]); mesh.castShadow = true; mesh.frustumCulled = false; creature.add(mesh);
     const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(M.bones.length * 6), 3));
-    bonesLines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xa33a2c, depthTest: false })); bonesLines.visible = false; bonesLines.renderOrder = 5; scene.add(bonesLines);
+    bonesLines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xa33a2c, depthTest: false })); bonesLines.visible = false; bonesLines.renderOrder = 5; creature.add(bonesLines);
+    buildTerrain();
     buildButtons(); pick("walk"); view.fade = 1;
     document.getElementById("clipMeta").textContent += "";
   } catch (e) { status.textContent = "Couldn't load the model: " + e.message; }

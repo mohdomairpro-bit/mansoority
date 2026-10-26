@@ -223,7 +223,7 @@ MOUTH_Z = -0.030
 def g(q, c, r):
     return math.exp(-((q - c).length / r) ** 2)
 def make_head():
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=96, ring_count=64, radius=1.0, location=(0, 0, 0))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=160, ring_count=120, radius=1.0, location=(0, 0, 0))
     hd = bpy.context.active_object; hd.name = "skull"
     for v in hd.data.vertices:
         p = v.co.copy()
@@ -242,6 +242,25 @@ def make_head():
             q += Vector((-0.012 * sx, 0, 0)) * g(q, Vector((0.085 * sx, -0.030, 0.040)), 0.03)        # hollow temples
         q += Vector((0, 0.022, 0)) * g(q, Vector((0, -0.105, -0.010)), 0.02)                          # flat where a nose should be
         q += q.normalized() * (0.0015 * noise.noise(q * 60) + 0.003 * max(0, noise.noise(q * 9 + Vector((3, 1, 2)))))
+        # ---- detail: skin that has been stretched too long
+        nrm = q.normalized(); front = 1.0 if q.y < -0.02 else 0.0
+        ridge = 1 - abs(noise.noise(Vector((q.x * 38, q.y * 38, q.z * 70))))
+        q -= nrm * 0.0038 * ridge ** 7                                        # deep creases, mostly running across the face
+        for c, r in SOCKETS:                                                  # crow's feet fanning out of the sockets
+            dd = (q - c).length
+            ring = g(q, c, r * 2.4) * (1 - g(q, c, r * 1.15))
+            ang = math.atan2(q.z - c.z, q.x - c.x)
+            q -= nrm * 0.0016 * ring * max(0.0, math.sin(ang * 9 + dd * 40)) ** 6
+            q += nrm * 0.0035 * g(q, c, r * 1.35) * (1 - g(q, c, r * 0.95))   # raw swollen rims
+        vein = 1 - abs(noise.noise(Vector((q.x * 22 + 7, q.y * 22, q.z * 16))))
+        q += nrm * 0.0013 * vein ** 14 * (1 if q.z > -0.02 else 0.4)          # veins standing out on the temples and brow
+        lip = math.exp(-((q.z - MOUTH_Z) / 0.0045) ** 2) * front * (1 if abs(q.x) < 0.075 else 0)
+        split = math.exp(-(q.x / 0.0045) ** 2) * front * (1 if q.z < MOUTH_Z else 0)
+        q += nrm * (0.0032 * lip + 0.0026 * split)                            # cracked, swollen edges where it splits
+        q += nrm * 0.0009 * noise.noise(q * 520) * (lip + split)              # cracks
+        for k_ in range(5):                                                   # old sores
+            sc = Vector((math.sin(k_ * 2.1) * 0.06, -0.09, -0.12 + k_ * 0.05))
+            q -= nrm * 0.004 * g(q, sc, 0.006) * front
         v.co = q
     for f in hd.data.polygons: f.use_smooth = True
     return hd
@@ -351,7 +370,7 @@ for i in range(22):
 
 hair = []
 random.seed(11)
-for k in range(150):
+for k in range(95):
     th = random.uniform(-2.9, 2.9); ph = random.uniform(0.15, 1.55)
     root = Vector((math.sin(th) * math.sin(ph) * 0.084, math.cos(th) * math.sin(ph) * 0.11, math.cos(ph) * 0.16))
     if root.y < -0.03 and abs(root.x) < 0.07: continue     # the blank face stays bare
@@ -362,7 +381,7 @@ for k in range(150):
         d_ = (d_ * 0.6 + Vector((0, 0, -1.0)) * 0.03 + root.normalized() * Vector((1, 1, 0)) * (0.006 if sgm < 2 else 0.0)
               + Vector((random.uniform(-1, 1), random.uniform(-1, 1), 0)) * 0.003).normalized() * (L / 9)
         p_ = p_ + d_; pts.append(p_.copy())
-    cd = bpy.data.curves.new("hair", 'CURVE'); cd.dimensions = '3D'; cd.bevel_depth = random.uniform(0.0025, 0.0045); cd.bevel_resolution = 0
+    cd = bpy.data.curves.new("hair", 'CURVE'); cd.dimensions = '3D'; cd.bevel_depth = random.uniform(0.0018, 0.0034); cd.bevel_resolution = 0
     sp = cd.splines.new('POLY'); sp.points.add(len(pts) - 1)
     for i_, q_ in enumerate(pts): sp.points[i_].co = (q_.x, q_.y, q_.z, 1); sp.points[i_].radius = 1.0 - i_ / (len(pts) + 1)
     ho = link(bpy.data.objects.new("hair", cd))
@@ -385,7 +404,7 @@ def tendril(root, d, L, r0, depth=0):
         p_ = p_ + d_ * (L / n); pts.append(p_.copy())
     cd = bpy.data.curves.new("tendril", 'CURVE'); cd.dimensions = '3D'; cd.bevel_depth = r0; cd.bevel_resolution = 1
     sp = cd.splines.new('POLY'); sp.points.add(len(pts) - 1)
-    for i_, q_ in enumerate(pts): sp.points[i_].co = (q_.x, q_.y, q_.z, 1); sp.points[i_].radius = max(0.08, 1.0 - i_ / len(pts))
+    for i_, q_ in enumerate(pts): sp.points[i_].co = (q_.x, q_.y, q_.z, 1); sp.points[i_].radius = max(0.06, (1.0 - i_ / len(pts)) ** 1.6) * (1.0 + 0.3 * (i_ % 2))
     ho = link(bpy.data.objects.new("tendril", cd))
     me_ = bpy.data.meshes.new_from_object(ho.evaluated_get(bpy.context.evaluated_depsgraph_get()))
     mo = link(bpy.data.objects.new("tendrilm", me_)); bpy.data.objects.remove(ho)
@@ -396,11 +415,11 @@ def tendril(root, d, L, r0, depth=0):
             dd = (pts[bi + 1] - pts[bi]).normalized() + Vector((random.uniform(-0.8, 0.8), random.uniform(-0.3, 0.3), random.uniform(0.2, 0.7)))
             tendril(pts[bi], dd, L * random.uniform(0.35, 0.55), r0 * 0.55, depth + 1)
 random.seed(21)
-for k in range(11):
+for k in range(7):
     sx = -1 if k % 2 else 1; f = (k // 2) / 5
     root = Vector((sx * (0.02 + 0.05 * f), -0.06 + 0.07 * f, 0.10 + 0.04 * (1 - f)))
     d = Vector((sx * (0.35 + 0.6 * f), 0.55 + 0.3 * f, 0.75 - 0.3 * f))
-    tendril(root, d, random.uniform(0.22, 0.42) * (1.2 - 0.4 * f), random.uniform(0.0055, 0.0085))
+    tendril(root, d, random.uniform(0.22, 0.42) * (1.2 - 0.4 * f), random.uniform(0.009, 0.013))
 
 HEAD_PARTS = {"head": [skull, void] + hair + upper + drips + tendrils + glints, "jaw": [jaw] + lower, "jawR": [jawR] + lowerR}
 # place head on the neck
@@ -487,17 +506,27 @@ def mat_color(kind, co):
     if kind == "hair":   return Vector((0.012, 0.010, 0.010)) * (1 + 0.4 * n)
     if kind == "saliva": return Vector((0.62, 0.60, 0.52))
     if kind == "face":
-        blot = 0.7 + 0.6 * (noise.noise(co * 9 + Vector((5, 2, 1))) * 0.5 + 0.5)
+        blot = 0.6 + 0.8 * (noise.noise(co * 9 + Vector((5, 2, 1))) * 0.5 + 0.5)
         vein = 1 - abs(noise.noise(co * 32))
-        c = Vector((0.17, 0.175, 0.15)) * blot * (1 + 0.2 * n)
-        if vein > 0.94: c = c * 0.45 + Vector((0.05, 0.0, 0.02))
+        c = Vector((0.17, 0.165, 0.145)) * blot * (1 + 0.25 * n)
+        if vein > 0.92: c = c * 0.4 + Vector((0.06, 0.0, 0.035))              # bruised purple veins
+        lq = head_inv @ co if 'head_inv' in globals() else co
+        cr = 1 - abs(noise.noise(Vector((lq.x * 38, lq.y * 38, lq.z * 70))))
+        c = c * (1 - 0.7 * cr ** 7)                                             # dirt in the creases
+        mott = noise.noise(co * 140) * 0.5 + 0.5
+        c = c.lerp(Vector((0.12, 0.05, 0.05)), 0.25 * mott ** 3)                # blotchy, sick skin
         return c
     if kind == "bone":   return Vector((0.30, 0.27, 0.22)) * (1 + 0.4 * n)
     if kind == "tooth":  return Vector((0.55, 0.48, 0.32)) * (0.6 + 0.5 * (noise.noise(co * 300) * 0.5 + 0.5))
     if kind == "throat": return Vector((0.035, 0.002, 0.004))
     if kind == "glint":  return Vector((1.0, 0.88, 0.55))
-    if kind == "tongue": return Vector((0.30, 0.040, 0.055)) * (0.75 + 0.5 * (noise.noise(co * 40) * 0.5 + 0.5))
-    if kind == "sac":    return Vector((0.24, 0.025, 0.035)) * (0.7 + 0.6 * (noise.noise(co * 30) * 0.5 + 0.5))
+    if kind == "tongue":
+        bumps = noise.noise(co * 300) * 0.5 + 0.5
+        return Vector((0.17, 0.018, 0.035)) * (0.6 + 0.6 * (noise.noise(co * 40) * 0.5 + 0.5)) + Vector((0.08, 0.06, 0.06)) * bumps ** 6   # dark, with pale papillae
+    if kind == "sac":
+        vein = 1 - abs(noise.noise(co * 45))
+        c = Vector((0.13, 0.012, 0.02)) * (0.6 + 0.7 * (noise.noise(co * 30) * 0.5 + 0.5))
+        return c * 0.35 if vein > 0.9 else c
     if kind == "claw":   return Vector((0.05, 0.04, 0.035))
     return Vector((0.5, 0.5, 0.5))
 
@@ -738,7 +767,14 @@ def export():
             d = (a + ab * t - p).length
             if d < best: best, bp = d, part
         return bp
+    jaw_rig.rotation_euler = (math.radians(8), 0, math.radians(-85)); jawR_rig.rotation_euler = (math.radians(8), 0, math.radians(85))
+    sac_home = {o.name: o.matrix_world.copy() for o in SAC_OBJS}
+    for o in SAC_OBJS: o.matrix_world = Matrix.Translation((0, -0.7, 0)) @ o.matrix_world
+    bpy.context.view_layer.update()
     bake_atlas([o for o in ALL if KIND[o.name] not in SOLID], 4096)
+    jaw_rig.rotation_euler = (0, 0, 0); jawR_rig.rotation_euler = (0, 0, 0)
+    for o in SAC_OBJS: o.matrix_world = sac_home[o.name]
+    bpy.context.view_layer.update()
     global TRIS, TRIS_LOD
     TRIS = build_tris(nearest_part, 1.0)
     TRIS_LOD = build_tris(nearest_part, 0.3, skip=("hair", "tooth", "saliva", "glint", "bone", "sac", "tongue"))   # far away: a much lighter model

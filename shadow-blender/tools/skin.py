@@ -26,6 +26,24 @@ for s in "LR":
     SEGS["hand" + s] = [("joint2" + s, "wrist" + s), ("wrist" + s, "hand" + s)]
     SEGS["leg" + s] = [("hip" + s, "knee" + s)]
     SEGS["shin" + s] = [("knee" + s, "ankle" + s), ("ankle" + s, "toe" + s)]
+# fingers and toes: the same polylines build_shadow.py grows them along (Blender coords, converted below)
+DIGITS = {}
+for _s, _sx in (("L", -1), ("R", 1)):
+    _h = np.array((0.67 * _sx, -0.68, 0.15))
+    for _k in range(4):
+        _sp = (_k - 1.5) * 0.045; _p = _h.copy(); _pts = [_p.copy()]
+        for _g in range(3):
+            _p = _p + np.array((_sp * _sx * 0.6 + _sx * 0.005 * _k, -0.07 - _g * 0.02, -0.10 + _g * 0.035)); _pts.append(_p.copy())
+        DIGITS["finger%s%d" % (_s, _k)] = ("hand" + _s, _pts)
+    _a = np.array((0.26 * _sx, 0.06, 0.17))
+    for _k, _ang in enumerate((-0.55, 0.0, 0.55, 3.14)):
+        _p = _a.copy(); _pts = [_p.copy()]
+        for _g in range(3):
+            _L = 0.075 if _ang != 3.14 else 0.045
+            _p = _p + np.array((np.sin(_ang) * _L * _sx * (1 if _ang != 3.14 else 0), -np.cos(_ang) * _L, -0.045 if _g == 0 else -0.012))
+            _p[2] = max(_p[2], 0.012); _pts.append(_p.copy())
+        DIGITS["toe%s%d" % (_s, _k)] = ("shin" + _s, _pts)
+DIGITS = {k: (par, [np.array([q[0], q[2], -q[1]], np.float32) for q in pts]) for k, (par, pts) in DIGITS.items()}
 RIGID = {"head", "jaw", "jawR", "eyeL", "eyeR"}          # the skull, the two halves of the face and the eyes stay hard
 BELLY_Y = (1.46, 1.71)                                   # (MC y) the stretch of stomach that splits open
 
@@ -110,10 +128,41 @@ def main(src, dst, power=4.0):
         keep = np.where(w0[sel] >= 0.5, b0[sel], b1[sel])
         b1[sel] = keep; b0[sel] = bb; w0[sel] = W[sel]
         print("belly vertices:", len(sel))
+    # 2d) fingers and toes: everything past the first knuckle follows its own digit, so they can spread and curl
+    extra = []
+    for name, (par, pts) in DIGITS.items():
+        if par not in names: continue
+        extra.append((name, names.index(par), pts[1]))
+    if extra:
+        allnames = names + [e[0] for e in extra]
+        for side in "LR":
+            for par, kind in (("hand" + side, "finger"), ("shin" + side, "toe")):
+                if par not in names: continue
+                sel = np.where(vh == names.index(par))[0]
+                if len(sel) == 0: continue
+                P_ = vp[sel]
+                own = part_dist(P_, par)
+                dd, kk, uu = [], [], []
+                for k in range(4):
+                    nm = "%s%s%d" % (kind, side, k); pts = DIGITS[nm][1]
+                    d = np.min(np.stack([seg_dist(P_, pts[i], pts[i + 1]) for i in range(3)]), axis=0)
+                    # past the tip (the claw): distance to the last point, a little forgiving
+                    d = np.minimum(d, np.linalg.norm(P_ - pts[3], axis=1) * 0.8)
+                    dirv = (pts[2] - pts[1]); dirv = dirv / np.linalg.norm(dirv)
+                    dd.append(d); uu.append((P_ - pts[1]) @ dirv)
+                D = np.stack(dd, axis=1); U = np.stack(uu, axis=1)
+                best = np.argmin(D, axis=1); dbest = D[np.arange(len(sel)), best]; ubest = U[np.arange(len(sel)), best]
+                isdigit = dbest < own * 0.95
+                x = np.clip((ubest + 0.012) / 0.024, 0, 1); wdig = x * x * (3 - 2 * x)
+                idx = np.where(isdigit & (wdig > 0.02))[0]
+                bi = np.array([allnames.index("%s%s%d" % (kind, side, k)) for k in range(4)])
+                v_ = sel[idx]
+                b1[v_] = names.index(par); b0[v_] = bi[best[idx]]; w0[v_] = wdig[idx]
+                print(kind, side, "vertices:", len(idx))
     # 3) triangles
     tri = inv.reshape(-1, 3)
     solid, glow = tri[~G], tri[G]
-    bones = [(p["name"], p["parent"], p["pivot"]) for p in parts]
+    bones = [(p["name"], p["parent"], p["pivot"]) for p in parts] + [(n, pi, pv) for n, pi, pv in extra]
     write_shd3(dst, bones, vp, vn, vuv, b0, b1, w0, solid, glow)
     blended = np.sum(w0 < 0.98)
     print("bones", len(bones), "tris", len(solid), "+", len(glow), "glow;", blended, "vertices blend two bones")

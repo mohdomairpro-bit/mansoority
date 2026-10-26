@@ -65,6 +65,8 @@ public class ShadowEntity extends PathfinderMob {
     public long lastFrameMs;
     /** client: strings of spit across its mouth */
     public Object salivaState;
+    /** client: where each hand and foot is planted in the world */
+    public Object legsState;
     /** client: animation playback state */
     public Object animState;
     /** where it's gliding to (it walks now instead of blinking from spot to spot) */

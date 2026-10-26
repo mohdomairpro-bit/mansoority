@@ -22,9 +22,9 @@ final class Saliva {
     private static final ResourceLocation WHITE = new ResourceLocation(TheShadow.MODID, "textures/entity/white.png");
     // anchor points (model metres, bone-local rest positions): left/right petal tips, upper lip, tongue tip
     private record Anchor(String bone, float x, float y, float z) {}
-    private static final Anchor PETAL_L = new Anchor("jaw", -0.030F, 1.76F, 0.655F), PETAL_R = new Anchor("jawR", 0.030F, 1.76F, 0.655F);
-    private static final Anchor PETAL_L2 = new Anchor("jaw", -0.012F, 1.80F, 0.668F), PETAL_R2 = new Anchor("jawR", 0.012F, 1.80F, 0.668F);
-    private static final Anchor LIP_L = new Anchor("head", -0.045F, 1.87F, 0.650F), LIP_R = new Anchor("head", 0.045F, 1.87F, 0.650F), LIP_M = new Anchor("head", 0F, 1.875F, 0.664F);
+    private static final Anchor PETAL_L = new Anchor("jaw", -0.010F, 1.78F, 0.642F), PETAL_R = new Anchor("jawR", 0.010F, 1.78F, 0.642F);
+    private static final Anchor PETAL_L2 = new Anchor("jaw", -0.008F, 1.84F, 0.650F), PETAL_R2 = new Anchor("jawR", 0.008F, 1.84F, 0.650F);
+    private static final Anchor LIP_L = new Anchor("head", -0.045F, 1.87F, 0.650F), LIP_R = new Anchor("head", 0.045F, 1.87F, 0.650F), LIP_M = new Anchor("head", 0F, 1.88F, 0.655F);
     private static final Anchor[][] PAIRS = {{PETAL_L, PETAL_R}, {PETAL_L2, PETAL_R2}, {LIP_L, PETAL_L}, {LIP_R, PETAL_R}, {LIP_M, null}, {PETAL_L, null}};
 
     static final class State {

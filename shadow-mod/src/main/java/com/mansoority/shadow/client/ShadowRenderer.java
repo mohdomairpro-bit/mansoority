@@ -142,11 +142,14 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         glowR = 255; glowG = black ? 40 : 255; glowB = black ? 30 : 255;
         // feet on the real ground (close enough to see it, standing on something)
         ShadowSkeleton.fk(mesh);
-        if (e.animState instanceof ShadowAnim.State st && ShadowAnim.get() != null && dist2 < 48 * 48 && vt <= 0F && mc.level != null) {
+        boolean onWall = e instanceof com.mansoority.shadow.MansoorityBoss bb && bb.has(com.mansoority.shadow.MansoorityBoss.F_WALL);
+        if (e.animState instanceof ShadowAnim.State st && ShadowAnim.get() != null && dist2 < 64 * 64 && vt <= 0F && mc.level != null && !onWall) {
+            if (!(e.legsState instanceof Legs.State)) e.legsState = new Legs.State();
             int contact = st.contact(ShadowAnim.get());
-            int touched = ShadowSkeleton.ground(mesh, st, contact, mc.level, ex, ey, ez, bodyYaw, SCALE * grow, Math.max(0.2F, frameDt(e)), e.getGrab() <= 0);
-            if (touched != 0 && age - st.lastStepAge > 2F) { st.lastStepAge = age; Footsteps.step(e, mesh, touched, ex, ey, ez, bodyYaw, SCALE * grow, dist2); }
-        }
+            int touched = Legs.update(mesh, (Legs.State) e.legsState, ShadowAnim.get(), st.cur, contact, mc.level, ex, ey, ez,
+                    e.getX() - e.xo, e.getZ() - e.zo, bodyYaw, SCALE * grow, Math.max(0.05F, frameDt(e)), e.getGrab() <= 0 && e.getVehicle() == null);
+            if (touched != 0) Footsteps.step(e, mesh, touched, ex, ey, ez, bodyYaw, SCALE * grow, dist2);
+        } else if (e.legsState instanceof Legs.State ls) { java.util.Arrays.fill(ls.has, false); }
         ShadowSkeleton.skin(mesh);
         pose.pushPose();
         // two friends together never see it in the same place: while it's lurking, everyone else sees it somewhere else
