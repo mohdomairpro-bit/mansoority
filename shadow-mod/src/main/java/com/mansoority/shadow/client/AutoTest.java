@@ -214,15 +214,18 @@ public final class AutoTest {
             for (var s3b : s3p.serverLevel().getEntitiesOfClass(com.mansoority.shadow.MansoorityBoss.class, s3p.getBoundingBox().inflate(200))) s3b.discard();
             net.minecraft.server.level.ServerLevel s3w = server.overworld();
             s3w.setDayTime(6000);
-            int s3px = s3w.getSharedSpawnPos().getX() + 40, s3pz = s3w.getSharedSpawnPos().getZ() + 40;
-            int s3py = s3w.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, s3px, s3pz);
+            // a grass platform up in the sky, so nothing (sea, grass, trees) gets in the way of the shots
+            int s3px = s3w.getSharedSpawnPos().getX(), s3pz = s3w.getSharedSpawnPos().getZ() + 300, s3py = 200;
+            for (int dx = -14; dx <= 14; dx++) for (int dz = -14; dz <= 14; dz++)
+                s3w.setBlock(new net.minecraft.core.BlockPos(s3px + dx, s3py - 1, s3pz + dz), net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState(), 2);
             s3p.teleportTo(s3w, s3px + 0.5, s3py, s3pz + 0.5, 0F, 10F);
             s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_HELMET.get()));
             s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_CHESTPLATE.get()));
             s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.LEGS, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_LEGGINGS.get()));
             s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADE_BOOTS.get()));
             s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, new net.minecraft.world.item.ItemStack(ShadowRegistry.PALE_WARD.get()));
-            log("stage3 s3at " + s3px + " " + s3py + " " + s3pz);
+            s3p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(ShadowRegistry.SHADOW_BLADE.get()));
+            log("stage3 platform " + s3px + " " + s3py + " " + s3pz);
         });
         if (t == 5550) server.execute(() -> {
             ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);

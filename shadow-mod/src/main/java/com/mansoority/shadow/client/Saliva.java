@@ -64,7 +64,11 @@ final class Saliva {
         Vector3f a = new Vector3f(), b = new Vector3f(), tip = tongueTip(m, new Vector3f());
         float out = tongueOut(m);
         var rnd = e.getRandom();
+        // whoever it's holding is right at its mouth: thin the strands down so they don't fill the whole view
+        boolean pov = Minecraft.getInstance().player != null && Minecraft.getInstance().player.getVehicle() == e
+                && Minecraft.getInstance().options.getCameraType().isFirstPerson();
         for (int i = 0; i < PAIRS.length; i++) {
+            if (pov && i >= 2) continue;
             if (at(m, PAIRS[i][0], a) == null) continue;
             if (PAIRS[i][1] == null) { if (tip == null || out < 0.15F) { st.rest[i] = 0; continue; } b.set(tip); }
             else if (at(m, PAIRS[i][1], b) == null) continue;
@@ -83,7 +87,7 @@ final class Saliva {
             float rope = st.rest[i] + st.limit[i] * 1.1F;
             float sag = 0.5F * (float) Math.sqrt(Math.max(0F, rope * rope - d * d)) + 0.004F;
             float sway = (float) Math.sin(age * 0.11F + i * 1.7F) * 0.006F;
-            strand(vc, mat, nm, a, b, sag, sway, 0.0028F * (1.15F - stretch * 0.7F), light);
+            strand(vc, mat, nm, a, b, sag, sway, 0.0028F * (1.15F - stretch * 0.7F) * (pov ? 0.3F : 1F), light);
             if (d > 0.04F && rnd.nextFloat() < 0.02F) drip(new Vector3f(a).lerp(b, 0.5F).sub(0, sag, 0), ex, ey, ez, yaw, scale, 1);
         }
         if (tip != null && out > 0.3F && (int) age != st.lastDrip && rnd.nextFloat() < 0.18F) {    // dripping off the tongue
