@@ -57,6 +57,7 @@ public class ShadowEvents {
         if (p.tickCount % 20 == 5) ShadowGear.tick(p);
         Long nf = MansoorityBoss.NOFALL.get(p.getUUID());
         if (nf != null) { p.fallDistance = 0; if (p.onGround() && p.level().getGameTime() > nf - 90 || p.level().getGameTime() > nf) MansoorityBoss.NOFALL.remove(p.getUUID()); }
+        if (ShadowEntity.GRABBED.contains(p.getUUID())) p.setAirSupply(p.getMaxAirSupply());   // held: never drowns in its grip
         ShadowEntity.stuckTick(p);
         ShadowCinematic.tick(p);
         if (ShadowCinematic.running(p)) return;
@@ -232,6 +233,16 @@ public class ShadowEvents {
     public void onLevelTick(TickEvent.LevelTickEvent event) {
         if (event.phase != TickEvent.Phase.END || !(event.level instanceof net.minecraft.server.level.ServerLevel sl)) return;
         if (sl.dimension() == net.minecraft.world.level.Level.END && sl.getGameTime() % 20 == 0) dragonWatch(sl);
+    }
+
+    @SubscribeEvent
+    public void onDimension(net.minecraftforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p) MansoorityBoss.dropBars(p);
+    }
+
+    @SubscribeEvent
+    public void onLogout(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p) MansoorityBoss.dropBars(p);
     }
 
     @SubscribeEvent

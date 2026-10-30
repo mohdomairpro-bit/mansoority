@@ -58,6 +58,9 @@ public class MansoorityBoss extends ShadowEntity {
     public static final int F_BLADE = 1, F_BLACK = 2, F_JAW = 4, F_BELLY = 8, F_WALL = 16, F_FAKEDEAD = 32, F_INTRO = 64, F_BLADE_OUT = 128,
             F_HIDE = 256, F_PORTAL = 512;
 
+    /** live bosses (weak): their bars are dropped for anyone who leaves the dimension */
+    public static final java.util.Set<MansoorityBoss> LIVE = java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+    public static void dropBars(ServerPlayer p) { for (MansoorityBoss b : List.copyOf(LIVE)) b.bar.removePlayer(p); }
     private final ServerBossEvent bar = new ServerBossEvent(Component.literal("Mansoority").withStyle(net.minecraft.ChatFormatting.DARK_RED),
             BossEvent.BossBarColor.WHITE, BossEvent.BossBarOverlay.NOTCHED_20);
     private int t, actionT, attackCd = 120, alone, dying = -1, introT = -1, stealT = -1;
@@ -162,6 +165,7 @@ public class MansoorityBoss extends ShadowEntity {
     @Override
     protected boolean customTick() {
         ServerLevel sl = (ServerLevel) this.level();
+        LIVE.add(this);
         t++; actionT++;
         setStageData(STAGE_BOSS);
         List<ServerPlayer> near = sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(96), pl -> !pl.isSpectator() && !pl.isCreative() && pl.isAlive());
@@ -1258,6 +1262,7 @@ public class MansoorityBoss extends ShadowEntity {
     @Override
     public void remove(RemovalReason reason) {
         bar.removeAllPlayers();
+        LIVE.remove(this);
         super.remove(reason);
     }
 

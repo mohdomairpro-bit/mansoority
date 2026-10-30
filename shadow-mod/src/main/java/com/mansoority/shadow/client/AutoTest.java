@@ -247,6 +247,9 @@ public final class AutoTest {
         if (t == 5560) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); }
         if (t == 5575) shot(mc, "44_shade_armour");
         if (t == 5580) mc.options.setCameraType(CameraType.FIRST_PERSON);
+        if (t == 5588 && mc.player != null) {                                // face the row of new mobs
+            float yaw = 0F; mc.player.setYRot(yaw); mc.player.yRotO = yaw; mc.player.setXRot(18F); mc.player.xRotO = 18F; mc.player.setYHeadRot(yaw);
+        }
         if (t == 5595) shot(mc, "45_pale_spiders");
         if (t == 5600) server.execute(() -> {
             ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);

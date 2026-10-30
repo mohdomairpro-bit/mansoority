@@ -159,8 +159,21 @@ public class ShadowEntity extends PathfinderMob {
         e.reveal();
         e.noPhysics = true; e.setNoGravity(true);
         if (mode == GRAB_DRAG) {
-            double a = Math.toRadians(p.getYRot() + 180 + (e.random.nextDouble() - 0.5) * 90);
-            e.fleeDir = new Vec3(-Math.sin(a), 0, Math.cos(a));
+            // off into the dark with you - over dry ground, never into water
+            ServerLevel lv = p.serverLevel();
+            double best = -1;
+            for (int k = 0; k < 12; k++) {
+                double a = Math.toRadians(p.getYRot() + 180 + (k - 5.5) * 30);
+                Vec3 d = new Vec3(-Math.sin(a), 0, Math.cos(a));
+                int dry = 0;
+                for (int r = 4; r <= 28; r += 4) {
+                    BlockPos g = findStand(lv, e.getX() + d.x * r, e.getY(), e.getZ() + d.z * r, 6);
+                    if (g == null) break;
+                    dry++;
+                }
+                double score = dry * 10 - Math.abs(k - 5.5);
+                if (score > best) { best = score; e.fleeDir = d; }
+            }
         }
         return e;
     }
@@ -203,8 +216,7 @@ public class ShadowEntity extends PathfinderMob {
             double sp = Math.min(0.62, 0.2 + (g - 26) * 0.03);
             double nx = this.getX() + fleeDir.x * sp, nz = this.getZ() + fleeDir.z * sp;
             BlockPos s = findStand((ServerLevel) this.level(), nx, this.getY(), nz, 4);
-            double ny = s != null ? this.getY() + (s.getY() - this.getY()) * 0.3 : this.getY();
-            this.setPos(nx, ny, nz);
+            if (s != null) this.setPos(nx, this.getY() + (s.getY() - this.getY()) * 0.3, nz);     // no ground (water, a drop): it stops
             float yaw = (float) (Mth.atan2(fleeDir.z, fleeDir.x) * (180F / Math.PI)) - 90F;
             this.setYRot(yaw); this.yBodyRot = yaw; this.yHeadRot = yaw;
             if (g % 3 == 0) soundAround(ShadowRegistry.SNAP, 2.0F, 1.2F + this.random.nextFloat() * 0.4F);
