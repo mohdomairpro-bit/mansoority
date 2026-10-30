@@ -303,15 +303,43 @@ public final class AutoTest {
             }
             log("dragon: " + (dragon != null));
         });
-        if (t > 5700 && t < 5960 && t % 3 == 0) lookNear(mc, 0F);
+        if (t > 5700 && t < 5955 && t % 3 == 0) lookNear(mc, 0F);
         if (t == 5790) shot(mc, "48_pillar_cracking");
         if (t == 5812) shot(mc, "49_pillar_burst");
         if (t == 5830) shot(mc, "50_leap_at_dragon");
         if (t == 5850) shot(mc, "51_dragon_kill");
         if (t == 5950) shot(mc, "52_after_the_steal");
-        if (t == 5970) mc.setScreen(new ShadowConfigScreen(null));
-        if (t == 5980) shot(mc, "43_config_screen");
-        if (t == 5985) { mc.setScreen(null); log("done"); mc.stop(); }
+        // the Hollow Heart revival: heart into the skull, it beats, the body rebuilds around it
+        if (t == 5956) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel lv = sp.serverLevel();
+            for (var b : lv.getEntitiesOfClass(com.mansoority.shadow.MansoorityBoss.class, sp.getBoundingBox().inflate(300))) b.discard();
+            Vec3 f = Vec3.directionFromRotation(0, sp.getYRot());
+            net.minecraft.core.BlockPos g = ShadowEntity.findStand(lv, sp.getX() + f.x * 12, sp.getY(), sp.getZ() + f.z * 12, 10);
+            if (g == null) { log("no room for the skull"); return; }
+            lv.setBlock(g, ShadowRegistry.SKULL_BLOCK.get().defaultBlockState(), 3);
+            lv.blockEvent(g, ShadowRegistry.SKULL_BLOCK.get(), 1, 0);
+            reviveAt = g;
+            log("revive at " + g);
+        });
+        if (t > 5958 && t < 6170 && t % 4 == 0 && mc.player != null) {        // watch the skull / what rises from it
+            net.minecraft.core.BlockPos best = reviveAt;
+            ShadowEntity boss = null;
+            for (Entity e : mc.level.entitiesForRendering()) if (e instanceof com.mansoority.shadow.MansoorityBoss mb) boss = mb;
+            Vec3 at = boss != null ? boss.position().add(0, 6, 0) : best != null ? Vec3.atCenterOf(best).add(0, 3, 0) : null;
+            if (at != null) {
+                Vec3 d = at.subtract(mc.player.getEyePosition());
+                float yaw = (float) (Math.toDegrees(Math.atan2(d.z, d.x)) - 90.0), pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
+                mc.player.setYRot(yaw); mc.player.yRotO = yaw; mc.player.setXRot(pitch); mc.player.xRotO = pitch;
+            }
+        }
+        if (t == 5995) shot(mc, "53_revive_heart");
+        if (t == 6060) shot(mc, "54_revive_beating");
+        if (t == 6118) shot(mc, "55_revive_rebuilding");
+        if (t == 6160) shot(mc, "56_revive_risen");
+        if (t == 6170) mc.setScreen(new ShadowConfigScreen(null));
+        if (t == 6180) shot(mc, "43_config_screen");
+        if (t == 6185) { mc.setScreen(null); log("done"); mc.stop(); }
     }
 
     private static void boss(MinecraftServer server, String what) {
@@ -322,6 +350,8 @@ public final class AutoTest {
     }
 
     /** aim at the shadow's head, offset sideways by 'offset' degrees */
+    private static volatile net.minecraft.core.BlockPos reviveAt;
+
     private static void lookNear(Minecraft mc, float offset) {
         ShadowEntity target = null;
         for (Entity e : mc.level.entitiesForRendering()) if (e instanceof ShadowEntity s) target = s;
