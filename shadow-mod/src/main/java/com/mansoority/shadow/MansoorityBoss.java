@@ -880,7 +880,9 @@ public class MansoorityBoss extends ShadowEntity {
         double cx = pillar != null ? pillar.getCenterX() + 0.5 : this.getX(), cz = pillar != null ? pillar.getCenterZ() + 0.5 : this.getZ();
         int top = pillar != null ? pillar.getHeight() : (int) this.getY() + 20;
         int r = pillar != null ? pillar.getRadius() : 3;
-        double y0 = Math.max(this.getY() - 60, top * 0.62);
+        int ground = sl.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(cx) + r + 3, (int) Math.floor(cz));
+        if (ground < 20 || ground > top) ground = 62;
+        double y0 = ground + (top - ground) * 0.5;                              // about halfway up the pillar
         if (stealT < 60) {                                                    // in the stone, waiting for the very end
             flag(F_HIDE, true);
             this.setPos(cx, y0, cz);
