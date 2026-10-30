@@ -67,32 +67,30 @@ public final class ShadowMesh {
     }
     public int vertexCount() { return w0.length; }
 
-    private static ShadowMesh cached, cachedLod;
-    private static boolean failed, failedLod;
+    /** three detail levels: 0 = close up, 1 = mid range (keeps every hair and spine), 2 = far away / shadow pass */
+    private static final ResourceLocation[] LEVELS = {LOCATION, new ResourceLocation(TheShadow.MODID, "models/shadow_mid.mesh"), LOD};
+    private static final ShadowMesh[] CACHE = new ShadowMesh[3];
+    private static final boolean[] FAILED = new boolean[3];
 
-    /** the far-away version: a fraction of the triangles */
-    public static ShadowMesh lod() {
-        if (cachedLod == null && !failedLod) {
-            try (InputStream in = Minecraft.getInstance().getResourceManager().open(LOD)) {
-                cachedLod = read(in.readAllBytes());
-            } catch (Exception e) { failedLod = true; }
-        }
-        return cachedLod != null ? cachedLod : get();
-    }
-
-    public static ShadowMesh get() {
-        if (cached == null && !failed) {
-            try (InputStream in = Minecraft.getInstance().getResourceManager().open(LOCATION)) {
-                cached = read(in.readAllBytes());
+    public static ShadowMesh level(int lvl) {
+        lvl = Math.max(0, Math.min(2, lvl));
+        if (CACHE[lvl] == null && !FAILED[lvl]) {
+            try (InputStream in = Minecraft.getInstance().getResourceManager().open(LEVELS[lvl])) {
+                CACHE[lvl] = read(in.readAllBytes());
             } catch (Exception e) {
-                failed = true;
-                TheShadow.LOGGER.error("Could not load the shadow mesh", e);
+                FAILED[lvl] = true;
+                if (lvl == 0) TheShadow.LOGGER.error("Could not load the shadow mesh", e);
             }
         }
-        return cached;
+        if (CACHE[lvl] != null) return CACHE[lvl];
+        return lvl > 0 ? level(lvl - 1) : null;
     }
 
-    public static void invalidate() { cached = null; failed = false; cachedLod = null; failedLod = false; }
+    /** the far-away version */
+    public static ShadowMesh lod() { return level(2); }
+    public static ShadowMesh get() { return level(0); }
+
+    public static void invalidate() { for (int i = 0; i < 3; i++) { CACHE[i] = null; FAILED[i] = false; } }
 
     static ShadowMesh read(byte[] data) throws IOException {
         ByteBuffer b = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);

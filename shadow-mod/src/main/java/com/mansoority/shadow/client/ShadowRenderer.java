@@ -127,8 +127,11 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         net.minecraft.world.phys.Vec3 camPos = mc.gameRenderer.getMainCamera().getPosition();
         double ex = Mth.lerp(partialTick, e.xo, e.getX()), ey = Mth.lerp(partialTick, e.yo, e.getY()), ez = Mth.lerp(partialTick, e.zo, e.getZ());
         double dist2 = camPos.distanceToSqr(ex, ey, ez);
-        boolean far = dist2 > 30 * 30 && e.getGrab() <= 0;
-        ShadowMesh mesh = far ? ShadowMesh.lod() : ShadowMesh.get();
+        boolean shadowPass = ShaderCompat.shadowPass();
+        int lvl = e.getGrab() > 0 ? 0 : dist2 < 14 * 14 ? 0 : dist2 < 44 * 44 ? 1 : 2;
+        if (shadowPass) lvl = 2;                                 // shader shadows only need the outline
+        boolean far = lvl == 2;
+        ShadowMesh mesh = ShadowMesh.level(lvl);
         if (mesh == null) return;
         float age = e.tickCount + partialTick;
         ShadowPose.apply(mesh, e, age, partialTick, camPos);
@@ -155,7 +158,6 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
                     e.getX() - e.xo, e.getZ() - e.zo, bodyYaw, SCALE * grow, Math.max(0.05F, frameDt(e)), e.getGrab() <= 0 && e.getVehicle() == null);
             if (touched != 0) Footsteps.step(e, mesh, touched, ex, ey, ez, bodyYaw, SCALE * grow, dist2);
         } else if (e.legsState instanceof Legs.State ls) { java.util.Arrays.fill(ls.has, false); }
-        ShadowSkeleton.skin(mesh);
         pose.pushPose();
         // two friends together never see it in the same place: while it's lurking, everyone else sees it somewhere else
         if (e.getStage() == 0 && mc.player != null && mc.player.getId() != e.getTargetEntityId() && mc.level != null) {
@@ -175,13 +177,14 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
             pose.translate(0F, -3.5F, 0F);
         }
         pose.scale(SCALE * grow, SCALE * grow, SCALE * grow);
+        ShadowSkeleton.skin(mesh, pose.last().pose(), pose.last().normal());
         emit(mesh, mesh.solid, pose, buffers.getBuffer(Types.SKIN), light, false);
         if (mesh.glow.length > 0) emit(mesh, mesh.glow, pose, buffers.getBuffer(Types.GLOW), 0xF000F0, true);
-        if (black && !far) {            // the black form reads against the dark: an ember-red outline that breathes
+        if (black && !shadowPass && lvl < 2) {            // the black form reads against the dark: an ember-red outline that breathes
             float pulse = 0.75F + 0.25F * Mth.sin(age * 0.12F);
-            rim(mesh, pose, buffers.getBuffer(Types.RIM), 0.010F, (int) (150 * pulse), (int) (14 * pulse), 8);
+            rim(mesh, buffers.getBuffer(Types.RIM), 0.010F * SCALE * grow, (int) (150 * pulse), (int) (14 * pulse), 8);
         }
-        if (!far && dist2 < 40 * 40) Saliva.render(e, mesh, pose, buffers, light, age, ex, ey, ez, bodyYaw, SCALE * grow);
+        if (!shadowPass && lvl < 2 && dist2 < 40 * 40) Saliva.render(e, mesh, pose, buffers, light, age, ex, ey, ez, bodyYaw, SCALE * grow);
         if (boss != null) BossLook.inModel(boss, mesh, pose, buffers, light, age);
         pose.popPose();
         if (boss != null) BossLook.healthBar(boss, pose, buffers, this.entityRenderDispatcher.cameraOrientation(), this.getFont(), dist2);
@@ -198,35 +201,30 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
 
     static int glowR = 255, glowG = 255, glowB = 255;
 
-    static void rim(ShadowMesh m, PoseStack pose, VertexConsumer vc, float w, int r, int g, int b) {
-        Matrix4f mat = pose.last().pose();
-        Matrix3f nm = pose.last().normal();
+    /** inside-out shell pushed out along the normals (positions are already in pose space) */
+    static void rim(ShadowMesh m, VertexConsumer vc, float w, int r, int g, int b) {
         float[] P = m.outPos, N = m.outNrm;
         int[] t = m.solid;
+        float cr = r / 255F, cg = g / 255F, cb = b / 255F;
         for (int i = 0; i + 2 < t.length; i += 3) {
             for (int k = 2; k >= 0; k--) {                    // reversed winding
-                int v = t[i + k];
-                float nx = N[v * 3], ny = N[v * 3 + 1], nz = N[v * 3 + 2];
-                vc.vertex(mat, P[v * 3] + nx * w, P[v * 3 + 1] + ny * w, P[v * 3 + 2] + nz * w)
-                        .color(r, g, b, 255).uv(0.5F, 0.5F).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(0xF000F0)
-                        .normal(nm, nx, ny, nz).endVertex();
+                int v = t[i + k] * 3;
+                float nx = N[v], ny = N[v + 1], nz = N[v + 2];
+                vc.vertex(P[v] + nx * w, P[v + 1] + ny * w, P[v + 2] + nz * w, cr, cg, cb, 1F, 0.5F, 0.5F,
+                        OverlayTexture.NO_OVERLAY, 0xF000F0, nx, ny, nz);
             }
         }
     }
 
+    /** positions/normals were skinned straight into pose space: one bulk call per corner, nothing else */
     static void emit(ShadowMesh m, int[] tris, PoseStack pose, VertexConsumer vc, int light, boolean glowPass) {
-        Matrix4f mat = pose.last().pose();
-        Matrix3f nm = pose.last().normal();
         float[] P = m.outPos, N = m.outNrm, UV = m.uv;
-        int r = glowPass ? glowR : tint, g = glowPass ? glowG : tint, b = glowPass ? glowB : tint;
+        float r = (glowPass ? glowR : tint) / 255F, g = (glowPass ? glowG : tint) / 255F, b = (glowPass ? glowB : tint) / 255F;
         for (int v : tris) {
-            vc.vertex(mat, P[v * 3], P[v * 3 + 1], P[v * 3 + 2])
-                    .color(r, g, b, 255)
-                    .uv(glowPass ? 0.5F : UV[v * 2], glowPass ? 0.5F : UV[v * 2 + 1])
-                    .overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(light)
-                    .normal(nm, N[v * 3], N[v * 3 + 1], N[v * 3 + 2])
-                    .endVertex();
+            int v3 = v * 3;
+            vc.vertex(P[v3], P[v3 + 1], P[v3 + 2], r, g, b, 1F,
+                    glowPass ? 0.5F : UV[v * 2], glowPass ? 0.5F : UV[v * 2 + 1],
+                    OverlayTexture.NO_OVERLAY, light, N[v3], N[v3 + 1], N[v3 + 2]);
         }
     }
 }

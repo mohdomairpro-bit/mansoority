@@ -153,32 +153,52 @@ final class ShadowSkeleton {
         return touched;
     }
 
-    /** final vertex positions/normals into mesh.outPos / outNrm (model space) */
-    static void skin(ShadowMesh m) {
-        Matrix4f[] w = W;
+    private static Matrix4f[] VW = new Matrix4f[0];
+    private static org.joml.Matrix3f[] VN = new org.joml.Matrix3f[0];
+
+    /**
+     * final vertex positions/normals into mesh.outPos / outNrm, already in the pose's space (camera space when drawn),
+     * so drawing them is a straight copy into the buffer: no per-vertex matrix work later.
+     */
+    static void skin(ShadowMesh m, Matrix4f pose, org.joml.Matrix3f normal) {
+        int nb = m.parts.size();
+        if (VW.length < nb) {
+            VW = new Matrix4f[nb]; VN = new org.joml.Matrix3f[nb];
+            for (int i = 0; i < nb; i++) { VW[i] = new Matrix4f(); VN[i] = new org.joml.Matrix3f(); }
+        }
+        for (int i = 0; i < nb; i++) {
+            pose.mul(W[i], VW[i]);
+            W[i].get3x3(VN[i]); normal.mul(VN[i], VN[i]);
+        }
         float[] P = m.pos, N = m.nrm, OP = m.outPos, ON = m.outNrm, WT = m.w0;
         byte[] B0 = m.b0, B1 = m.b1;
         int n = WT.length;
         for (int i = 0; i < n; i++) {
-            Matrix4f a = w[B0[i] & 255], b = w[B1[i] & 255];
+            int ia = B0[i] & 255, ib = B1[i] & 255;
+            Matrix4f a = VW[ia];
+            org.joml.Matrix3f na = VN[ia];
             float w0 = WT[i], w1 = 1F - w0;
-            float x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
-            float nx = N[i * 3], ny = N[i * 3 + 1], nz = N[i * 3 + 2];
-            if (w1 < 0.004F || a == b) {
-                OP[i * 3] = a.m00() * x + a.m10() * y + a.m20() * z + a.m30();
-                OP[i * 3 + 1] = a.m01() * x + a.m11() * y + a.m21() * z + a.m31();
-                OP[i * 3 + 2] = a.m02() * x + a.m12() * y + a.m22() * z + a.m32();
-                ON[i * 3] = a.m00() * nx + a.m10() * ny + a.m20() * nz;
-                ON[i * 3 + 1] = a.m01() * nx + a.m11() * ny + a.m21() * nz;
-                ON[i * 3 + 2] = a.m02() * nx + a.m12() * ny + a.m22() * nz;
-            } else {
-                OP[i * 3] = w0 * (a.m00() * x + a.m10() * y + a.m20() * z + a.m30()) + w1 * (b.m00() * x + b.m10() * y + b.m20() * z + b.m30());
-                OP[i * 3 + 1] = w0 * (a.m01() * x + a.m11() * y + a.m21() * z + a.m31()) + w1 * (b.m01() * x + b.m11() * y + b.m21() * z + b.m31());
-                OP[i * 3 + 2] = w0 * (a.m02() * x + a.m12() * y + a.m22() * z + a.m32()) + w1 * (b.m02() * x + b.m12() * y + b.m22() * z + b.m32());
-                ON[i * 3] = w0 * (a.m00() * nx + a.m10() * ny + a.m20() * nz) + w1 * (b.m00() * nx + b.m10() * ny + b.m20() * nz);
-                ON[i * 3 + 1] = w0 * (a.m01() * nx + a.m11() * ny + a.m21() * nz) + w1 * (b.m01() * nx + b.m11() * ny + b.m21() * nz);
-                ON[i * 3 + 2] = w0 * (a.m02() * nx + a.m12() * ny + a.m22() * nz) + w1 * (b.m02() * nx + b.m12() * ny + b.m22() * nz);
+            int i3 = i * 3;
+            float x = P[i3], y = P[i3 + 1], z = P[i3 + 2];
+            float nx = N[i3], ny = N[i3 + 1], nz = N[i3 + 2];
+            float ox = a.m00() * x + a.m10() * y + a.m20() * z + a.m30();
+            float oy = a.m01() * x + a.m11() * y + a.m21() * z + a.m31();
+            float oz = a.m02() * x + a.m12() * y + a.m22() * z + a.m32();
+            float qx = na.m00 * nx + na.m10 * ny + na.m20 * nz;
+            float qy = na.m01 * nx + na.m11 * ny + na.m21 * nz;
+            float qz = na.m02 * nx + na.m12 * ny + na.m22 * nz;
+            if (w1 >= 0.004F && ia != ib) {
+                Matrix4f b = VW[ib];
+                org.joml.Matrix3f nbm = VN[ib];
+                ox = w0 * ox + w1 * (b.m00() * x + b.m10() * y + b.m20() * z + b.m30());
+                oy = w0 * oy + w1 * (b.m01() * x + b.m11() * y + b.m21() * z + b.m31());
+                oz = w0 * oz + w1 * (b.m02() * x + b.m12() * y + b.m22() * z + b.m32());
+                qx = w0 * qx + w1 * (nbm.m00 * nx + nbm.m10 * ny + nbm.m20 * nz);
+                qy = w0 * qy + w1 * (nbm.m01 * nx + nbm.m11 * ny + nbm.m21 * nz);
+                qz = w0 * qz + w1 * (nbm.m02 * nx + nbm.m12 * ny + nbm.m22 * nz);
             }
+            OP[i3] = ox; OP[i3 + 1] = oy; OP[i3 + 2] = oz;
+            ON[i3] = qx; ON[i3 + 1] = qy; ON[i3 + 2] = qz;
         }
     }
 
