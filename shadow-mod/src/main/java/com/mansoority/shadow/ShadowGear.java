@@ -45,6 +45,23 @@ public final class ShadowGear {
 
     public static class ShadeArmor extends ArmorItem {
         public ShadeArmor(Type t) { super(Shade.INSTANCE, t, new Properties().rarity(Rarity.RARE)); }
+
+        /** the 3D pieces are coloured from the shared palette */
+        @Override
+        public String getArmorTexture(ItemStack stack, net.minecraft.world.entity.Entity entity, EquipmentSlot slot, String type) {
+            return TheShadow.MODID + ":textures/entity/minion_palette.png";
+        }
+
+        @Override
+        public void initializeClient(java.util.function.Consumer<net.minecraftforge.client.extensions.common.IClientItemExtensions> consumer) {
+            consumer.accept(new net.minecraftforge.client.extensions.common.IClientItemExtensions() {
+                @Override
+                public net.minecraft.client.model.HumanoidModel<?> getHumanoidArmorModel(LivingEntity e, ItemStack stack, EquipmentSlot slot,
+                                                                                          net.minecraft.client.model.HumanoidModel<?> original) {
+                    return com.mansoority.shadow.client.ShadeArmorModel.of(slot);
+                }
+            });
+        }
         @Override
         public void appendHoverText(ItemStack s, Level l, List<Component> tip, TooltipFlag f) {
             tip.add(Component.translatable("item.theshadow.shade_armor.desc").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
@@ -52,8 +69,16 @@ public final class ShadowGear {
         }
     }
 
-    public static class PaleWard extends Item {
-        public PaleWard() { super(new Properties().durability(420).rarity(Rarity.RARE)); }
+    public static class PaleWard extends net.minecraft.world.item.ShieldItem {
+        public PaleWard() { super(new Properties().durability(520).rarity(Rarity.RARE)); }
+
+        @Override
+        public void initializeClient(java.util.function.Consumer<net.minecraftforge.client.extensions.common.IClientItemExtensions> consumer) {
+            consumer.accept(new net.minecraftforge.client.extensions.common.IClientItemExtensions() {
+                @Override
+                public net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer getCustomRenderer() { return com.mansoority.shadow.client.GearItemRenderer.get(); }
+            });
+        }
         @Override
         public void appendHoverText(ItemStack s, Level l, List<Component> tip, TooltipFlag f) {
             tip.add(Component.translatable("item.theshadow.pale_ward.desc").withStyle(ChatFormatting.GRAY));
@@ -74,11 +99,11 @@ public final class ShadowGear {
         return ItemStack.EMPTY;
     }
 
-    /** held in either hand: turns the hit aside. true = the hit doesn't land */
+    /** raised: turns any projectile aside, from any direction (plain shields only stop what's in front). true = it doesn't land */
     public static boolean warded(Player p, Entity projectile) {
-        ItemStack w = ward(p);
+        ItemStack w = p.isUsingItem() && p.getUseItem().getItem() instanceof PaleWard ? p.getUseItem() : ItemStack.EMPTY;
         if (w.isEmpty() || p.level().isClientSide) return !w.isEmpty();
-        InteractionHand hand = p.getOffhandItem() == w ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+        InteractionHand hand = p.getUsedItemHand();
         w.hurtAndBreak(1, p, pl -> pl.broadcastBreakEvent(hand));
         p.level().playSound(null, p.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 1F, 0.8F + p.getRandom().nextFloat() * 0.3F);
         if (projectile != null && projectile.isAlive()) {

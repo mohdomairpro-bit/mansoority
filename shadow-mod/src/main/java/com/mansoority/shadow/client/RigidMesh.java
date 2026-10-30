@@ -51,7 +51,7 @@ public final class RigidMesh {
 
     private static final Map<String, RigidMesh> CACHE = new HashMap<>();
 
-    public static RigidMesh get(String name) {
+    public static RigidMesh load(String name) {
         if (CACHE.containsKey(name)) return CACHE.get(name);
         RigidMesh m = null;
         try (InputStream in = Minecraft.getInstance().getResourceManager().open(new ResourceLocation(TheShadow.MODID, "models/" + name + ".mesh"))) {

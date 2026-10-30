@@ -32,7 +32,7 @@ public abstract class RigidMobRenderer<T extends LivingEntity> extends EntityRen
 
     @Override
     public void render(T e, float yaw, float pt, PoseStack pose, MultiBufferSource buf, int light) {
-        RigidMesh m = RigidMesh.get(mesh(e));
+        RigidMesh m = RigidMesh.load(mesh(e));
         if (m == null) return;
         m.reset();
         float age = e.tickCount + pt;

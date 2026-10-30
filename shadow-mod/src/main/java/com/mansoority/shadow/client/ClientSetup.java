@@ -11,6 +11,7 @@ public final class ClientSetup {
         net.minecraftforge.fml.ModLoadingContext.get().registerExtensionPoint(net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
                 () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory((mc, parent) -> new ShadowConfigScreen(parent)));
         modBus.addListener(ClientSetup::onRenderers);
+        modBus.addListener(ClientSetup::onClientSetup);
         com.mansoority.shadow.SkullBlockEntity.CLIENT_TICK = ReviveFx::tick;
         modBus.addListener(ClientSetup::onOverlays);
         modBus.addListener(ClientSetup::onParticles);
@@ -30,6 +31,13 @@ public final class ClientSetup {
         MinecraftForge.EVENT_BUS.addListener(BossFx::renderLevel);
         MinecraftForge.EVENT_BUS.addListener(BossFx::fogColor);
         if (AutoTest.enabled()) MinecraftForge.EVENT_BUS.addListener(AutoTest::onClientTick);
+    }
+
+    private static void onClientSetup(net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent event) {
+        // the ward's raised pose in hand (vanilla only registers this for its own shield)
+        event.enqueueWork(() -> net.minecraft.client.renderer.item.ItemProperties.register(ShadowRegistry.PALE_WARD.get(),
+                new net.minecraft.resources.ResourceLocation("blocking"),
+                (stack, level, entity, seed) -> entity != null && entity.isUsingItem() && entity.getUseItem() == stack ? 1F : 0F));
     }
 
     private static void onRenderers(EntityRenderersEvent.RegisterRenderers event) {

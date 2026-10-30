@@ -12,7 +12,7 @@ import org.joml.Matrix4f;
 /** drawing the blade and the shield models anywhere (in hand, in its teeth, through its stomach) */
 public final class Gear {
     public static void draw(String mesh, PoseStack pose, MultiBufferSource buf, int light, int overlay) {
-        RigidMesh m = RigidMesh.get(mesh);
+        RigidMesh m = RigidMesh.load(mesh);
         if (m == null) return;
         m.reset(); m.pose();
         m.draw(pose, buf, RenderType.entityCutoutNoCull(RigidMesh.PALETTE), RenderType.eyes(RigidMesh.PALETTE), light, overlay, 1F, 1F, 1F, 1F);
