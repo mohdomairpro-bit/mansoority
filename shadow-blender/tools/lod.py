@@ -12,7 +12,7 @@ parts = meshio.read_shd2(src)
 
 # per level: ratio for big islands, keep fraction for small islands
 LEVELS = {
-    'lod0': dict(big=0.55, head=0.70, small=1.0),
+    'lod0': dict(big=0.40, head=0.52, small=1.0),
     'lod1': dict(big=0.20, head=0.26, small=1.0),
     'lod2': dict(big=0.085, head=0.10, small=0.5),
 }

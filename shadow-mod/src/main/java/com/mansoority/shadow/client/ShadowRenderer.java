@@ -137,7 +137,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         double ex = Mth.lerp(partialTick, e.xo, e.getX()), ey = Mth.lerp(partialTick, e.yo, e.getY()), ez = Mth.lerp(partialTick, e.zo, e.getZ());
         double dist2 = camPos.distanceToSqr(ex, ey, ez);
         boolean shadowPass = ShaderCompat.shadowPass();
-        int lvl = e.getGrab() > 0 ? 0 : dist2 < 14 * 14 ? 0 : dist2 < 60 * 60 ? 1 : 2;      // it watches you from 30-45 blocks: keep it detailed there
+        int lvl = e.getGrab() > 0 ? 0 : dist2 < 9 * 9 ? 0 : dist2 < 60 * 60 ? 1 : 2;      // it watches you from 30-45 blocks: keep it detailed there
         if (shadowPass) lvl = 2;                                 // shader shadows only need the outline
         boolean far = lvl == 2;
         ShadowMesh mesh = ShadowMesh.level(lvl);
@@ -209,7 +209,8 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         if (head == null || hand == null) return;
         org.joml.Matrix4f[] W = ShadowSkeleton.matrices(m);
         Vector3f f = W[head.index].transformPosition(FACE, new Vector3f());
-        Vector3f fwd = W[head.index].transformPosition(FACE.x, FACE.y - 0.05F, FACE.z + 0.13F, new Vector3f());
+        // far enough out that you see the whole face splitting open, not the inside of its hair
+        Vector3f fwd = W[head.index].transformPosition(FACE.x, FACE.y - 0.07F, FACE.z + 0.34F, new Vector3f());
         double[] fw = ShadowSkeleton.toWorld(f, ex, ey, ez, yaw, scale);
         e.clientFace = new net.minecraft.world.phys.Vec3(fw[0], fw[1], fw[2]);
         if (e.getGrab() <= 22) { e.clientHold = null; return; }

@@ -190,6 +190,15 @@ public final class AutoTest {
                 "33b_phase2_blade_coming", "33c_phase2_blade_in_teeth", "26b_slam_leap"};
         for (int i = 0; i < shots.length; i++) if (t == shots[i][0]) shot(mc, names[i]);
         if (t == 4400) { ShadowRenderer.nanos = 0; ShadowRenderer.draws = 0; }
+        if (t == 4834) server.execute(() -> {                               // step back to watch the blade come through the rift
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            for (var b : sp.serverLevel().getEntitiesOfClass(com.mansoority.shadow.MansoorityBoss.class, sp.getBoundingBox().inflate(150))) {
+                Vec3 face = Vec3.directionFromRotation(0, b.getYRot());
+                Vec3 at = b.position().add(face.scale(16));
+                net.minecraft.core.BlockPos g = ShadowEntity.findStand(sp.serverLevel(), at.x, b.getY(), at.z, 20);
+                if (g != null) sp.teleportTo(g.getX() + 0.5, g.getY(), g.getZ() + 0.5);
+            }
+        });
         if (t == 5490 && ShadowRenderer.draws > 0) log(String.format("boss draw: %.2f ms per frame over %d frames", ShadowRenderer.nanos / 1e6 / ShadowRenderer.draws, ShadowRenderer.draws));
         if (t == 5500) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
         if (t == 5520) shot(mc, "42_boss_third_person");
@@ -281,11 +290,12 @@ public final class AutoTest {
             var bd = com.mansoority.shadow.BossData.get(server); bd.sealed = false; bd.defeated = false; bd.setDirty();
             net.minecraft.core.BlockPos st = ShadowEntity.findStand(end, 0.5, 70, 0.5, 40);
             sp.teleportTo(end, 0.5, st != null ? st.getY() : 66, 0.5, 0F, -25F);
+            for (var c : end.getEntitiesOfClass(net.minecraft.world.entity.boss.enderdragon.EndCrystal.class, new net.minecraft.world.phys.AABB(-300, 0, -300, 300, 320, 300))) c.discard();   // no healing
             var dragon = net.minecraft.world.entity.EntityType.ENDER_DRAGON.create(end);
             if (dragon != null) {
                 dragon.moveTo(0.5, 95, 12.5, 0F, 0F);
                 end.addFreshEntity(dragon);
-                dragon.setHealth(dragon.getMaxHealth() * 0.05F);
+                dragon.setHealth(dragon.getMaxHealth() * 0.02F);
             }
             log("dragon: " + (dragon != null));
         });
