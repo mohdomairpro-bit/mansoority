@@ -11,8 +11,8 @@ import org.joml.Vector3f;
 
 /** whoever holds the blade: violet-to-white motes stream up off it, with the odd bright spark */
 final class BladeAura {
-    private static final DustColorTransitionOptions MOTE = new DustColorTransitionOptions(new Vector3f(0.62F, 0.22F, 1.0F), new Vector3f(1.0F, 0.95F, 1.0F), 0.9F);
-    private static final DustColorTransitionOptions DEEP = new DustColorTransitionOptions(new Vector3f(0.30F, 0.05F, 0.55F), new Vector3f(0.75F, 0.5F, 1.0F), 1.3F);
+    private static final DustColorTransitionOptions MOTE = new DustColorTransitionOptions(new Vector3f(0.62F, 0.22F, 1.0F), new Vector3f(1.0F, 0.95F, 1.0F), 0.6F);
+    private static final DustColorTransitionOptions DEEP = new DustColorTransitionOptions(new Vector3f(0.30F, 0.05F, 0.55F), new Vector3f(0.75F, 0.5F, 1.0F), 0.85F);
 
     static void tick(Minecraft mc) {
         if (mc.level == null || mc.player == null || mc.isPaused()) return;
@@ -22,6 +22,7 @@ final class BladeAura {
             boolean main = p.getMainHandItem().is(ShadowRegistry.SHADOW_BLADE.get()), off = p.getOffhandItem().is(ShadowRegistry.SHADOW_BLADE.get());
             if (!main && !off) continue;
             boolean self = p == mc.player && mc.options.getCameraType().isFirstPerson();
+            if (self) continue;                               // your own view: the glow on the blade is enough, motes would just block it
             // roughly where the blade is: out from the hand, up along it
             float yaw = p.yBodyRot * Mth.DEG_TO_RAD;
             int side = (main ^ p.getMainArm() == net.minecraft.world.entity.HumanoidArm.LEFT) ? 1 : -1;

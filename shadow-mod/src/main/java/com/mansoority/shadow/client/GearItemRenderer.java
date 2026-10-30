@@ -36,9 +36,9 @@ public class GearItemRenderer extends BlockEntityWithoutLevelRenderer {
         } else if (stack.is(ShadowRegistry.PALE_WARD.get())) {
             // same space as the vanilla shield model: centred on the origin, the face toward +z
             boolean fp = ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
-            float s = fp ? 0.8F : 1.12F;                 // in first person it's right at the camera: smaller and pushed back so nothing clips
+            float s = fp ? 0.92F : 1.12F;                 // in first person it's right at the camera: smaller and pushed back so nothing clips
             pose.scale(s, s, s);
-            pose.translate(0F, fp ? 0.05F : -0.07F, fp ? -0.28F : 0.05F);
+            pose.translate(0F, fp ? 0.0F : -0.07F, fp ? -0.14F : 0.05F);
             Gear.draw("pale_ward", pose, buf, light, overlay);
         }
         pose.popPose();
