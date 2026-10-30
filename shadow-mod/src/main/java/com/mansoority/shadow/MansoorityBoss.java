@@ -384,6 +384,18 @@ public class MansoorityBoss extends ShadowEntity {
         for (ServerPlayer p : near) if (p.distanceTo(this) < radius) { hurt(p, dmg); fling(p, 1.2, 0.8); }
         wave(sl, this.position(), 0.5F, waveMax, 6F);
         sl.sendParticles(ParticleTypes.EXPLOSION, this.getX(), this.getY() + 0.5, this.getZ(), 3, 1.5, 0.2, 1.5, 0);
+        // the ground it lands on bursts up around it, and a ring of dust rolls out
+        var ground = sl.getBlockState(this.blockPosition().below());
+        if (!ground.isAir()) {
+            var bp = new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, ground);
+            sl.sendParticles(bp, this.getX(), this.getY() + 0.3, this.getZ(), 260, radius * 0.45, 0.4, radius * 0.45, 0.45);
+            for (int i = 0; i < 36; i++) {
+                double a = i * Math.PI * 2 / 36;
+                sl.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, this.getX() + Math.cos(a) * 2, this.getY() + 0.2, this.getZ() + Math.sin(a) * 2, 0,
+                        Math.cos(a) * 0.35, 0.02, Math.sin(a) * 0.35, 1.0);
+            }
+        }
+        sl.sendParticles(ShadowRegistry.WISP.get(), this.getX(), this.getY() + 1, this.getZ(), 60, radius * 0.4, 0.5, radius * 0.4, 0.08);
     }
 
     /** the stomach splits open and empties itself in a cone at you */

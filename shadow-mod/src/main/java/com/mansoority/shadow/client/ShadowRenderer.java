@@ -129,7 +129,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         double ex = Mth.lerp(partialTick, e.xo, e.getX()), ey = Mth.lerp(partialTick, e.yo, e.getY()), ez = Mth.lerp(partialTick, e.zo, e.getZ());
         double dist2 = camPos.distanceToSqr(ex, ey, ez);
         boolean shadowPass = ShaderCompat.shadowPass();
-        int lvl = e.getGrab() > 0 ? 0 : dist2 < 14 * 14 ? 0 : dist2 < 44 * 44 ? 1 : 2;
+        int lvl = e.getGrab() > 0 ? 0 : dist2 < 14 * 14 ? 0 : dist2 < 60 * 60 ? 1 : 2;      // it watches you from 30-45 blocks: keep it detailed there
         if (shadowPass) lvl = 2;                                 // shader shadows only need the outline
         boolean far = lvl == 2;
         ShadowMesh mesh = ShadowMesh.level(lvl);
