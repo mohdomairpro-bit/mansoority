@@ -31,7 +31,8 @@ public class GearItemRenderer extends BlockEntityWithoutLevelRenderer {
             pose.scale(s, s, s);
             pose.translate(0F, -0.66F, 0F);
             Gear.draw("shadow_blade", pose, buf, light, overlay);
-            Gear.aura(pose, buf, ctx == ItemDisplayContext.GUI ? 0.45F : 1F);
+            boolean fp = ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
+            Gear.aura(pose, buf, ctx == ItemDisplayContext.GUI ? 0.5F : fp ? 0.6F : 1F);
         } else if (stack.is(ShadowRegistry.PALE_WARD.get())) {
             // same space as the vanilla shield model: centred on the origin, the face toward +z
             float s = 1.12F;

@@ -33,7 +33,8 @@ public final class Gear {
         m.reset(); m.pose();
         float t = (net.minecraft.Util.getMillis() % 100000L) / 1000F;
         VertexConsumer vc = buf.getBuffer(ShadowRenderer.Types.GLOW);
-        float[][] layers = {{0.010F, 0.55F, 0.48F, 0.70F}, {0.026F, 0.36F, 0.16F, 0.62F}, {0.048F, 0.17F, 0.05F, 0.36F}, {0.075F, 0.07F, 0.02F, 0.16F}};
+        // offset (blade units), r, g, b: a thin white-violet skin, a violet flame, a faint purple haze
+        float[][] layers = {{0.006F, 0.20F, 0.15F, 0.30F}, {0.016F, 0.15F, 0.05F, 0.30F}, {0.030F, 0.07F, 0.015F, 0.16F}};
         for (float[] L : layers)
             for (RigidMesh.Part p : m.parts) m.drawShell(pose, p, vc, L[0], t, L[1] * strength, L[2] * strength, L[3] * strength);
     }

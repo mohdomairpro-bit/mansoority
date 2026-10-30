@@ -222,7 +222,7 @@ def bake_gear(name, items, parts, budget=7000):
     mats = {}
     for o, part, mat, glow in items:
         if ratio < 1.0 and len(o.data.polygons) >= 40:
-            dm = o.modifiers.new("dec", 'DECIMATE'); dm.ratio = max(ratio, 0.15); apply_mods(o)
+            dm = o.modifiers.new("dec", 'DECIMATE'); dm.ratio = max(ratio, 0.35); apply_mods(o)
         if mat not in mats: mats[mat] = gear_material(mat)
         o.data.materials.clear(); o.data.materials.append(mats[mat])
     bpy.ops.object.select_all(action='DESELECT')
@@ -239,7 +239,7 @@ def bake_gear(name, items, parts, budget=7000):
         tn = m.node_tree.nodes.new("ShaderNodeTexImage"); tn.image = img
         m.node_tree.nodes.active = tn
     scene.render.engine = 'CYCLES'; scene.cycles.samples = 12; scene.cycles.device = 'CPU'
-    scene.render.bake.margin = 6
+    scene.render.bake.margin = 16
     bpy.ops.object.bake(type='EMIT')
     img.filepath_raw = os.path.join(OUT, name + "_hd.png"); img.file_format = 'PNG'; img.save()
     # export with the baked UVs (v flipped for minecraft)
@@ -538,7 +538,7 @@ def blade():
         th = 0.075 * (1 - ((z - 0.12) / L) ** 1.3) + 0.01
         for sy in (-1, 1):
             items.append((blob(Vector((c - 0.01, sy * (th * 0.92), z)), Vector((0.014, 0.004, 0.045)), 10, 6), "blade", VIOLET, True))
-    bake_gear("shadow_blade", items, parts, budget=7000)
+    bake_gear("shadow_blade", items, parts, budget=11000)
 
 
 # ================================================================== the Pale Ward (shield, item space: front faces -y, up +z)
@@ -597,7 +597,7 @@ def shield():
         x = -0.05 + i * 0.02
         items.append((cone(Vector((x, -0.25, 0.065)), Vector((x, -0.26, 0.025)), 0.008), "shield", TOOTH, False))
     items.append((tube([Vector((0, 0.07, -0.08)), Vector((0, 0.13, 0.1)), Vector((0, 0.07, 0.28))], [0.024, 0.026, 0.024], 1), "shield", CHITIN, False))
-    bake_gear("pale_ward", items, parts, budget=7000)
+    bake_gear("pale_ward", items, parts, budget=11000)
 
 
 # ================================================================== Shade armour (authored around the humanoid model parts; 1 px = 1/16)
