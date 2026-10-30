@@ -580,5 +580,49 @@
    }
   ],
   "subtitle": "subtitles.theshadow.boss_music_3"
+ },
+ "js_riser": {
+  "sounds": [
+   {
+    "name": "theshadow:jumpscare/js_riser_0"
+   }
+  ],
+  "subtitle": "theshadow.subtitle.stinger"
+ },
+ "js_hit": {
+  "sounds": [
+   {
+    "name": "theshadow:jumpscare/js_hit_0"
+   },
+   {
+    "name": "theshadow:jumpscare/js_hit_1"
+   }
+  ],
+  "subtitle": "theshadow.subtitle.hit"
+ },
+ "js_scream": {
+  "sounds": [
+   {
+    "name": "theshadow:jumpscare/js_scream_0"
+   },
+   {
+    "name": "theshadow:jumpscare/js_scream_1"
+   },
+   {
+    "name": "theshadow:jumpscare/js_scream_2"
+   }
+  ],
+  "subtitle": "theshadow.subtitle.scream"
+ },
+ "js_strings": {
+  "sounds": [
+   {
+    "name": "theshadow:jumpscare/js_strings_0"
+   },
+   {
+    "name": "theshadow:jumpscare/js_strings_1"
+   }
+  ],
+  "subtitle": "theshadow.subtitle.stinger"
  }
 }

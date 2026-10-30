@@ -89,6 +89,8 @@ public final class ClientFx {
         return ShadowRegistry.SOUND_LIST.get(index).get();
     }
 
+    private static boolean riserPlayed;
+
     private static void ui(SoundEvent s, float volume, float pitch) {
         Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(s, pitch, volume));
     }
@@ -244,20 +246,21 @@ public final class ClientFx {
         if (t == 20) around(ShadowRegistry.BREATH.get(), 180, 0.7, 0, 1F, 0.8F);
         if (t == 42) around(ShadowRegistry.WHISPER.get(), 210, 0.6, 0, 1F, 0.7F);
         if (t == 63) mc.getSoundManager().stop();
-        // THE SCARE
+        // THE SCARE: dead silence, a swell sucking in... and it hits. stacked copies, as loud as the game goes
+        if (t == SCARE_AT - 14 || (t == SCARE_AT - 10 && !riserPlayed)) { ui(ShadowRegistry.JS_RISER.get(), 1F, 1F); ui(ShadowRegistry.JS_RISER.get(), 1F, 1F); riserPlayed = true; }
         if (t == SCARE_AT) {
-            for (float p : new float[]{1F, 0.94F, 1.06F, 1F, 0.97F}) ui(ShadowRegistry.SCREAM.get(), 1F, p);
-            for (float p : new float[]{1F, 0.8F, 1F}) ui(ShadowRegistry.HIT.get(), 1F, p);
-            ui(ShadowRegistry.STINGER.get(), 1F, 1F);
-            ui(ShadowRegistry.STATIC.get(), 1F, 1F);
+            for (int i = 0; i < 3; i++) ui(ShadowRegistry.JS_HIT.get(), 1F, 1F - i * 0.04F);
+            for (float p : new float[]{1F, 0.93F, 1.05F}) ui(ShadowRegistry.JS_SCREAM.get(), 1F, p);
+            ui(ShadowRegistry.JS_STRINGS.get(), 1F, 1F); ui(ShadowRegistry.JS_STRINGS.get(), 1F, 1.03F);
+            ui(ShadowRegistry.SCREAM.get(), 1F, 0.8F);
+            riserPlayed = false;
         }
-        if (t == SCARE_AT + 12) for (float p : new float[]{0.75F, 0.7F, 0.72F}) ui(ShadowRegistry.SCREAM.get(), 1F, p);
-        if (t == SCARE_AT + 24) ui(ShadowRegistry.SNAP.get(), 1F, 0.6F);
         if (t == SCARE_AT + 30) ui(ShadowRegistry.BREATH.get(), 1F, 0.55F);                  // right in your face, breathing
+        if (t == SCARE_AT + 44) ui(ShadowRegistry.JS_RISER.get(), 1F, 1.15F);
         if (t == SCARE_AT + 46) {                                                            // and again
-            for (float p : new float[]{0.9F, 0.84F, 0.96F}) ui(ShadowRegistry.SCREAM.get(), 1F, p);
-            ui(ShadowRegistry.HIT.get(), 1F, 0.7F);
-            ui(ShadowRegistry.SCREECH.get(), 1F, 0.8F);
+            for (int i = 0; i < 2; i++) ui(ShadowRegistry.JS_HIT.get(), 1F, 0.9F);
+            for (float p : new float[]{0.88F, 0.82F}) ui(ShadowRegistry.JS_SCREAM.get(), 1F, p);
+            ui(ShadowRegistry.JS_STRINGS.get(), 1F, 0.9F);
         }
         if (t == SCARE_AT + 62) ui(ShadowRegistry.CRUNCH.get(), 1F, 0.6F);
         if (t == SCARE_AT + SCARE_LEN) mc.getSoundManager().stop();

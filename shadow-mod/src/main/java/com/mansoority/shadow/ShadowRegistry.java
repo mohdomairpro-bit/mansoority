@@ -129,6 +129,8 @@ public final class ShadowRegistry {
     public static final RegistryObject<SoundEvent> V_DESTROY = sound("voice_destroy"), V_MINE = sound("voice_mine"), V_KNEEL = sound("voice_kneel"),
             V_AGAIN = sound("voice_again"), V_TASTE = sound("voice_taste"), V_NOWHERE = sound("voice_nowhere"), V_SLOW = sound("voice_slow"),
             V_STAY = sound("voice_stay"), V_YOURS = sound("voice_yours"), V_LAST = sound("voice_last");
+    // the jumpscare (no static): a swell into an impact, its scream, screeching strings
+    public static final RegistryObject<SoundEvent> JS_RISER = sound("js_riser"), JS_HIT = sound("js_hit"), JS_SCREAM = sound("js_scream"), JS_STRINGS = sound("js_strings");
     public static final RegistryObject<SoundEvent> MUSIC_1 = sound("boss_music_1"), MUSIC_2 = sound("boss_music_2"), MUSIC_3 = sound("boss_music_3");
 
     private static RegistryObject<SoundEvent> sound(String name) {

@@ -2,3 +2,6 @@
 Creature sounds are built from CC0 recordings: "Monster snarls" by Darsycho and "Monster Sound Effects Pack" by Ogrebane (OpenGameArt).
 Second pass (make_sounds.py): steps, slams, roars, the stomach, the bite and the three boss music loops are synthesised or
 re-processed from the same CC0 recordings; the voice lines are flite text-to-speech, mangled. No new outside material.
+
+Jumpscare (make_jumpscare.py): js_riser / js_hit / js_strings are synthesised here; js_scream is built from the
+same CC0 creature screams as creature/scream_* (stretched, pitched and layered).
