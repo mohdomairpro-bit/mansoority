@@ -184,9 +184,10 @@ public final class AutoTest {
                 {"5130", "phase3"}, {"5230", "act:" + com.mansoority.shadow.MansoorityBoss.A_THROW}, {"5330", "flood"}, {"5430", "act:" + com.mansoority.shadow.MansoorityBoss.A_SCREAM}};
         for (String[] q : seq) if (t == Integer.parseInt(q[0])) { boss(server, q[1]); log("boss do " + q[1]); }
         int[][] shots = {{4440, 0}, {4466, 1}, {4478, 2}, {4560, 3}, {4660, 4}, {4740, 5}, {4775, 6}, {4860, 7}, {4947, 8}, {5040, 9}, {5100, 10},
-                {5165, 11}, {5240, 12}, {5260, 13}, {5345, 14}, {5442, 15}};
-        String[] names = {"26_slam_crouch", "27_slam_land", "28_slam_wave", "29_spray", "30_spikes", "31_bite", "32_chew", "33_phase2_blade", "34_blade_swing",
-                "35_signature", "36_signature_smash", "37_phase3_black", "38_throw", "39_blade_flying", "40_flood", "41_scream_knockdown"};
+                {5165, 11}, {5240, 12}, {5260, 13}, {5345, 14}, {5442, 15}, {4878, 16}, {4900, 17}, {4436, 18}};
+        String[] names = {"26_slam_crouch", "27_slam_land", "28_slam_wave", "29_spray", "30_spikes", "31_bite", "32_chew", "33_phase2_rift", "34_blade_swing",
+                "35_signature", "36_signature_smash", "37_phase3_black", "38_throw", "39_blade_flying", "40_flood", "41_scream_knockdown",
+                "33b_phase2_blade_coming", "33c_phase2_blade_in_teeth", "26b_slam_leap"};
         for (int i = 0; i < shots.length; i++) if (t == shots[i][0]) shot(mc, names[i]);
         if (t == 5500) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
         if (t == 5520) shot(mc, "42_boss_third_person");
@@ -228,6 +229,19 @@ public final class AutoTest {
             int s3k = 0;
             for (var s3b : ShadowRegistry.PALE_BLOCKS) { if (s3k > 7) break; s3w.setBlock(s3at.offset(-4 + s3k++, 0, 8), s3b.get().defaultBlockState(), 3); }
         });
+        if (t == 5552) server.execute(() -> {                               // the new mobs in a row
+            ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel s3w = s3p.serverLevel();
+            var types = java.util.List.of(ShadowRegistry.HUSK.get(), ShadowRegistry.SCAVENGER.get());
+            for (int s3i = 0; s3i < types.size(); s3i++) {
+                var s3e = types.get(s3i).create(s3w);
+                if (s3e == null) continue;
+                double s3x = s3p.getX() + (s3i == 0 ? 0.2 : -4.5), s3z = s3p.getZ() + 7.5;
+                s3e.moveTo(s3x, s3w.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(s3x), (int) Math.floor(s3z)), s3z, 180F, 0F);
+                if (s3e instanceof net.minecraft.world.entity.Mob mob) { mob.setNoAi(true); mob.setYHeadRot(180F); mob.yBodyRot = 180F; }
+                s3w.addFreshEntity(s3e);
+            }
+        });
         if (t == 5560) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); }
         if (t == 5575) shot(mc, "44_shade_armour");
         if (t == 5580) mc.options.setCameraType(CameraType.FIRST_PERSON);
@@ -240,6 +254,19 @@ public final class AutoTest {
             s3p.teleportTo(s3p.serverLevel(), s3sh.getX() + 10.5, s3sh.getY() + 16, s3sh.getZ() - 10, 0F, 40F);
         });
         if (t == 5640) shot(mc, "46_shrine");
+        if (t == 5645) server.execute(() -> {                               // its tower in the End
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            var d = com.mansoority.shadow.BossData.get(server);
+            net.minecraft.server.level.ServerLevel end = server.getLevel(net.minecraft.world.level.Level.END);
+            if (end == null || d.tower == null) { log("no tower"); return; }
+            var door = com.mansoority.shadow.BossTower.door(d.tower);
+            double dx = door.getX() - d.tower.getX(), dz = door.getZ() - d.tower.getZ(), l = Math.max(1, Math.hypot(dx, dz));
+            double px = d.tower.getX() + dx / l * 34, pz = d.tower.getZ() + dz / l * 34;
+            float yaw = (float) Math.toDegrees(Math.atan2(-(d.tower.getX() - px), d.tower.getZ() - pz));
+            sp.teleportTo(end, px, d.tower.getY() + 8, pz, yaw, -18F);
+            log("tower at " + d.tower);
+        });
+        if (t == 5690) shot(mc, "47_tower");
         if (t == 5700) mc.setScreen(new ShadowConfigScreen(null));
         if (t == 5710) shot(mc, "43_config_screen");
         if (t == 5715) { mc.setScreen(null); log("done"); mc.stop(); }
