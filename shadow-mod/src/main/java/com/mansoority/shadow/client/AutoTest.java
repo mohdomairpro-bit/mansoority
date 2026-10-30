@@ -237,6 +237,10 @@ public final class AutoTest {
                 s3w.addFreshEntity(s3e);
             }
             net.minecraft.core.BlockPos s3at = s3p.blockPosition();
+            for (net.minecraft.core.BlockPos q : net.minecraft.core.BlockPos.betweenClosed(s3at.offset(-12, -3, -12), s3at.offset(12, 6, 12))) {   // mow the grass
+                var bs = s3w.getBlockState(q);
+                if (!bs.isAir() && bs.canBeReplaced() && bs.getFluidState().isEmpty()) s3w.setBlock(q, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+            }
             int s3k = 0;
             for (var s3b : ShadowRegistry.PALE_BLOCKS) { if (s3k > 7) break; s3w.setBlock(s3at.offset(-4 + s3k++, 0, 8), s3b.get().defaultBlockState(), 3); }
         });
