@@ -224,6 +224,11 @@ def spider(name, spitter):
         v.co += v.normal * 0.018 * S * max(0.0, math.sin(q.y / S * 30)) ** 2                    # segment bands
     items.append((ab, "abdomen", BONE, False))
     items.append((blob(ab_c + Vector((0, ab_s.y * 0.92, -0.02)), Vector((0.06, 0.05, 0.06)) * S, 12, 8), "abdomen", VOID, False))   # spinneret
+    # a black mark on its back like a screaming face
+    for (mx, my, sz) in ((-0.09, -0.12, 0.05), (0.09, -0.12, 0.05), (0.0, 0.08, 0.075)):
+        p0 = ab_c + Vector((mx * S, my * S, 0))
+        top = ab_c.z + ab_s.z * math.sqrt(max(0.0, 1 - (mx * S / ab_s.x) ** 2 - (my * S / ab_s.y) ** 2)) - 0.012 * S
+        items.append((blob(Vector((p0.x, p0.y, top)), Vector((sz, sz * (1.5 if my > 0 else 1.0), 0.02)) * S, 12, 8), "abdomen", VOID, False))
     for i in range(6):                          # a row of bone spikes along its back
         t = -0.6 + i * 0.25
         base = ab_c + Vector((0, ab_s.y * t, ab_s.z * math.sqrt(max(0.0, 1 - t * t)) * 0.92))
@@ -249,6 +254,10 @@ def spider(name, spitter):
                 items.append((t, nm, BONE if si < 2 else CHITIN, False))
                 if si < 2:
                     items.append((blob(a1, Vector((r1, r1, r1)) * S * 1.35, 12, 8), nm, JOINT, False))     # knuckle
+                    for h in range(3):                                                                # bristling black spines
+                        q = a0.lerp(a1, 0.25 + h * 0.25)
+                        sp_dir = (Vector((0, 0, 1)) + out * 0.4 + Vector((random.uniform(-0.3, 0.3), random.uniform(-0.3, 0.3), 0))).normalized()
+                        items.append((cone(q, q + sp_dir * (0.05 + 0.02 * random.random()) * S, 0.009 * S), nm, CHITIN, False))
                     items.append((cone(a1, a1 + (out * 0.05 + Vector((0, 0, 0.07))) * S, r1 * 0.6 * S), nm, JOINT, False))   # spur
                 prev = nm
     write_rigid(name, items, parts, budget=4200 if spitter else 3800)
