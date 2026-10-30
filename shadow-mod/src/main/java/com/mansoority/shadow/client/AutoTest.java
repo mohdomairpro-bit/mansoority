@@ -194,8 +194,8 @@ public final class AutoTest {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             for (var b : sp.serverLevel().getEntitiesOfClass(com.mansoority.shadow.MansoorityBoss.class, sp.getBoundingBox().inflate(150))) {
                 Vec3 face = Vec3.directionFromRotation(0, b.getYRot());
-                Vec3 at = b.position().add(face.scale(16));
-                net.minecraft.core.BlockPos g = ShadowEntity.findStand(sp.serverLevel(), at.x, b.getY(), at.z, 20);
+                Vec3 standAt = b.position().add(face.scale(16));
+                net.minecraft.core.BlockPos g = ShadowEntity.findStand(sp.serverLevel(), standAt.x, b.getY(), standAt.z, 20);
                 if (g != null) sp.teleportTo(g.getX() + 0.5, g.getY(), g.getZ() + 0.5);
             }
         });
@@ -294,7 +294,7 @@ public final class AutoTest {
             var bd = com.mansoority.shadow.BossData.get(server); bd.sealed = false; bd.defeated = false; bd.setDirty();
             net.minecraft.core.BlockPos st = ShadowEntity.findStand(end, 0.5, 70, 0.5, 40);
             sp.teleportTo(end, 0.5, st != null ? st.getY() : 66, 0.5, 0F, -25F);
-            for (var c : end.getEntitiesOfClass(net.minecraft.world.entity.boss.enderdragon.EndCrystal.class, new net.minecraft.world.phys.AABB(-300, 0, -300, 300, 320, 300))) c.discard();   // no healing
+            for (var crystal : end.getEntitiesOfClass(net.minecraft.world.entity.boss.enderdragon.EndCrystal.class, new net.minecraft.world.phys.AABB(-300, 0, -300, 300, 320, 300))) crystal.discard();   // no healing
             var dragon = net.minecraft.world.entity.EntityType.ENDER_DRAGON.create(end);
             if (dragon != null) {
                 dragon.moveTo(0.5, 95, 12.5, 0F, 0F);
@@ -326,9 +326,9 @@ public final class AutoTest {
             net.minecraft.core.BlockPos best = reviveAt;
             ShadowEntity boss = null;
             for (Entity e : mc.level.entitiesForRendering()) if (e instanceof com.mansoority.shadow.MansoorityBoss mb) boss = mb;
-            Vec3 at = boss != null ? boss.position().add(0, 6, 0) : best != null ? Vec3.atCenterOf(best).add(0, 3, 0) : null;
-            if (at != null) {
-                Vec3 d = at.subtract(mc.player.getEyePosition());
+            Vec3 watch = boss != null ? boss.position().add(0, 6, 0) : best != null ? Vec3.atCenterOf(best).add(0, 3, 0) : null;
+            if (watch != null) {
+                Vec3 d = watch.subtract(mc.player.getEyePosition());
                 float yaw = (float) (Math.toDegrees(Math.atan2(d.z, d.x)) - 90.0), pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
                 mc.player.setYRot(yaw); mc.player.yRotO = yaw; mc.player.setXRot(pitch); mc.player.xRotO = pitch;
             }
