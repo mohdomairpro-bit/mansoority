@@ -269,9 +269,32 @@ public final class AutoTest {
             log("tower at " + d.tower);
         });
         if (t == 5690) shot(mc, "47_tower");
-        if (t == 5700) mc.setScreen(new ShadowConfigScreen(null));
-        if (t == 5710) shot(mc, "43_config_screen");
-        if (t == 5715) { mc.setScreen(null); log("done"); mc.stop(); }
+        // the dragon steal: it bursts out of a pillar and takes the kill
+        if (t == 5698) server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel end = server.getLevel(net.minecraft.world.level.Level.END);
+            if (end == null) return;
+            for (var b : end.getEntitiesOfClass(com.mansoority.shadow.MansoorityBoss.class, new net.minecraft.world.phys.AABB(-300, 0, -300, 300, 320, 300))) b.discard();
+            var bd = com.mansoority.shadow.BossData.get(server); bd.sealed = false; bd.defeated = false; bd.setDirty();
+            net.minecraft.core.BlockPos st = ShadowEntity.findStand(end, 0.5, 70, 0.5, 40);
+            sp.teleportTo(end, 0.5, st != null ? st.getY() : 66, 0.5, 0F, -25F);
+            var dragon = net.minecraft.world.entity.EntityType.ENDER_DRAGON.create(end);
+            if (dragon != null) {
+                dragon.moveTo(0.5, 95, 12.5, 0F, 0F);
+                end.addFreshEntity(dragon);
+                dragon.setHealth(dragon.getMaxHealth() * 0.05F);
+            }
+            log("dragon: " + (dragon != null));
+        });
+        if (t > 5700 && t < 5960 && t % 3 == 0) lookNear(mc, 0F);
+        if (t == 5790) shot(mc, "48_pillar_cracking");
+        if (t == 5812) shot(mc, "49_pillar_burst");
+        if (t == 5830) shot(mc, "50_leap_at_dragon");
+        if (t == 5850) shot(mc, "51_dragon_kill");
+        if (t == 5950) shot(mc, "52_after_the_steal");
+        if (t == 5970) mc.setScreen(new ShadowConfigScreen(null));
+        if (t == 5980) shot(mc, "43_config_screen");
+        if (t == 5985) { mc.setScreen(null); log("done"); mc.stop(); }
     }
 
     private static void boss(MinecraftServer server, String what) {

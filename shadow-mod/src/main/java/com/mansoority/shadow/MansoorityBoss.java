@@ -936,7 +936,12 @@ public class MansoorityBoss extends ShadowEntity {
             act(A_ROAR); actionT = 10;
             return;
         }
-        if (stealT < 108) { if (prey != null && prey.isAlive()) face(prey); actionTick(sl, near); return; }   // half out of the stone, roaring
+        if (stealT < 108) {                                                   // half out of the stone, roaring
+            if (focus == null && !near.isEmpty()) focus = near.get(0);
+            if (focus != null) actionTick(sl, near);
+            if (prey != null && prey.isAlive()) face(prey);
+            return;
+        }
         if (stealT == 108) { moveFrom = this.position(); sound(ShadowRegistry.SCREECH, 8F, 0.8F); act(A_SLAM); actionT = 22; }
         if (stealT < 125 && prey != null && prey.isAlive()) {                 // the leap
             double u = (stealT - 108) / 16.0;
