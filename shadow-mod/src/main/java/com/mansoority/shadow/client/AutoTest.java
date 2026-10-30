@@ -232,13 +232,13 @@ public final class AutoTest {
         if (t == 5552) server.execute(() -> {                               // the new mobs in a row
             ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
             net.minecraft.server.level.ServerLevel s3w = s3p.serverLevel();
-            var types = java.util.List.of(ShadowRegistry.HUSK.get(), ShadowRegistry.SCAVENGER.get());
+            java.util.List<net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>> types = java.util.List.of(ShadowRegistry.HUSK.get(), ShadowRegistry.SCAVENGER.get());
             for (int s3i = 0; s3i < types.size(); s3i++) {
                 var s3e = types.get(s3i).create(s3w);
                 if (s3e == null) continue;
                 double s3x = s3p.getX() + (s3i == 0 ? 0.2 : -4.5), s3z = s3p.getZ() + 7.5;
                 s3e.moveTo(s3x, s3w.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(s3x), (int) Math.floor(s3z)), s3z, 180F, 0F);
-                if (s3e instanceof net.minecraft.world.entity.Mob mob) { mob.setNoAi(true); mob.setYHeadRot(180F); mob.yBodyRot = 180F; }
+                net.minecraft.world.entity.Mob mob = s3e; mob.setNoAi(true); mob.setYHeadRot(180F); mob.yBodyRot = 180F;
                 s3w.addFreshEntity(s3e);
             }
         });
