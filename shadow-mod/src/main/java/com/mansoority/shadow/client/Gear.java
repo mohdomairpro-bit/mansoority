@@ -32,9 +32,10 @@ public final class Gear {
         if (m == null || strength <= 0F) return;
         m.reset(); m.pose();
         float t = (net.minecraft.Util.getMillis() % 100000L) / 1000F;
-        VertexConsumer vc = buf.getBuffer(ShadowRenderer.Types.GLOW);
-        // offset (blade units), r, g, b: a thin white-violet skin, a violet flame, a faint purple haze
-        float[][] layers = {{0.006F, 0.20F, 0.15F, 0.30F}, {0.016F, 0.15F, 0.05F, 0.30F}, {0.030F, 0.07F, 0.015F, 0.16F}};
+        VertexConsumer vc = buf.getBuffer(ShadowRenderer.Types.RIM);
+        // inside-out shells: only their edges show past the blade, so it reads as a glowing outline that flickers
+        // and licks upward - white-hot close in, violet flame, then a purple haze. offset (blade units), r, g, b
+        float[][] layers = {{0.008F, 0.75F, 0.62F, 0.95F}, {0.022F, 0.55F, 0.18F, 0.95F}, {0.042F, 0.30F, 0.06F, 0.55F}, {0.07F, 0.12F, 0.02F, 0.25F}};
         for (float[] L : layers)
             for (RigidMesh.Part p : m.parts) m.drawShell(pose, p, vc, L[0], t, L[1] * strength, L[2] * strength, L[3] * strength);
     }

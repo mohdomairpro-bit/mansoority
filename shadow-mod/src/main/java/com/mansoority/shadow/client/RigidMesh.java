@@ -163,7 +163,8 @@ public final class RigidMesh {
         Matrix4f M = new Matrix4f(ps.last().pose()).mul(world[p.index]);
         float[] P = p.pos, N = p.nrm;
         int n = P.length / 3;
-        for (int v = 0; v < n; v++) {
+        for (int q = 0; q < n; q++) {
+            int v = q - q % 3 + (2 - q % 3);                  // each triangle's corners reversed: an inside-out shell
             int v3 = v * 3;
             float x = P[v3], y = P[v3 + 1], z = P[v3 + 2];
             float fl = 0.55F + 0.45F * (float) Math.sin(time * 9F + y * 23F + x * 11F) * (float) Math.sin(time * 5.3F - y * 9F + z * 17F);
