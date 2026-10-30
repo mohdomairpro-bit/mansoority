@@ -215,7 +215,7 @@ public final class AutoTest {
             net.minecraft.server.level.ServerLevel s3w = server.overworld();
             s3w.setDayTime(6000);
             // a grass platform up in the sky, so nothing (sea, grass, trees) gets in the way of the shots
-            int s3px = s3w.getSharedSpawnPos().getX(), s3pz = s3w.getSharedSpawnPos().getZ(), s3py = 200;      // spawn chunks: always loaded
+            int s3px = s3w.getSharedSpawnPos().getX(), s3pz = s3w.getSharedSpawnPos().getZ(), s3py = 262;      // spawn chunks: always loaded
             for (int dx = -14; dx <= 14; dx++) for (int dz = -14; dz <= 14; dz++)
                 s3w.setBlock(new net.minecraft.core.BlockPos(s3px + dx, s3py - 1, s3pz + dz), net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState(), 2);
             s3p.teleportTo(s3w, s3px + 0.5, s3py, s3pz + 0.5, 0F, 10F);
