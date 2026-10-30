@@ -355,7 +355,7 @@ def slam(f):
     p.rot("neck", 0.35 * coil + 0.45 * air - 0.2 * hit).rot("head", -0.25 * coil - 0.35 * air + 0.45 * hit)
     for limb, s_ in (("armL", -1), ("armR", 1)):
         # coiled: hands drawn in under the chest. air: thrown forward, wide, reaching. impact: slammed down far ahead
-        p.feet[limb] = p.feet[limb] + np.array([(-0.12 * coil + 0.55 * air + 0.25 * hit) * s_, 0.75 * air, -0.25 * coil + 0.75 * air + 0.35 * hit * (1 - rec)])
+        p.feet[limb] = p.feet[limb] + np.array([(-0.12 * coil + 0.2 * air + 0.18 * hit) * s_, 0.55 * air, -0.25 * coil + 0.95 * air + 0.35 * hit * (1 - rec)])
         p.pole[limb] = np.array([1.9 * s_, 2.3, 0.4 + 0.6 * air])
         p.contact[limb] = air < 0.1
     for limb, s_ in (("legL", -1), ("legR", 1)):
