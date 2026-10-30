@@ -86,6 +86,12 @@ final class Legs {
      * place the limbs. the mesh already holds this frame's animated pose. returns a bitmask of limbs that landed this
      * frame (footsteps).
      */
+    /**
+     * how far above the ground each contact point sits when planted (model metres): the sole of the foot is the contact
+     * point itself; a hand stands on its claws, which hang 0.24 below the contact point
+     */
+    static final float[] SOLE = {0.003F, 0.003F, 0.215F, 0.215F};
+
     static int update(ShadowMesh m, State st, ShadowAnim A, String clip, int clipContact, Level level,
                       double ex, double ey, double ez, double vx, double vz, float yaw, float scale, float dt, boolean allowBody) {
         if (m.get("shinL") == null) return 0;
@@ -187,7 +193,7 @@ final class Legs {
         for (int i = 0; i < 4; i++) {
             if (free[i] || !st.has[i]) continue;
             double[] mp = toModel(st.plant[i][0], st.plant[i][1], st.plant[i][2], ex, ey, ez, yaw, scale);
-            ShadowSkeleton.twoBone(m, i, new Vector3f((float) mp[0], (float) mp[1] + ShadowSkeleton.END[i][1], (float) mp[2]));
+            ShadowSkeleton.twoBone(m, i, new Vector3f((float) mp[0], (float) mp[1] + SOLE[i], (float) mp[2]));
         }
         Digits.flex(m, st.air, free);
         return touched;

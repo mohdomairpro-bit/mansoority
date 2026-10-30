@@ -141,8 +141,8 @@ public class MansoorityBoss extends ShadowEntity {
         focus = near.get(0);
         switch (what) {
             case "skipintro" -> { introT = -1; flag(F_INTRO, false); act(A_NONE); for (ServerPlayer p : near) ShadowCinematic.camFor(p, ShadowCinematic.OFF, 0, 0, 0, null, -1); }
-            case "phase2" -> { this.setHealth(MAX_HP * 0.55F); phaseTwo(sl); }
-            case "phase3" -> { fakeDone = true; flag(F_BLADE, false); flag(F_BLACK, true); this.entityData.set(DATA_PHASE, 3); this.setHealth(MAX_HP * 0.4F); act(A_ROAR); }
+            case "phase2" -> { this.setHealth(MAX_HP * 0.5F); phaseTwo(sl); }
+            case "phase3" -> { fakeDone = true; flag(F_BLADE, false); flag(F_BLACK, true); this.entityData.set(DATA_PHASE, 3); this.setHealth(MAX_HP * 0.5F); act(A_ROAR); }
             case "fakedeath" -> fakeDeath(sl);
             case "flood" -> flood(sl);
             case "signature" -> startSignature(sl);
@@ -165,11 +165,12 @@ public class MansoorityBoss extends ShadowEntity {
         for (ServerPlayer pl : List.copyOf(bar.getPlayers())) if (pl.distanceToSqr(this) > 130 * 130 || pl.level() != sl || !pl.isAlive()) bar.removePlayer(pl);
         bar.setProgress(Math.max(0F, this.getHealth() / MAX_HP));
         if (t % 20 == 0) {
-            bar.setName(Component.literal(getPhase() == 3 ? "M A N S O O R I T Y" : "Mansoority").withStyle(net.minecraft.ChatFormatting.DARK_RED));
+            bar.setName(Component.literal(getPhase() == 3 ? "M A N S O O R I T Y  -  what was inside" : getPhase() == 2 ? "Mansoority  -  armed" : "Mansoority").withStyle(net.minecraft.ChatFormatting.DARK_RED));
             bar.setColor(getPhase() == 3 ? BossEvent.BossBarColor.RED : getPhase() == 2 ? BossEvent.BossBarColor.PURPLE : BossEvent.BossBarColor.WHITE);
         }
         tickWaves(sl);
         tickHollow(sl);
+        if (t % 5 == 0) islandGuard(sl);
         if (stealT >= 0) { stealTick(sl, near); return true; }
         if (dying >= 0) { dyingTick(sl); return true; }
         if (near.isEmpty()) { if (++alone > 20 * 45) leave(sl, false); return true; }
@@ -194,7 +195,7 @@ public class MansoorityBoss extends ShadowEntity {
         Vec3 c = centroid(near);
         double ang = t * (0.008 + getPhase() * 0.003) + this.getId();
         double r = 16 + 4 * Math.sin(t * 0.02);
-        stepToward(sl, new Vec3(c.x + Math.cos(ang) * r, this.getY(), c.z + Math.sin(ang) * r), 0.11 + getPhase() * 0.035);
+        stepToward(sl, new Vec3(c.x + Math.cos(ang) * r, this.getY(), c.z + Math.sin(ang) * r), getPhase() == 1 ? 0.15 : 0.28);
         if (floodCd > 0) floodCd--;
         if (signatureCd > 0) signatureCd--;
         if (spikesCd > 0) spikesCd--;
@@ -204,13 +205,15 @@ public class MansoorityBoss extends ShadowEntity {
 
     private void chooseAttack(ServerLevel sl, List<ServerPlayer> near) {
         int ph = getPhase();
-        attackCd = ph == 1 ? 70 : ph == 2 ? 50 : 34;
+        attackCd = ph == 1 ? 64 : ph == 2 ? 32 : 30;
+        if (ph >= 2 && this.random.nextFloat() < 0.45F) attackCd = 6;            // phase two+: straight into the next one
         double d = focus.distanceTo(this);
         if (ph == 3 && has(F_BLADE_OUT)) { act(A_FETCH); return; }               // first it wants its blade back
         if (signatureCd <= 0 && this.random.nextFloat() < 0.6F) { signatureCd = 1100 - ph * 150; startSignature(sl); return; }
         List<Integer> pool = new ArrayList<>();
         if (d < 11) { pool.add(A_BITE); pool.add(A_BITE); pool.add(A_GRAB); }
         if (d < 10 && ph == 2) { pool.add(A_BLADE); pool.add(A_BLADE); pool.add(A_BLADE); }
+        if (ph == 2) { pool.add(A_CHARGE); pool.add(A_SLAM); if (spikesCd <= 0) pool.add(A_SPIKES); }
         if (d > 6 && d < 26) { pool.add(A_SLAM); pool.add(A_SPRAY); }
         if (d > 12) { pool.add(A_CHARGE); pool.add(A_BLINK); }
         if (ph == 3 && d > 7 && d < 30) { pool.add(A_THROW); pool.add(A_THROW); }
@@ -225,12 +228,13 @@ public class MansoorityBoss extends ShadowEntity {
         switch (a) {
             case A_BITE -> { sound(ShadowRegistry.BREATH, 3F, 0.5F); flag(F_JAW, true); }
             case A_SCREAM -> { flag(F_JAW, true); sound(ShadowRegistry.BREATH, 3F, 0.4F); }
-            case A_SLAM -> { moveTo = focus.position(); telegraph(sl, moveTo, 5F, 44); sound(ShadowRegistry.CRACK, 3F, 0.6F); }
+            case A_SLAM -> { moveTo = keepIn(sl, focus.position(), 8); telegraph(sl, moveTo, 5F, 44); sound(ShadowRegistry.CRACK, 3F, 0.6F); }
             case A_SPRAY -> sound(ShadowRegistry.GURGLE, 4F, 0.8F);
             case A_CHARGE -> { chargeDir = focus.position().subtract(this.position()).multiply(1, 0, 1).normalize(); sound(ShadowRegistry.SCREECH, 4F, 0.9F); }
             case A_CLIMB -> { pillar = pillarNear(sl); moveTo = null; moveFrom = null; sound(ShadowRegistry.CRACK, 3F, 0.8F); }
             case A_BLINK -> { moveTo = blinkSpot(sl, near); sound(ShadowRegistry.RISER, 4F, 0.6F); }
             case A_THROW, A_BLADE -> sound(ShadowRegistry.BREATH, 3F, 0.6F);
+            case A_SPIKES -> spikesCd = 300;
             default -> {}
         }
     }
@@ -616,9 +620,9 @@ public class MansoorityBoss extends ShadowEntity {
         for (int i = 0; i < 10; i++) {
             double a = this.random.nextDouble() * Math.PI * 2;
             BlockPos s = findStand(sl, c.x + Math.cos(a) * 12, c.y, c.z + Math.sin(a) * 12, 20);
-            if (s != null) return new Vec3(s.getX() + 0.5, s.getY(), s.getZ() + 0.5);
+            if (s != null && onIsland(sl, s.getX(), s.getZ(), 8)) return new Vec3(s.getX() + 0.5, s.getY(), s.getZ() + 0.5);
         }
-        return this.position();
+        return keepIn(sl, this.position(), 10);
     }
 
     private void summon(ServerLevel sl, int n) {
@@ -948,9 +952,10 @@ public class MansoorityBoss extends ShadowEntity {
             sl.sendParticles(ShadowRegistry.DROOL.get(), this.getX(), this.getY() + 5, this.getZ(), 60, 2, 3, 2, 0);
             sound(ShadowRegistry.SCREECH, 8F, 0.6F); sound(ShadowRegistry.ROAR, 8F, 0.6F);
             shake(near, 3F);
-            this.setHealth(MAX_HP * 0.45F);
+            this.setHealth(1F);
             bar.setVisible(true);
         }
+        if (k > 30 && k <= 70) this.setHealth(Math.max(1F, MAX_HP * 0.5F * (k - 30) / 40F));   // the bar visibly fills back to half
         if (k >= 70) act(A_ROAR);
     }
 
@@ -1008,8 +1013,16 @@ public class MansoorityBoss extends ShadowEntity {
     /** its blows are real here: this fight can kill you */
     private void hurt(ServerPlayer pl, float dmg) {
         if (pl.isCreative() || pl.isSpectator() || introT >= 0) return;
+        // its blows are meant to hurt even through netherite: harder each phase, and a third of it ignores armour
+        int ph = getPhase();
+        dmg *= ph == 1 ? 1.5F : ph == 2 ? 2.0F : 2.2F;
         if (showcase) dmg = Math.min(dmg, pl.getHealth() - 1F);          // the cinematic never kills
-        if (dmg > 0) pl.hurt(this.damageSources().mobAttack(this), dmg);
+        if (dmg <= 0) return;
+        float through = dmg * 0.33F;
+        pl.hurt(this.damageSources().mobAttack(this), dmg - through);
+        pl.invulnerableTime = 0;
+        pl.hurt(this.damageSources().indirectMagic(this, this), through);
+        pl.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 20 * (ph == 1 ? 6 : 10), ph == 1 ? 0 : 1, false, true, true));
     }
 
     private void fling(ServerPlayer p, double side, double up) {
@@ -1051,7 +1064,7 @@ public class MansoorityBoss extends ShadowEntity {
         float sum = 0; for (float[] r : recent) sum += r[1];
         if (sum > MAX_HP * 0.08F && floodCd <= 0) { floodCd = 900; flood(sl); recent.clear(); }
         sound(ShadowRegistry.HIT, 3F, 0.7F + this.random.nextFloat() * 0.3F);
-        if (getPhase() == 1 && this.getHealth() <= MAX_HP * 0.6F) phaseTwo(sl);
+        if (getPhase() == 1 && this.getHealth() <= MAX_HP * 0.5F) { this.setHealth(MAX_HP * 0.5F); phaseTwo(sl); }
         if (this.getHealth() <= 0F) {
             if (!fakeDone && !showcase) fakeDeath(sl);
             else startDying();
@@ -1119,7 +1132,56 @@ public class MansoorityBoss extends ShadowEntity {
         this.setYRot(yaw); this.yBodyRot = yaw; this.yHeadRot = yaw;
     }
 
+    private float[] edge;            // the main island's radius in 32 directions (End only)
+
+    /** how far out the main island's ground goes in this direction (scanned once) */
+    private double edgeAt(ServerLevel sl, double ang) {
+        if (edge == null) {
+            edge = new float[32];
+            for (int i = 0; i < 32; i++) {
+                double a = i * Math.PI * 2 / 32, last = 30;
+                for (int r = 30; r < 220; r += 3) {
+                    int x = (int) Math.floor(Math.cos(a) * r), z = (int) Math.floor(Math.sin(a) * r);
+                    if (!sl.hasChunkAt(new BlockPos(x, 0, z))) break;
+                    if (sl.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z) > 30) last = r; else break;
+                }
+                edge[i] = (float) last;
+            }
+        }
+        double f = ((ang % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2) * 32;
+        int i0 = (int) Math.floor(f) % 32, i1 = (i0 + 1) % 32;
+        return edge[i0] + (edge[i1] - edge[i0]) * (f - Math.floor(f));
+    }
+
+    private boolean onIsland(ServerLevel sl, double x, double z, double margin) {
+        if (showcase || sl.dimension() != Level.END) return true;
+        return Math.hypot(x, z) <= edgeAt(sl, Math.atan2(z, x)) - margin;
+    }
+
+    /** pull a point back onto the island (margin blocks in from the edge) */
+    private Vec3 keepIn(ServerLevel sl, Vec3 v, double margin) {
+        if (onIsland(sl, v.x, v.z, margin)) return v;
+        double a = Math.atan2(v.z, v.x), r = Math.max(0, edgeAt(sl, a) - margin);
+        return new Vec3(Math.cos(a) * r, v.y, Math.sin(a) * r);
+    }
+
+    /** every tick in the End: if anything carried it past the edge or it's dropping into the void, it's back on the island */
+    private void islandGuard(ServerLevel sl) {
+        if (showcase || sl.dimension() != Level.END || stealT >= 0 || has(F_WALL)) return;
+        if (this.getY() > 25 && onIsland(sl, this.getX(), this.getZ(), 0)) return;
+        Vec3 in = keepIn(sl, this.position(), 14);
+        BlockPos g = findStand(sl, in.x, 70, in.z, 40);
+        if (g == null) g = findStand(sl, 0.5, 70, 0.5, 60);
+        if (g == null) return;
+        sl.sendParticles(ShadowRegistry.WISP.get(), this.getX(), this.getY() + 4, this.getZ(), 60, 1.5, 3, 1.5, 0.05);
+        this.teleportTo(g.getX() + 0.5, g.getY(), g.getZ() + 0.5);
+        this.setDeltaMovement(Vec3.ZERO);
+        sl.sendParticles(ShadowRegistry.WISP.get(), this.getX(), this.getY() + 4, this.getZ(), 60, 1.5, 3, 1.5, 0.05);
+        sound(ShadowRegistry.RISER, 4F, 0.7F);
+    }
+
     private void stepToward(ServerLevel sl, Vec3 want, double speed) {
+        want = keepIn(sl, want, 8);
         Vec3 d = want.subtract(this.position());
         double h = Math.hypot(d.x, d.z);
         if (h < 0.2) return;

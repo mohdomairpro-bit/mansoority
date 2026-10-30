@@ -520,6 +520,28 @@ def check(out):
     print("worst planted-foot error %.4f m" % worst)
 
 
+def lift_off_floor(out, mesh):
+    """nothing but fingers, toes and the tongue may go below the floor: lying-down frames get their hips raised"""
+    from meshio import read_shd3
+    bones, rec, _, _ = read_shd3(mesh)
+    names = [b[0] for b in bones]
+    skip = {i for i, n in enumerate(names) if n.startswith(("finger", "toe", "tongue"))}
+    keep = np.array([b not in skip for b in rec["b0"]])
+    P = rec["p"][keep].astype(np.float64); B0 = rec["b0"][keep]
+    hip = ORDER.index("hips")
+    for name, (loop, speed, rows, contacts) in out.items():
+        worst = 0.0
+        for row in rows:
+            pose = {b: (np.array([r[3], r[0], r[1], r[2]]), np.array(r[4:7])) for b, r in zip(ORDER, row)}
+            W = fk(pose)
+            M = np.stack([W.get(n, np.eye(4)) for n in names])
+            y = (np.einsum("nj,nj->n", M[B0][:, 1, :3], P) + M[B0][:, 1, 3]).min()
+            if y < -0.005:
+                row[hip][5] += -y - 0.005
+                worst = max(worst, -y)
+        if worst > 0.01: print("  lifted %-12s up to %.3f m" % (name, worst))
+
+
 def write(out, d):
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "shadow.anim"), "wb") as fo:
@@ -545,4 +567,6 @@ if __name__ == "__main__":
     head = open(mesh, "rb").read(4)
     if head == b"SHD2": set_pivots({p["name"]: p["pivot"] for p in read_shd2(mesh)})
     else: set_pivots({b[0]: b[2] for b in read_shd3(mesh)[0]})
-    out = bake(); check(out); write(out, d)
+    out = bake(); check(out)
+    if head == b"SHD3": lift_off_floor(out, mesh)
+    write(out, d)
