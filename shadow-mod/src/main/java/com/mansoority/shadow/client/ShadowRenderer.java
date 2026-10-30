@@ -118,8 +118,16 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
                         .setTransparencyState(ADDITIVE_TRANSPARENCY).setCullState(CULL).setWriteMaskState(COLOR_WRITE).createCompositeState(false));
     }
 
+    /** test runs: how long drawing it takes */
+    public static long nanos, draws;
+
     @Override
     public void render(ShadowEntity e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+        long t0 = System.nanoTime();
+        try { render0(e, yaw, partialTick, pose, buffers, light); } finally { nanos += System.nanoTime() - t0; draws++; }
+    }
+
+    private void render0(ShadowEntity e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         if (e.isMimic()) { renderMimic(e, partialTick, pose, buffers, light); return; }
         RingRenderer.renderWall(e, pose, buffers, partialTick);
         PortalRenderer.renderPortal(e, pose, buffers, partialTick);

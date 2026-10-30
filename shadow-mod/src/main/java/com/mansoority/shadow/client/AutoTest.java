@@ -189,6 +189,8 @@ public final class AutoTest {
                 "35_signature", "36_signature_smash", "37_phase3_black", "38_throw", "39_blade_flying", "40_flood", "41_scream_knockdown",
                 "33b_phase2_blade_coming", "33c_phase2_blade_in_teeth", "26b_slam_leap"};
         for (int i = 0; i < shots.length; i++) if (t == shots[i][0]) shot(mc, names[i]);
+        if (t == 4400) { ShadowRenderer.nanos = 0; ShadowRenderer.draws = 0; }
+        if (t == 5490 && ShadowRenderer.draws > 0) log(String.format("boss draw: %.2f ms per frame over %d frames", ShadowRenderer.nanos / 1e6 / ShadowRenderer.draws, ShadowRenderer.draws));
         if (t == 5500) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
         if (t == 5520) shot(mc, "42_boss_third_person");
         if (t == 5530) mc.options.setCameraType(CameraType.FIRST_PERSON);
