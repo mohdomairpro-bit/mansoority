@@ -67,6 +67,8 @@ public class ShadowEntity extends PathfinderMob {
     public Object salivaState;
     /** client: where each hand and foot is planted in the world */
     public Object legsState;
+    /** client only, written by the renderer from the real skeleton: its lips and where a held player should be (world) */
+    public Vec3 clientFace, clientHold;
     /** client: animation playback state */
     public Object animState;
     /** where it's gliding to (it walks now instead of blinking from spot to spot) */
@@ -180,6 +182,10 @@ public class ShadowEntity extends PathfinderMob {
     @Override
     protected void positionRider(Entity passenger, Entity.MoveFunction move) {
         if (getGrab() > 0) {
+            if (this.level().isClientSide && clientHold != null && getGrab() > 22) {   // right where its hand / mouth really is
+                move.accept(passenger, clientHold.x, clientHold.y, clientHold.z);
+                return;
+            }
             Vec3 o = grabOffset();
             move.accept(passenger, this.getX() + o.x, this.getY() + o.y, this.getZ() + o.z);
         } else super.positionRider(passenger, move);
@@ -191,10 +197,11 @@ public class ShadowEntity extends PathfinderMob {
         int g = getGrab() + 1;
         this.entityData.set(DATA_GRAB, g);
         int mode = getGrabMode();
-        int end = mode == GRAB_LICK ? 150 : 170;
-        if (mode == GRAB_DRAG && g > 30 && fleeDir != null) {            // scuttles off with you
+        int end = mode == GRAB_LICK ? 150 : 140;
+        if (mode == GRAB_DRAG && g > 26 && fleeDir != null) {            // scuttles off with you, fast
             this.entityData.set(DATA_SCUTTLE, g);
-            double nx = this.getX() + fleeDir.x * 0.26, nz = this.getZ() + fleeDir.z * 0.26;
+            double sp = Math.min(0.62, 0.2 + (g - 26) * 0.03);
+            double nx = this.getX() + fleeDir.x * sp, nz = this.getZ() + fleeDir.z * sp;
             BlockPos s = findStand((ServerLevel) this.level(), nx, this.getY(), nz, 4);
             double ny = s != null ? this.getY() + (s.getY() - this.getY()) * 0.3 : this.getY();
             this.setPos(nx, ny, nz);
@@ -227,6 +234,9 @@ public class ShadowEntity extends PathfinderMob {
             watchStuck(p);
             GRABBED.remove(p.getUUID());
             ShadowAdvancements.award(p, mode == GRAB_LICK ? "mostly" : "dragged");
+            toll(p, net.minecraft.world.effect.MobEffects.WEAKNESS, 20 * 40, 0);              // you're shaking for a while after
+            toll(p, net.minecraft.world.effect.MobEffects.CONFUSION, 20 * 7, 0);
+            if (mode == GRAB_LICK) toll(p, net.minecraft.world.effect.MobEffects.HUNGER, 20 * 25, 1);
             ShadowMark.mark(p);
             if (mode == GRAB_LICK && this.random.nextFloat() < 0.5F) ShadowNet.send(p, FxPacket.of(FxPacket.DEATHMSG));
             if (mode == GRAB_DRAG) ui(p, ShadowRegistry.STATIC, 1F, 0.7F);
@@ -316,6 +326,8 @@ public class ShadowEntity extends PathfinderMob {
         ServerLevel sl = (ServerLevel) this.level();
         for (ServerPlayer o : sl.players()) {
             if (!o.isSpectator() && o.distanceToSqr(this) < 11 * 11) {   // too close: the act drops
+                toll(o, net.minecraft.world.effect.MobEffects.DARKNESS, 20 * 6, 0);
+                toll(o, net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 20 * 10, 0);
                 unmask(o);
                 return;
             }
@@ -367,17 +379,54 @@ public class ShadowEntity extends PathfinderMob {
     }
 
     /** walk toward 'glide' a little each tick, following the ground */
+    private int blocked;
+
     private boolean glideTick(double speed) {
         if (glide == null) return false;
         Vec3 d = glide.subtract(this.position());
         double h = Math.hypot(d.x, d.z);
-        if (h < 0.3) { glide = null; return false; }
+        if (h < 0.3) { glide = null; blocked = 0; return false; }
         double st = Math.min(speed, h);
-        double nx = this.getX() + d.x / h * st, nz = this.getZ() + d.z / h * st;
-        BlockPos g = findStand((ServerLevel) this.level(), nx, this.getY(), nz, 3);
-        double ny = g != null ? this.getY() + (g.getY() - this.getY()) * 0.35 : this.getY();
-        this.setPos(nx, ny, nz);
+        ServerLevel sl = (ServerLevel) this.level();
+        double base = Math.atan2(d.z, d.x);
+        // straight at it if the way is clear, otherwise slide round the trunk / wall
+        for (double turn : new double[]{0, 0.6, -0.6, 1.2, -1.2}) {
+            double a = base + turn;
+            double nx = this.getX() + Math.cos(a) * st, nz = this.getZ() + Math.sin(a) * st;
+            if (!clearAt(sl, nx, nz)) continue;
+            BlockPos g = findStand(sl, nx, this.getY(), nz, 3);
+            if (g == null || g.getY() - this.getY() > 2.2) continue;
+            double ny = this.getY() + (g.getY() - this.getY()) * 0.35;
+            this.setPos(nx, ny, nz);
+            blocked = 0;
+            return true;
+        }
+        if (++blocked > 30) {                    // walled in: it just isn't there any more, then it's somewhere else
+            glide = null; blocked = 0;
+            ServerPlayer p = targetId == null ? null : (ServerPlayer) this.level().getPlayerByUUID(targetId);
+            if (p != null && getStare() == 0) {
+                BlockPos s = spotAround(p, 150 + this.random.nextDouble() * 60, Math.max(8, Math.min(30, this.distanceTo(p))));
+                if (s != null) this.teleportTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5);
+            }
+        }
+        return false;
+    }
+
+    /** nothing solid (trunks, walls) at body height here; leaves and plants don't count */
+    private boolean clearAt(ServerLevel sl, double x, double z) {
+        BlockPos b = BlockPos.containing(x, this.getY(), z);
+        for (int dy = 1; dy <= 3; dy++) {
+            BlockState s = sl.getBlockState(b.above(dy));
+            if (s.is(net.minecraft.tags.BlockTags.LEAVES) || s.getCollisionShape(sl, b.above(dy)).isEmpty()) continue;
+            return false;
+        }
         return true;
+    }
+
+    /** keep its feet on the ground (it doesn't fall or collide by itself) */
+    private void settle() {
+        BlockPos g = findStand((ServerLevel) this.level(), this.getX(), this.getY() + 0.5, this.getZ(), 6);
+        if (g != null && Math.abs(g.getY() - this.getY()) > 0.05) this.setPos(this.getX(), this.getY() + (g.getY() - this.getY()) * 0.5, this.getZ());
     }
 
     // ---------------------------------------------------------------- harmless & unkillable
@@ -430,6 +479,12 @@ public class ShadowEntity extends PathfinderMob {
 
     private void serverTick() {
         life++;
+        // the stalker isn't a body that bumps into things: its huge hitbox used to snag on tree canopies and hang there.
+        // it moves through the world itself and we keep its feet on the ground
+        if (stage >= -1 && stage != STAGE_MIMIC && stage != STAGE_GRAB && getVanish() <= 0) {
+            this.noPhysics = true; this.setNoGravity(true); this.setDeltaMovement(Vec3.ZERO);
+            if (life % 4 == 0 && getRush() <= 0) settle();
+        }
         if (life % 10 == 0 && !isHidden() && (path.isEmpty() || path.get(path.size() - 1).distanceToSqr(this.position()) > 2.0)) {
             path.add(this.position());
             if (path.size() > 80) path.remove(0);
@@ -470,6 +525,13 @@ public class ShadowEntity extends PathfinderMob {
             return;
         }
 
+        // being hunted wears you down: a little extra hunger the whole time it's on you
+        if (!player.isCreative()) player.causeFoodExhaustion(stage == 0 ? 0.004F : 0.007F);
+        if (stage == -1 && life == 2) {          // at your bedside: you wake up wrecked
+            toll(player, net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 20 * 90, 0);
+            toll(player, net.minecraft.world.effect.MobEffects.WEAKNESS, 20 * 60, 0);
+            toll(player, net.minecraft.world.effect.MobEffects.HUNGER, 20 * 20, 0);
+        }
         if (stage == 0 && stalkTick(player)) return;
         List<ServerPlayer> inside = zoneMembers(player);
         if (stage >= 1) tickZone(player, inside);
@@ -741,6 +803,7 @@ public class ShadowEntity extends PathfinderMob {
         if (d < 2.4 || g > 220) {
             for (ServerPlayer m : zoneMembers(p)) {      // it gets everyone inside the ring
                 ShadowNet.send(m, FxPacket.of(FxPacket.JUMPSCARE_NOW));
+                toll(m, net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 20 * 20, 0);
                 ShadowAdvancements.award(m, "run");
                 ShadowMark.mark(m);
                 if (m == p ? d < 3.5 : true) bite(m);
@@ -816,7 +879,15 @@ public class ShadowEntity extends PathfinderMob {
         ShadowNet.send(p, new FxPacket(FxPacket.SOUND_AT, ShadowRegistry.indexOf(s), x, y, z, vol, pitch));
     }
 
+    /** small lasting costs of meeting it (never in creative) */
+    public static void toll(ServerPlayer p, net.minecraft.world.effect.MobEffect eff, int ticks, int amp) {
+        if (p.isCreative() || p.isSpectator()) return;
+        p.addEffect(new net.minecraft.world.effect.MobEffectInstance(eff, ticks, amp, false, true, true));
+    }
+
     public static void jumpscare(ServerPlayer p, boolean instant) {
+        // the scare leaves you slow and half blind for a bit
+        toll(p, net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 20 * 20, 0);
         FxPacket pkt = FxPacket.of(instant ? FxPacket.JUMPSCARE_NOW : FxPacket.JUMPSCARE);
         ShadowNet.send(p, pkt);
         for (ServerPlayer other : friendsNear(p)) ShadowNet.send(other, pkt);

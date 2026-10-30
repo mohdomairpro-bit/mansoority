@@ -105,11 +105,18 @@ public final class CinematicCam {
             }
             default -> { want = eye; look = eye.add(dirPF); }
         }
-        // never inside a mountain: pull the camera in front of whatever is between it and you
+        // shots that only frame you still keep it in the picture if it's around
+        if (f == null && (shot == ShadowCinematic.ORBIT || shot == ShadowCinematic.CRANE)) {
+            Entity near = null; double best = 40 * 40;
+            for (Entity e : mc.level.entitiesForRendering())
+                if (e instanceof com.mansoority.shadow.ShadowEntity && !((com.mansoority.shadow.ShadowEntity) e).isHidden() && e.distanceToSqr(P) < best) { best = e.distanceToSqr(P); near = e; }
+            if (near != null) look = look.lerp(near.position().add(0, near.getBbHeight() * 0.55, 0), 0.4);
+        }
+        // never inside a mountain, a tree or the grass: pull the camera in front of whatever is between it and you
         want = unblock(mc, eye, want);
-        // a slow, heavy camera: eases into each new position
+        // a slow, heavy camera: eases into each new position (and the path there can't cut through anything either)
         double ease = shotT < 3 ? 0.35 : 0.075;
-        Vec3 np = pos.lerp(want, ease);
+        Vec3 np = unblock(mc, eye, pos.lerp(want, ease));
         Vec3 d = look.subtract(np);
         float wy = (float) (Mth.atan2(d.z, d.x) * (180F / Math.PI)) - 90F;
         float wp = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * (180F / Math.PI));
@@ -131,10 +138,20 @@ public final class CinematicCam {
         double len = d.length();
         if (len < 0.01) return to;
         net.minecraft.world.phys.BlockHitResult hit = mc.level.clip(new net.minecraft.world.level.ClipContext(from, to,
-                net.minecraft.world.level.ClipContext.Block.VISUAL, net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player));
-        if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) return to;
-        double back = Math.max(0.6, hit.getLocation().distanceTo(from) - 0.45);
-        return from.add(d.scale(back / len)).add(0, 0.15, 0);
+                net.minecraft.world.level.ClipContext.Block.OUTLINE, net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player));
+        Vec3 out = to;
+        if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS) {
+            double back = Math.max(0.6, hit.getLocation().distanceTo(from) - 0.5);
+            out = from.add(d.scale(back / len)).add(0, 0.15, 0);
+        }
+        // and never with its lens in a block (grass, leaves, the ground right under it)
+        for (int i = 0; i < 6; i++) {
+            net.minecraft.core.BlockPos b = net.minecraft.core.BlockPos.containing(out);
+            if (mc.level.getBlockState(b).getShape(mc.level, b).isEmpty() && mc.level.getBlockState(b.below()).getShape(mc.level, b.below()).isEmpty()
+                    || i == 5) break;
+            out = out.lerp(from, 0.25).add(0, 0.25, 0);
+        }
+        return out;
     }
 
     private static void reset(Minecraft mc) {

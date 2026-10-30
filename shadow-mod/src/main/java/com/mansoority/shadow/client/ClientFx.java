@@ -38,8 +38,8 @@ public final class ClientFx {
     private static final Random R = new Random();
 
     public static final int SCARE_AT = 80;      // tick the face hits you
-    private static final int SCARE_LEN = 34;
-    private static final int END = 175;
+    private static final int SCARE_LEN = 78;   // ~4 s: the lunge, it holds your face, a second lunge
+    private static final int END = 225;
 
     private static int js = -1;                 // jumpscare timeline tick, -1 = off
     private static int seq = -1, seqTick;       // scripted sound event
@@ -141,16 +141,19 @@ public final class ClientFx {
         at(s, pl.getX() - Math.sin(a) * dist, pl.getEyeY() + up, pl.getZ() + Math.cos(a) * dist, volume, pitch);
     }
 
+    /** held: your eyes are pulled to its face (where its lips really are), with only a little room to look away */
     private static void lockGrab(Minecraft mc, ShadowEntity s) {
         net.minecraft.world.phys.Vec3 eye = mc.player.getEyePosition();
-        double hy = s.getY() + s.getBbHeight() * 0.72;
-        double dx = s.getX() - eye.x, dz = s.getZ() - eye.z, dy = hy - eye.y;
+        net.minecraft.world.phys.Vec3 face = s.clientFace != null ? s.clientFace : new net.minecraft.world.phys.Vec3(s.getX(), s.getY() + s.getBbHeight() * 0.72, s.getZ());
+        double dx = face.x - eye.x, dz = face.z - eye.z, dy = face.y - eye.y;
         float want = (float) (Mth.atan2(dz, dx) * (180F / Math.PI)) - 90F;
         float wantP = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * (180F / Math.PI));
-        float d = Mth.wrapDegrees(mc.player.getYRot() - want);
-        if (Math.abs(d) > 25F) mc.player.setYRot(want + Math.copySign(25F, d));
-        float pd = mc.player.getXRot() - wantP;
-        if (Math.abs(pd) > 25F) mc.player.setXRot(Mth.clamp(wantP + Math.copySign(25F, pd), -90F, 90F));
+        float d = Mth.wrapDegrees(mc.player.getYRot() - want), pd = mc.player.getXRot() - wantP;
+        float lim = 14F;
+        float ny = want + Mth.clamp(d, -lim, lim), np = Mth.clamp(wantP + Mth.clamp(pd, -lim, lim), -90F, 90F);
+        // ease toward it instead of snapping
+        mc.player.setYRot(mc.player.getYRot() + Mth.wrapDegrees(ny - mc.player.getYRot()) * 0.45F);
+        mc.player.setXRot(mc.player.getXRot() + (np - mc.player.getXRot()) * 0.45F);
     }
 
     /** during the rush you can't look away: your view is held within 45 degrees of it */
@@ -249,9 +252,16 @@ public final class ClientFx {
         }
         if (t == SCARE_AT + 12) for (float p : new float[]{0.75F, 0.7F, 0.72F}) ui(ShadowRegistry.SCREAM.get(), 1F, p);
         if (t == SCARE_AT + 24) ui(ShadowRegistry.SNAP.get(), 1F, 0.6F);
+        if (t == SCARE_AT + 30) ui(ShadowRegistry.BREATH.get(), 1F, 0.55F);                  // right in your face, breathing
+        if (t == SCARE_AT + 46) {                                                            // and again
+            for (float p : new float[]{0.9F, 0.84F, 0.96F}) ui(ShadowRegistry.SCREAM.get(), 1F, p);
+            ui(ShadowRegistry.HIT.get(), 1F, 0.7F);
+            ui(ShadowRegistry.SCREECH.get(), 1F, 0.8F);
+        }
+        if (t == SCARE_AT + 62) ui(ShadowRegistry.CRUNCH.get(), 1F, 0.6F);
         if (t == SCARE_AT + SCARE_LEN) mc.getSoundManager().stop();
-        if (t == SCARE_AT + 62) around(ShadowRegistry.WHISPER.get(), 180, 0.6, 0, 1F, 0.8F);
-        if (t == SCARE_AT + 75 && mc.gui != null) {
+        if (t == SCARE_AT + SCARE_LEN + 28) around(ShadowRegistry.WHISPER.get(), 180, 0.6, 0, 1F, 0.8F);
+        if (t == SCARE_AT + SCARE_LEN + 41 && mc.gui != null) {
             mc.gui.setOverlayMessage(Component.literal("it's still here").withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC), false);
         }
         js++;
@@ -338,7 +348,10 @@ public final class ClientFx {
     public static void onCamera(ViewportEvent.ComputeCameraAngles event) {
         BossFx.camera(event);
         float amp = kickNow();
-        if (js >= SCARE_AT && js < SCARE_AT + 26) amp = 9F * (1F - (js - SCARE_AT) / 26F) + 1.5F;
+        if (js >= SCARE_AT && js < SCARE_AT + SCARE_LEN) {
+            int k = js - SCARE_AT;
+            amp = k < 26 ? 9F * (1F - k / 26F) + 1.5F : k < 46 ? 2.2F : 8F * Math.max(0F, 1F - (k - 46) / 22F) + 1.8F;
+        }
         if (rushing) amp = Math.max(amp, 3.5F);
         if (stare > 0.05F) {
             float t = (float) (System.currentTimeMillis() % 100000L) / 1000F;
@@ -392,8 +405,14 @@ public final class ClientFx {
                 g.fill(0, 0, w, h, 0xFF000000);
                 // rendered frames of its face lunging at you (Blender), then it thrashes on the last frames
                 int frame = (int) k;
-                if (frame >= JS_FRAMES) frame = JS_FRAMES - 4 + ((t + R.nextInt(2)) % 4);
                 float zoom = 1.04F + R.nextFloat() * (k > 6 ? 0.08F : 0.03F);
+                if (frame >= JS_FRAMES) {
+                    // it holds your face: sways through its last frames, breathing in and out, then lunges again
+                    int span = 10, q = (frame - JS_FRAMES) % (span * 2);
+                    frame = JS_FRAMES - span + (q < span ? q : span * 2 - 1 - q);
+                    zoom = 1.10F + 0.05F * Mth.sin(k * 0.35F) + R.nextFloat() * 0.03F;
+                    if (k >= 46 && k < 60) { float u = (k - 46) / 14F; zoom = 1.18F + 0.35F * (1F - (1F - u) * (1F - u)); frame = JS_FRAMES - 1; }
+                }
                 int dw = (int) (Math.max(w, h * 16F / 9F) * zoom), dh = (int) (dw * 9F / 16F);
                 int ox = (w - dw) / 2 + (int) ((R.nextFloat() - 0.5F) * 24F);
                 int oy = (h - dh) / 2 + (int) ((R.nextFloat() - 0.5F) * 24F);
@@ -401,7 +420,8 @@ public final class ClientFx {
                 g.setColor(1F, 1F, 1F, 0.22F);
                 blend(); g.blit(STATIC, 0, 0, w, h, R.nextInt(1024 - w / 2 > 0 ? 1024 - w / 2 : 1), R.nextInt(1024 - h / 2 > 0 ? 1024 - h / 2 : 1), w / 2, h / 2, 1024, 1024);
                 g.setColor(1F, 1F, 1F, 1F);
-                if (t == SCARE_AT + 1 || t == SCARE_AT + 2) g.fill(0, 0, w, h, 0x50FFFFFF);   // flash
+                if (t == SCARE_AT + 1 || t == SCARE_AT + 2 || t == SCARE_AT + 46 || t == SCARE_AT + 47) g.fill(0, 0, w, h, 0x50FFFFFF);   // flash
+                if (k > 26 && R.nextFloat() < 0.18F) g.fill(0, 0, w, h, 0x40600000);                 // red pulses while it holds you
             }
         }
         // the wet smear after it licks you

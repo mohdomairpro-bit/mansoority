@@ -20,6 +20,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
     private static final ResourceLocation WHITE = new ResourceLocation(TheShadow.MODID, "textures/entity/white.png");
@@ -158,6 +159,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
                     e.getX() - e.xo, e.getZ() - e.zo, bodyYaw, SCALE * grow, Math.max(0.05F, frameDt(e)), e.getGrab() <= 0 && e.getVehicle() == null);
             if (touched != 0) Footsteps.step(e, mesh, touched, ex, ey, ez, bodyYaw, SCALE * grow, dist2);
         } else if (e.legsState instanceof Legs.State ls) { java.util.Arrays.fill(ls.has, false); }
+        if (!shadowPass) hold(e, mesh, ex, ey, ez, bodyYaw, SCALE * grow);
         pose.pushPose();
         // two friends together never see it in the same place: while it's lurking, everyone else sees it somewhere else
         if (e.getStage() == 0 && mc.player != null && mc.player.getId() != e.getTargetEntityId() && mc.level != null) {
@@ -189,6 +191,30 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         pose.popPose();
         if (boss != null) BossLook.healthBar(boss, pose, buffers, this.entityRenderDispatcher.cameraOrientation(), this.getFont(), dist2);
         super.render(e, yaw, partialTick, pose, buffers, light);
+    }
+
+    private static final Vector3f FACE = new Vector3f(0F, 1.88F, 0.655F);
+
+    /** where its lips really are, and where whoever it's holding should hang (in front of the mouth, or in the hand) */
+    private static void hold(ShadowEntity e, ShadowMesh m, double ex, double ey, double ez, float yaw, float scale) {
+        ShadowMesh.Part head = m.get("head"), hand = m.get("handR");
+        if (head == null || hand == null) return;
+        org.joml.Matrix4f[] W = ShadowSkeleton.matrices(m);
+        Vector3f f = W[head.index].transformPosition(FACE, new Vector3f());
+        Vector3f fwd = W[head.index].transformPosition(FACE.x, FACE.y - 0.05F, FACE.z + 0.13F, new Vector3f());
+        double[] fw = ShadowSkeleton.toWorld(f, ex, ey, ez, yaw, scale);
+        e.clientFace = new net.minecraft.world.phys.Vec3(fw[0], fw[1], fw[2]);
+        if (e.getGrab() <= 22) { e.clientHold = null; return; }
+        if (e.getGrabMode() == ShadowEntity.GRAB_LICK) {
+            double[] w = ShadowSkeleton.toWorld(fwd, ex, ey, ez, yaw, scale);
+            e.clientHold = new net.minecraft.world.phys.Vec3(w[0], w[1] - 1.62, w[2]);       // your eyes just in front of its mouth
+        } else {
+            float[] tip = ShadowSkeleton.END[3];
+            Vector3f palm = W[hand.index].transformPosition(hand.px + (tip[0] - hand.px) * 0.55F, hand.py + (tip[1] - hand.py) * 0.55F,
+                    hand.pz + (tip[2] - hand.pz) * 0.55F, new Vector3f());
+            double[] w = ShadowSkeleton.toWorld(palm, ex, ey, ez, yaw, scale);
+            e.clientHold = new net.minecraft.world.phys.Vec3(w[0], w[1] - 0.9, w[2]);         // your middle in its fist
+        }
     }
 
     /** render frames between ticks (ground smoothing runs per frame, not per tick) */
