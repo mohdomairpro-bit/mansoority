@@ -1,6 +1,7 @@
 package com.mansoority.shadow.client;
 
 import com.mansoority.shadow.SkullBlockEntity;
+import com.mansoority.shadow.ShadowEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -17,17 +18,30 @@ public class SkullRenderer implements BlockEntityRenderer<SkullBlockEntity> {
     public SkullRenderer(BlockEntityRendererProvider.Context c) {}
 
     @Override
+    public boolean shouldRenderOffScreen(SkullBlockEntity be) { return true; }
+    @Override
+    public int getViewDistance() { return 96; }
+
+    @Override
     public void render(SkullBlockEntity be, float pt, PoseStack pose, MultiBufferSource buf, int light, int overlay) {
-        ShadowMesh m = ShadowMesh.get();
-        if (m == null) return;
-        int[] tris = m.trianglesOf("head", "jaw", "jawR", "eyeL", "eyeR");
-        if (tris.length == 0) return;
         float yaw = be.getBlockState().hasProperty(HorizontalDirectionalBlock.FACING) ? -be.getBlockState().getValue(HorizontalDirectionalBlock.FACING).toYRot() : 0F;
         pose.pushPose();
         pose.translate(0.5, 0.0, 0.5);
         pose.mulPose(Axis.YP.rotationDegrees(yaw + 180F));
-        pose.mulPose(Axis.ZP.rotationDegrees(14F));                    // lying a little on its side
-        float s = 2.6F;
+        float revive = be.reviveProgress(pt);
+        drawSkull(pose, buf, light, ShadowEntity.MODEL_SCALE, revive);       // as big as its head really was
+        if (revive > 0F) ReviveFx.render(be, pose, buf, pt, revive);
+        pose.popPose();
+    }
+
+    /** the head and both halves of the face, from its own model, lying a little on its side. s = model scale */
+    static void drawSkull(PoseStack pose, MultiBufferSource buf, int light, float s, float revive) {
+        ShadowMesh m = ShadowMesh.level(1);
+        if (m == null) return;
+        int[] tris = m.trianglesOf("head", "jaw", "jawR", "eyeL", "eyeR");
+        if (tris.length == 0) return;
+        pose.pushPose();
+        pose.mulPose(Axis.ZP.rotationDegrees(14F * (1F - revive)));       // lying a little on its side (rights itself as it revives)
         pose.scale(s, s, s);
         pose.translate(0F, -1.70F, -0.56F);                              // the chin rests on the ground
         VertexConsumer vc = buf.getBuffer(ShadowRenderer.Types.SKIN);

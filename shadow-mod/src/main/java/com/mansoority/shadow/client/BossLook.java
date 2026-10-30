@@ -41,11 +41,9 @@ final class BossLook {
             if (head == null) return;
             pose.pushPose();
             pose.mulPoseMatrix(ShadowSkeleton.matrices(m)[head.index]);
-            pose.translate(0F, 1.83F, 0.63F);
-            pose.mulPose(Axis.YP.rotationDegrees(90F));
-            pose.mulPose(Axis.ZP.rotationDegrees(-45F + 8F * Mth.sin(age * 0.2F)));
-            pose.scale(0.75F, 0.75F, 0.75F);
-            mc.getItemRenderer().renderStatic(blade, ItemDisplayContext.FIXED, 0xF000F0, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, pose, buf, mc.level, 0);
+            pose.translate(0F, 1.84F, 0.64F);
+            pose.mulPose(Axis.ZP.rotationDegrees(8F + 5F * Mth.sin(age * 0.2F)));
+            Gear.bladeCrossways(pose, buf, light, 0.62F);          // huge: wider than its head
             pose.popPose();
         }
         if (black && !b.has(MansoorityBoss.F_BLADE_OUT)) {           // phase three: right through its own stomach
@@ -54,10 +52,29 @@ final class BossLook {
             pose.pushPose();
             pose.mulPoseMatrix(ShadowSkeleton.matrices(m)[chest.index]);
             pose.translate(0F, 1.58F, 0.05F);
-            pose.mulPose(Axis.XP.rotationDegrees(-80F));
-            pose.mulPose(Axis.ZP.rotationDegrees(45F));
-            pose.scale(0.9F, 0.9F, 0.9F);
-            mc.getItemRenderer().renderStatic(blade, ItemDisplayContext.FIXED, 0xF000F0, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, pose, buf, mc.level, 0);
+            pose.mulPose(Axis.XP.rotationDegrees(-95F));
+            pose.mulPose(Axis.YP.rotationDegrees(20F));
+            pose.scale(0.62F, 0.62F, 0.62F);
+            pose.translate(0F, -0.9F, 0F);
+            Gear.draw("shadow_blade", pose, buf, light, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+            pose.popPose();
+        }
+        if (b.has(MansoorityBoss.F_PORTAL)) {                         // the rift in front of its face, the blade coming through
+            ShadowMesh.Part head = m.get("head");
+            if (head == null) return;
+            float k = b.actionAge(age);
+            float open = Mth.clamp(k / 18F, 0F, 1F), slide = Mth.clamp((k - 22F) / 38F, 0F, 1F);
+            slide = slide * slide * (3 - 2 * slide);
+            pose.pushPose();
+            pose.mulPoseMatrix(ShadowSkeleton.matrices(m)[head.index]);
+            pose.translate(0F, 1.86F, 0.64F + 0.55F);
+            pose.pushPose();
+            pose.mulPose(Axis.YP.rotationDegrees(180F));
+            pose.mulPose(Axis.ZP.rotationDegrees(k * 3F));
+            Gear.rift(pose, buf, open * (1F - Mth.clamp((k - 60F) / 10F, 0F, 1F)), age);
+            pose.popPose();
+            pose.translate(0F, 0F, -0.55F * slide + 0.25F * (1 - slide));
+            Gear.bladeCrossways(pose, buf, light, 0.62F * (0.4F + 0.6F * slide));
             pose.popPose();
         }
     }

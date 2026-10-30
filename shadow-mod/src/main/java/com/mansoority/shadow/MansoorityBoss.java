@@ -53,9 +53,10 @@ public class MansoorityBoss extends ShadowEntity {
 
     public static final int A_NONE = 0, A_ROAR = 1, A_SCREAM = 2, A_BITE = 3, A_CHEW = 4, A_SLAM = 5, A_SPRAY = 6, A_SPIKES = 7,
             A_STUN = 8, A_COLLAPSE = 9, A_DEAD = 10, A_RISE = 11, A_BLADE = 12, A_THROW = 13, A_INTRO = 14, A_GRAB = 15,
-            A_CHARGE = 16, A_CLIMB = 17, A_SIGNATURE = 18, A_BLINK = 19, A_STEAL = 20, A_RETREAT = 21, A_FETCH = 22;
+            A_CHARGE = 16, A_CLIMB = 17, A_SIGNATURE = 18, A_BLINK = 19, A_STEAL = 20, A_RETREAT = 21, A_FETCH = 22, A_SUMMON = 23;
     /** form flags */
-    public static final int F_BLADE = 1, F_BLACK = 2, F_JAW = 4, F_BELLY = 8, F_WALL = 16, F_FAKEDEAD = 32, F_INTRO = 64, F_BLADE_OUT = 128;
+    public static final int F_BLADE = 1, F_BLACK = 2, F_JAW = 4, F_BELLY = 8, F_WALL = 16, F_FAKEDEAD = 32, F_INTRO = 64, F_BLADE_OUT = 128,
+            F_HIDE = 256, F_PORTAL = 512;
 
     private final ServerBossEvent bar = new ServerBossEvent(Component.literal("Mansoority").withStyle(net.minecraft.ChatFormatting.DARK_RED),
             BossEvent.BossBarColor.WHITE, BossEvent.BossBarOverlay.NOTCHED_20);
@@ -127,9 +128,12 @@ public class MansoorityBoss extends ShadowEntity {
     }
 
     public void beginIntro() { introT = 0; flag(F_INTRO, true); }
+    private int rebuildT = -1;
+    /** brought back with the Hollow Heart: the body pulls itself together out of nothing around the skull */
+    public void beginRebuild() { rebuildT = VANISH_LEN - 1; flag(F_INTRO, true); setVanishTick(rebuildT); }
     /** came for the dragon: perched on top of a pillar, waiting for the last moment */
     public void beginSteal(EnderDragon d, SpikeFeature.EndSpike sp) {
-        prey = d; pillar = sp; stealT = 0; flag(F_INTRO, true); this.setNoGravity(true); this.noPhysics = true;
+        prey = d; pillar = sp; stealT = 0; flag(F_INTRO, true); flag(F_HIDE, true); this.setNoGravity(true); this.noPhysics = true;
     }
     public void restoreHp(float hp) { this.setHealth(Math.max(1F, Math.min(MAX_HP, hp))); }
 
@@ -167,6 +171,13 @@ public class MansoorityBoss extends ShadowEntity {
         if (t % 20 == 0) {
             bar.setName(Component.literal(getPhase() == 3 ? "M A N S O O R I T Y  -  what was inside" : getPhase() == 2 ? "Mansoority  -  armed" : "Mansoority").withStyle(net.minecraft.ChatFormatting.DARK_RED));
             bar.setColor(getPhase() == 3 ? BossEvent.BossBarColor.RED : getPhase() == 2 ? BossEvent.BossBarColor.PURPLE : BossEvent.BossBarColor.WHITE);
+        }
+        if (t == 1 && !showcase && sl.dimension() == Level.END) BossTower.ensure(sl);
+        if (rebuildT >= 0) {
+            setVanishTick(Math.max(0, rebuildT));
+            if (rebuildT % 6 == 0) sound(ShadowRegistry.CRACK, 4F, 0.5F + this.random.nextFloat() * 0.3F);
+            if (--rebuildT < 0) { setVanishTick(0); sound(ShadowRegistry.ROAR, 7F, 0.6F); beginIntro(); }
+            return true;
         }
         tickWaves(sl);
         tickHollow(sl);
@@ -242,6 +253,13 @@ public class MansoorityBoss extends ShadowEntity {
     private void actionTick(ServerLevel sl, List<ServerPlayer> near) {
         int a = getAction(), k = actionT;
         switch (a) {
+            case A_SUMMON -> {                                   // half dead: a rift opens in front of its face, the blade slides out, it bites down on it
+                face(focus); flag(F_JAW, k > 20 && k < 62);
+                if (k == 1) { flag(F_PORTAL, true); sound(ShadowRegistry.RISER, 6F, 0.5F); }
+                if (k == 22) sound(ShadowRegistry.SCREECH, 5F, 0.6F);
+                if (k == 62) { flag(F_BLADE, true); flag(F_PORTAL, false); sound(ShadowRegistry.CRUNCH, 6F, 0.6F); sound(ShadowRegistry.ROAR, 7F, 0.8F); shake(near, 2.6F); }
+                if (k >= 95) act(A_NONE);
+            }
             case A_ROAR -> {                                     // phase change: roar, everyone feels it
                 face(focus); flag(F_JAW, k > 8 && k < 60);
                 if (k == 12) { sound(ShadowRegistry.ROAR, 6F, 0.9F); shake(near, 2.2F); }
@@ -643,19 +661,24 @@ public class MansoorityBoss extends ShadowEntity {
                 sl.sendParticles(net.minecraft.core.particles.ParticleTypes.POOF, sp.getX(), sp.getY() + 0.4, sp.getZ(), 12, 0.5, 0.2, 0.5, 0.02);
             }
         }
-        int alive = sl.getEntitiesOfClass(ShadeEntity.class, this.getBoundingBox().inflate(80)).size();
-        for (int i = 0; i < n && alive + i < 6; i++) {
-            double a = this.random.nextDouble() * Math.PI * 2;
-            Vec3 c = focus.position();
-            BlockPos s = findStand(sl, c.x + Math.cos(a) * 8, c.y, c.z + Math.sin(a) * 8, 10);
+        // its hollow husks: shed skins of it that crawl out of the ground in a little pack. weak, but there's always more
+        int alive = sl.getEntitiesOfClass(HollowHusk.class, this.getBoundingBox().inflate(80)).size();
+        int pack = n + 1 + this.random.nextInt(2);
+        Vec3 c0 = focus.position();
+        double a0 = this.random.nextDouble() * Math.PI * 2;
+        for (int i = 0; i < pack && alive + i < 9; i++) {
+            double a = a0 + (i - pack / 2.0) * 0.35;
+            Vec3 at = keepIn(sl, new Vec3(c0.x + Math.cos(a) * 9, c0.y, c0.z + Math.sin(a) * 9), 6);
+            BlockPos s = findStand(sl, at.x, c0.y, at.z, 10);
             if (s == null) continue;
-            ShadeEntity sh = ShadowRegistry.SHADE.get().create(sl);
-            if (sh == null) continue;
-            sh.moveTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5, this.random.nextFloat() * 360F, 0);
-            sh.arm();
-            sh.setTarget(focus);
-            sl.addFreshEntity(sh);
-            sl.sendParticles(ShadowRegistry.WISP.get(), sh.getX(), sh.getY() + 1, sh.getZ(), 30, 0.4, 0.8, 0.4, 0.0);
+            HollowHusk h = ShadowRegistry.HUSK.get().create(sl);
+            if (h == null) continue;
+            h.moveTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5, this.random.nextFloat() * 360F, 0);
+            h.setTarget(focus);
+            h.setPersistenceRequired();
+            sl.addFreshEntity(h);
+            sl.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, sl.getBlockState(s.below())), h.getX(), h.getY() + 0.3, h.getZ(), 30, 0.5, 0.2, 0.5, 0.15);
+            sl.sendParticles(ShadowRegistry.BILE.get(), h.getX(), h.getY() + 0.4, h.getZ(), 10, 0.4, 0.2, 0.4, 0.02);
         }
     }
 
@@ -834,25 +857,82 @@ public class MansoorityBoss extends ShadowEntity {
 
     // ================================================================ the story beats
     /** perched on a pillar while you fight the dragon. at the last moment it jumps on it and takes the kill */
+    private Vec3 hole;
+
+    /**
+     * it was inside one of the pillars the whole time. while you fight the dragon the obsidian cracks; when the dragon
+     * is nearly dead the pillar bursts open, it tears its way out, leaps onto the dragon and kills it. then it turns to you.
+     */
     private void stealTick(ServerLevel sl, List<ServerPlayer> near) {
         stealT++;
-        if (stealT < 60) {                                                    // waiting on top of the pillar
-            if (prey == null || !prey.isAlive()) { stealT = -1; this.noPhysics = false; this.setNoGravity(false); beginIntro(); return; }
-            if (pillar != null) this.setPos(pillar.getCenterX() + 0.5, pillar.getHeight() + 1, pillar.getCenterZ() + 0.5);
-            face(prey);
+        double cx = pillar != null ? pillar.getCenterX() + 0.5 : this.getX(), cz = pillar != null ? pillar.getCenterZ() + 0.5 : this.getZ();
+        int top = pillar != null ? pillar.getHeight() : (int) this.getY() + 20;
+        int r = pillar != null ? pillar.getRadius() : 3;
+        double y0 = Math.max(this.getY() - 60, top * 0.62);
+        if (stealT < 60) {                                                    // in the stone, waiting for the very end
+            flag(F_HIDE, true);
+            this.setPos(cx, y0, cz);
+            boolean dead = prey == null || !prey.isAlive();
+            if (stealT % 40 == 20) {
+                sl.playSound(null, BlockPos.containing(cx, y0 + 5, cz), ShadowRegistry.CRACK.get(), net.minecraft.sounds.SoundSource.HOSTILE, 4F, 0.5F + this.random.nextFloat() * 0.3F);
+                sl.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState()),
+                        cx, y0 + 5, cz, 25, r * 0.7, 3, r * 0.7, 0.1);
+            }
             if (stealT == 2) for (ServerPlayer p : near) ShadowNet.send(p, new FxPacket(FxPacket.LINE, 7, 0, 0, 0, 60, 1));
-            if (prey.getHealth() > prey.getMaxHealth() * 0.06F && stealT == 59) stealT = 58;   // wait for the very end
+            if (!dead && prey.getHealth() > prey.getMaxHealth() * 0.06F && stealT == 59) stealT = 58;
             return;
         }
-        if (stealT == 60) { moveFrom = this.position(); sound(ShadowRegistry.SCREECH, 8F, 0.8F); act(A_SLAM); actionT = 22; }
-        if (stealT < 77 && prey != null && prey.isAlive()) {                  // the leap
-            double u = (stealT - 60) / 16.0;
+        if (stealT < 90) {                                                    // the pillar shudders and splits
+            if (stealT % 4 == 0) {
+                sl.playSound(null, BlockPos.containing(cx, y0 + 5, cz), ShadowRegistry.CRACK.get(), net.minecraft.sounds.SoundSource.HOSTILE, 6F, 0.4F + this.random.nextFloat() * 0.4F);
+                sl.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState()),
+                        cx, y0 + 6, cz, 40, r, 4, r, 0.2);
+            }
+            if (stealT == 62) shake(near, 1.4F);
+            if (stealT == 75) sound(ShadowRegistry.ROAR, 8F, 0.5F);
+            return;
+        }
+        if (stealT == 90) {                                                   // bursts out
+            Vec3 toward = prey != null && prey.isAlive() ? prey.position() : (focus != null ? focus.position() : new Vec3(0, y0, 0));
+            Vec3 dir = new Vec3(toward.x - cx, 0, toward.z - cz);
+            if (dir.lengthSqr() < 1e-4) dir = new Vec3(1, 0, 0);
+            dir = dir.normalize();
+            Vec3 c = new Vec3(cx, y0 + 6, cz).add(dir.scale(r));
+            hole = c;
+            BossData bd = BossData.get(sl.getServer());
+            for (int x = -6; x <= 6; x++) for (int y = -7; y <= 7; y++) for (int z = -6; z <= 6; z++) {
+                if (x * x + y * y * 0.6 + z * z > 30) continue;
+                BlockPos bp = BlockPos.containing(c.x + x, c.y + y, c.z + z);
+                var st = sl.getBlockState(bp);
+                if (!st.is(net.minecraft.world.level.block.Blocks.OBSIDIAN)) continue;
+                bd.remember(bp, st);
+                sl.setBlock(bp, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+            }
+            sl.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState()),
+                    c.x, c.y, c.z, 400, 2.5, 3, 2.5, 0.9);
+            sl.sendParticles(ParticleTypes.EXPLOSION_EMITTER, c.x, c.y, c.z, 1, 0, 0, 0, 0);
+            sl.sendParticles(ShadowRegistry.WISP.get(), c.x, c.y, c.z, 150, 2, 3, 2, 0.15);
+            sound(ShadowRegistry.SLAM, 9F, 0.5F); sound(ShadowRegistry.ROAR, 9F, 0.7F);
+            shake(near, 3.2F);
+            flag(F_HIDE, false);
+            Vec3 out = c.add(dir.scale(2.5)).add(0, -6, 0);
+            this.setPos(out.x, out.y, out.z);
+            float yaw = (float) (Mth.atan2(dir.z, dir.x) * (180F / Math.PI)) - 90F;
+            this.setYRot(yaw); this.yBodyRot = yaw; this.yHeadRot = yaw;
+            act(A_ROAR); actionT = 10;
+            return;
+        }
+        if (stealT < 108) { if (prey != null && prey.isAlive()) face(prey); actionTick(sl, near); return; }   // half out of the stone, roaring
+        if (stealT == 108) { moveFrom = this.position(); sound(ShadowRegistry.SCREECH, 8F, 0.8F); act(A_SLAM); actionT = 22; }
+        if (stealT < 125 && prey != null && prey.isAlive()) {                 // the leap
+            double u = (stealT - 108) / 16.0;
             Vec3 p = moveFrom.lerp(prey.position(), u);
             this.setPos(p.x, p.y + Math.sin(u * Math.PI) * 6, p.z);
             face(prey);
             return;
         }
-        if (stealT == 77) {                                                   // it bites the dragon's head off
+        if (stealT == 125 || (stealT < 125 && (prey == null || !prey.isAlive()))) {   // it bites the dragon's head off
+            stealT = 125;
             sound(ShadowRegistry.CRUNCH, 8F, 0.5F);
             sound(ShadowRegistry.ROAR, 8F, 0.7F);
             if (prey != null && prey.isAlive()) {
@@ -864,8 +944,9 @@ public class MansoorityBoss extends ShadowEntity {
             act(A_NONE);
             return;
         }
-        if (stealT > 77 && (this.onGround() || stealT > 300)) {               // landed on the island: the introduction
+        if (stealT > 125 && (this.onGround() || stealT > 340)) {              // landed on the island: the introduction
             stealT = -1;
+            if (this.getY() < 30 || !onIsland(sl, this.getX(), this.getZ(), 4)) islandGuard(sl);
             sound(ShadowRegistry.SLAM, 7F, 0.7F);
             beginIntro();
         }
@@ -916,9 +997,8 @@ public class MansoorityBoss extends ShadowEntity {
 
     private void phaseTwo(ServerLevel sl) {
         this.entityData.set(DATA_PHASE, 2);
-        flag(F_BLADE, true);
         release(sl, null);
-        act(A_ROAR);
+        act(A_SUMMON);
         sound(ShadowRegistry.V_YOURS, 6F, 1F);
         line(sl, 3);
         summon(sl, 2);
@@ -932,6 +1012,7 @@ public class MansoorityBoss extends ShadowEntity {
         act(A_COLLAPSE);
         flag(F_FAKEDEAD, true); flag(F_BLADE, false);
         sound(ShadowRegistry.ROAR, 6F, 0.5F);
+        for (HollowHusk sh : sl.getEntitiesOfClass(HollowHusk.class, this.getBoundingBox().inflate(100))) sh.discard();
         for (ShadeEntity sh : sl.getEntitiesOfClass(ShadeEntity.class, this.getBoundingBox().inflate(100))) sh.discard();
         bar.setVisible(false);
     }
@@ -970,10 +1051,25 @@ public class MansoorityBoss extends ShadowEntity {
         int i = this.random.nextInt(lines.size());
         sound(lines.get(i), 6F, 1F);
         line(sl, TAUNT_LINES[i]);
-        if (d.fightDeaths >= 5 && getAction() != A_RETREAT) { release(sl, null); act(A_RETREAT); pillar = tallestPillar(sl); }
+        if (d.fightDeaths >= 5 && getAction() != A_RETREAT) { release(sl, null); act(A_RETREAT); pillar = tallestPillar(sl); BossTower.ensure(sl); }
     }
 
     private void retreatTick(ServerLevel sl, int k) {
+        BossData bd = BossData.get(sl.getServer());
+        if (bd.tower != null) {                      // back to its tower: in through the door, and the door bricks itself up
+            BlockPos door = BossTower.door(bd.tower);
+            Vec3 c = Vec3.atBottomCenterOf(door);
+            Vec3 d = c.subtract(this.position()).multiply(1, 0, 1);
+            setScuttle(k + 8);
+            if (d.length() > 3 && k < 700) {
+                float yaw = (float) (Mth.atan2(d.z, d.x) * (180F / Math.PI)) - 90F;
+                this.setYRot(yaw); this.yBodyRot = yaw; this.yHeadRot = yaw;
+                stepToward(sl, c, 0.45);
+                return;
+            }
+            leave(sl, true);
+            return;
+        }
         if (pillar == null) { leave(sl, true); return; }
         Vec3 c = new Vec3(pillar.getCenterX() + 0.5, this.getY(), pillar.getCenterZ() + 0.5);
         Vec3 d = c.subtract(this.position()).multiply(1, 0, 1);
@@ -994,8 +1090,13 @@ public class MansoorityBoss extends ShadowEntity {
             d.restore(sl);
             if (seal) {
                 d.sealed = true; d.sealedHp = Math.max(this.getHealth(), MAX_HP * 0.3F); d.tnt = 0;
-                SpikeFeature.EndSpike sp = pillar != null ? pillar : tallestPillar(sl);
-                d.sealedAt = sp != null ? new BlockPos(sp.getCenterX(), sp.getHeight(), sp.getCenterZ()) : this.blockPosition();
+                if (d.tower != null) {
+                    d.sealedAt = BossTower.door(d.tower);
+                    BossTower.seal(sl, d.tower);
+                } else {
+                    SpikeFeature.EndSpike sp = pillar != null ? pillar : tallestPillar(sl);
+                    d.sealedAt = sp != null ? new BlockPos(sp.getCenterX(), sp.getHeight(), sp.getCenterZ()) : this.blockPosition();
+                }
                 d.fightDeaths = 0;
                 d.setDirty();
                 sl.getServer().getPlayerList().broadcastSystemMessage(Component.literal("Mansoority has crawled back into its tower and sealed itself in. Something will have to wake it.")
@@ -1003,6 +1104,7 @@ public class MansoorityBoss extends ShadowEntity {
                 sl.sendParticles(ShadowRegistry.WISP.get(), this.getX(), this.getY() + 4, this.getZ(), 120, 2, 4, 2, 0.05);
             }
         }
+        for (HollowHusk sh : sl.getEntitiesOfClass(HollowHusk.class, this.getBoundingBox().inflate(100))) sh.discard();
         for (ShadeEntity sh : sl.getEntitiesOfClass(ShadeEntity.class, this.getBoundingBox().inflate(100))) sh.discard();
         Entity b = sl.getEntity(bladeId); if (b != null) b.discard();
         release(sl, null);
@@ -1036,9 +1138,9 @@ public class MansoorityBoss extends ShadowEntity {
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
-        if (this.level().isClientSide || dying >= 0 || introT >= 0 || stealT >= 0) return false;
+        if (this.level().isClientSide || dying >= 0 || introT >= 0 || stealT >= 0 || rebuildT >= 0) return false;
         int a = getAction();
-        if (a == A_COLLAPSE || a == A_DEAD || a == A_RISE || (a == A_BLINK && actionT > 8 && actionT < 26) || has(F_WALL)) return false;
+        if (a == A_COLLAPSE || a == A_DEAD || a == A_RISE || a == A_SUMMON || (a == A_BLINK && actionT > 8 && actionT < 26) || has(F_WALL)) return false;
         Entity src = source.getEntity();
         boolean byPlayer = src instanceof Player || (source.getDirectEntity() instanceof Projectile pr && pr.getOwner() instanceof Player);
         if (!byPlayer && !source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)) return false;
@@ -1098,7 +1200,8 @@ public class MansoorityBoss extends ShadowEntity {
         if (dying == 90) setVanishTick(1);
         if (dying > 90) setVanishTick(Math.min(VANISH_LEN - 1, dying - 89));
         if (dying >= 90 + VANISH_LEN - 1) {
-            for (ShadeEntity sh : sl.getEntitiesOfClass(ShadeEntity.class, this.getBoundingBox().inflate(100))) sh.discard();
+            for (HollowHusk sh : sl.getEntitiesOfClass(HollowHusk.class, this.getBoundingBox().inflate(100))) sh.discard();
+        for (ShadeEntity sh : sl.getEntitiesOfClass(ShadeEntity.class, this.getBoundingBox().inflate(100))) sh.discard();
             Entity b = sl.getEntity(bladeId); if (b != null) b.discard();
             // the blade only ever comes from here. the heart too
             sl.addFreshEntity(new ItemEntity(sl, this.getX(), this.getY() + 2, this.getZ(), new ItemStack(ShadowRegistry.SHADOW_BLADE.get())));
@@ -1110,9 +1213,23 @@ public class MansoorityBoss extends ShadowEntity {
                 BossData d = BossData.get(sl.getServer());
                 d.setDefeated();
                 d.restore(sl);
-                BlockPos g = findStand(sl, this.getX(), this.getY(), this.getZ(), 10);   // its skull stays where it fell
-                if (g != null) { sl.setBlock(g, ShadowRegistry.SKULL_BLOCK.get().defaultBlockState(), 3); d.skull = g; d.setDirty(); }
-                sl.getServer().getPlayerList().broadcastSystemMessage(Component.literal("Mansoority is dead. Its skull is still there.")
+                BlockPos g = findStand(sl, this.getX(), this.getY(), this.getZ(), 10);   // its skull, where it fell...
+                if (g != null) {
+                    sl.setBlock(g, ShadowRegistry.SKULL_BLOCK.get().defaultBlockState(), 3); d.skull = g; d.setDirty();
+                    // ...until something thin and many-legged comes out of the dark and carries it home to its tower
+                    if (d.tower != null) {
+                        Scavenger sc = ShadowRegistry.SCAVENGER.get().create(sl);
+                        if (sc != null) {
+                            Vec3 from = keepIn(sl, this.position().add(new Vec3(this.getX() - d.tower.getX(), 0, this.getZ() - d.tower.getZ()).normalize().scale(30)), 6);
+                            BlockPos fs = findStand(sl, from.x, this.getY(), from.z, 20);
+                            if (fs == null) fs = g.offset(20, 0, 0);
+                            sc.moveTo(fs.getX() + 0.5, fs.getY(), fs.getZ() + 0.5, 0, 0);
+                            sc.from = g; sc.to = BossTower.altar(d.tower);
+                            sl.addFreshEntity(sc);
+                        }
+                    }
+                }
+                sl.getServer().getPlayerList().broadcastSystemMessage(Component.literal("Mansoority is dead. Something is coming for its skull.")
                         .withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), false);
             }
             this.discard();

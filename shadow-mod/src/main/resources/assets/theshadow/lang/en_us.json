@@ -53,7 +53,7 @@
  "item.theshadow.shade_chestplate": "Shade Chestplate",
  "item.theshadow.shade_leggings": "Shade Leggings",
  "item.theshadow.shade_boots": "Shade Boots",
- "item.theshadow.shade_armor.desc": "Woven from what's left of its shades.",
+ "item.theshadow.shade_armor.desc": "Woven from what's left of its husks.",
  "item.theshadow.shade_armor.set": "Each piece: 6% less from its creatures. Full set: darkness can't touch you.",
  "item.theshadow.pale_biter_spawn_egg": "Pale Biter Spawn Egg",
  "item.theshadow.pale_spitter_spawn_egg": "Pale Spitter Spawn Egg",
@@ -65,5 +65,8 @@
  "block.theshadow.pale_bone_brick_stairs": "Pale Bone Brick Stairs",
  "block.theshadow.pale_bone_brick_slab": "Pale Bone Brick Slab",
  "block.theshadow.pale_bone_brick_wall": "Pale Bone Brick Wall",
- "block.theshadow.web_floor": "Web Floor"
+ "block.theshadow.web_floor": "Web Floor",
+ "entity.theshadow.hollow_husk": "Hollow Husk",
+ "entity.theshadow.scavenger": "Scavenger",
+ "item.theshadow.hollow_husk_spawn_egg": "Hollow Husk Spawn Egg"
 }

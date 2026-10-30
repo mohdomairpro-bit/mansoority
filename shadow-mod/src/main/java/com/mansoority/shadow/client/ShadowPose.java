@@ -76,12 +76,23 @@ final class ShadowPose {
                 case com.mansoority.shadow.MansoorityBoss.A_BLADE -> { clip = "blade_swing"; drive = el; bossMouth = 0.3F; }
                 case com.mansoority.shadow.MansoorityBoss.A_THROW -> { clip = "throw"; drive = el; bossMouth = el > 15 && el < 26 ? 1.5F : 0.3F; }
                 case com.mansoority.shadow.MansoorityBoss.A_INTRO -> { clip = "intro_stare"; }
+                case com.mansoority.shadow.MansoorityBoss.A_SUMMON -> {
+                    if (el < 62) { clip = "summon"; drive = el; bossMouth = el > 18 && el < 59 ? 1.75F : el < 64 ? 0.15F : 0.4F; }
+                    else { clip = "roar"; drive = Math.min(69F, el - 62 + 10); bossMouth = 1.5F; }
+                }
                 case com.mansoority.shadow.MansoorityBoss.A_SIGNATURE -> {
                     if (el < 30) { clip = "roar"; drive = el; bossMouth = el > 8 ? 1.75F : 0.3F; }
                     else if (el < 64) clip = "boss_idle";
                     else { clip = "slam"; drive = Math.min(79F, el - 64 + 36); bossMouth = 1.2F; }
                 }
-                case com.mansoority.shadow.MansoorityBoss.A_CHARGE, com.mansoority.shadow.MansoorityBoss.A_CLIMB, com.mansoority.shadow.MansoorityBoss.A_FETCH,
+                case com.mansoority.shadow.MansoorityBoss.A_CLIMB -> {
+                    double vy = e.getY() - e.yo;
+                    if (boss.has(com.mansoority.shadow.MansoorityBoss.F_WALL)) { clip = vy > 0.05 ? "climb" : "perch"; speed = vy > 0.05 ? 1.8F : 1F; bossMouth = vy > 0.05 ? 0.4F : 1.2F; }
+                    else if (vy < -0.12) { clip = "slam"; drive = 32F; bossMouth = 1.6F; }        // dropping off the wall onto you
+                    else if (e.getScuttle() > 0 || moved > 0.02) { clip = "scuttle"; speed = moved < 0.01 ? 0.3F : stride(A, "scuttle", moved, 1F); bossMouth = 1.0F; }
+                    else clip = "boss_idle";
+                }
+                case com.mansoority.shadow.MansoorityBoss.A_CHARGE, com.mansoority.shadow.MansoorityBoss.A_FETCH,
                         com.mansoority.shadow.MansoorityBoss.A_RETREAT -> {
                     if (e.getScuttle() > 0 || moved > 0.02) { clip = "scuttle"; speed = moved < 0.01 ? 0.3F : stride(A, "scuttle", moved, 1F); bossMouth = 1.0F; }
                     else clip = "boss_idle";

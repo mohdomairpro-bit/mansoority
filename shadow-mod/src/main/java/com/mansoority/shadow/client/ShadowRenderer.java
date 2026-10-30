@@ -123,7 +123,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         if (e.isMimic()) { renderMimic(e, partialTick, pose, buffers, light); return; }
         RingRenderer.renderWall(e, pose, buffers, partialTick);
         PortalRenderer.renderPortal(e, pose, buffers, partialTick);
-        if (e.isHidden()) return;
+        if (e.isHidden() || (e instanceof com.mansoority.shadow.MansoorityBoss hb && hb.has(com.mansoority.shadow.MansoorityBoss.F_HIDE))) return;
         Minecraft mc = Minecraft.getInstance();
         net.minecraft.world.phys.Vec3 camPos = mc.gameRenderer.getMainCamera().getPosition();
         double ex = Mth.lerp(partialTick, e.xo, e.getX()), ey = Mth.lerp(partialTick, e.yo, e.getY()), ez = Mth.lerp(partialTick, e.zo, e.getZ());

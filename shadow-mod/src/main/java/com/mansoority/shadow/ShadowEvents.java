@@ -309,7 +309,8 @@ public class ShadowEvents {
         d.register(Commands.literal(root).requires(s -> s.hasPermission(2))
                 .then(Commands.argument("action", StringArgumentType.word())
                         .suggests((c, b) -> {
-                            for (String a : new String[]{"cinematic", "test", "stalk", "mimic", "grab", "lick", "drag", "polter", "mirror", "deathmsg", "mark", "boss", "lair", "rush", "bed", "scare", "event", "despawn", "soon", "reset"}) b.suggest(a);
+                            for (String a : new String[]{"cinematic", "test", "stalk", "mimic", "grab", "lick", "drag", "polter", "mirror", "deathmsg", "mark", "boss", "lair", "rush", "bed", "scare", "event", "despawn", "soon", "reset",
+                                    "phase2", "phase3", "fakedeath", "skipintro", "signature", "flood", "eyes"}) b.suggest(a);
                             return b.buildFuture();
                         })
                         .executes(c -> run(c, c.getSource().getPlayerOrException()))
@@ -375,7 +376,14 @@ public class ShadowEvents {
                 p.getPersistentData().putLong(KEY_NEXT, p.level().getGameTime() + 20L * 60L * ShadowConfig.MIN_MINUTES.get());
                 reply(src, "Cooldown restarted for " + p.getScoreboardName() + ".");
             }
-            default -> { reply(src, "Use: test, stalk, rush, bed, scare, event, despawn, soon, reset"); return 0; }
+            case "phase2", "phase3", "fakedeath", "skipintro", "signature", "flood", "eyes" -> {      // boss testing
+                MansoorityBoss near = null;
+                for (MansoorityBoss b : p.serverLevel().getEntitiesOfClass(MansoorityBoss.class, p.getBoundingBox().inflate(200))) near = b;
+                if (near == null) { reply(src, "No boss nearby. /mansoority boss (in the End) first."); return 0; }
+                near.debug(action);
+                reply(src, "Boss: " + action + ".");
+            }
+            default -> { reply(src, "Use: test, stalk, rush, bed, scare, event, despawn, soon, reset, boss, phase2, phase3, fakedeath, skipintro"); return 0; }
         }
         return 1;
     }

@@ -48,20 +48,38 @@ public class SkullBlock extends HorizontalDirectionalBlock implements EntityBloc
             return InteractionResult.CONSUME;
         }
         if (!sl.getEntitiesOfClass(MansoorityBoss.class, player.getBoundingBox().inflate(300)).isEmpty()) return InteractionResult.CONSUME;
+        if (!(sl.getBlockEntity(pos) instanceof SkullBlockEntity be) || be.revive > 0) return InteractionResult.CONSUME;
         if (!player.isCreative()) held.shrink(1);
+        sl.blockEvent(pos, this, 1, 0);                       // starts the revival on both sides
+        sl.getServer().getPlayerList().broadcastSystemMessage(Component.literal(player.getScoreboardName() + " gave Mansoority its heart back.")
+                .withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), false);
+        return InteractionResult.CONSUME;
+    }
+
+    /** the end of the revival: the skull is gone, it stands there, whole */
+    static void rise(ServerLevel sl, BlockPos pos) {
         sl.removeBlock(pos, false);
         BossData d = BossData.get(sl.getServer());
         d.defeated = false; d.skull = null; d.fightDeaths = 0; d.setDirty();
         MansoorityBoss b = ShadowRegistry.BOSS.get().create(sl);
-        if (b != null) {
-            b.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYRot() + 180F, 0);
-            b.setHealth(MansoorityBoss.MAX_HP);
-            sl.addFreshEntity(b);
-            b.beginIntro();
-            sl.sendParticles(ShadowRegistry.WISP.get(), pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5, 200, 2, 3, 2, 0.08);
-        }
-        sl.getServer().getPlayerList().broadcastSystemMessage(Component.literal(player.getScoreboardName() + " gave Mansoority its heart back.")
-                .withStyle(net.minecraft.ChatFormatting.DARK_RED, net.minecraft.ChatFormatting.ITALIC), false);
-        return InteractionResult.CONSUME;
+        if (b == null) return;
+        net.minecraft.world.entity.player.Player near = sl.getNearestPlayer(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 60, false);
+        b.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, near != null ? near.getYRot() + 180F : 0F, 0);
+        b.setHealth(MansoorityBoss.MAX_HP);
+        sl.addFreshEntity(b);
+        b.beginRebuild();
+        sl.sendParticles(ShadowRegistry.WISP.get(), pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5, 200, 2, 3, 2, 0.08);
+    }
+
+    @Override
+    public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(Level level, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+        return type == ShadowRegistry.SKULL_BE.get() ? (l, p, s, be) -> SkullBlockEntity.tick(l, p, s, (SkullBlockEntity) be) : null;
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public boolean triggerEvent(BlockState state, Level level, BlockPos pos, int id, int param) {
+        BlockEntity be = level.getBlockEntity(pos);
+        return be != null && be.triggerEvent(id, param);
     }
 }

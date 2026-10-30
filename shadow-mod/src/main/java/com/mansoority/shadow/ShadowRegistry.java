@@ -44,6 +44,10 @@ public final class ShadowRegistry {
             () -> EntityType.Builder.<PaleSpider>of(PaleSpider::new, MobCategory.MONSTER).sized(1.5F, 0.95F).clientTrackingRange(8).build("pale_biter"));
     public static final RegistryObject<EntityType<PaleSpider>> PALE_SPITTER = ENTITIES.register("pale_spitter",
             () -> EntityType.Builder.<PaleSpider>of(PaleSpider::new, MobCategory.MONSTER).sized(1.2F, 0.8F).clientTrackingRange(8).build("pale_spitter"));
+    public static final RegistryObject<EntityType<HollowHusk>> HUSK = ENTITIES.register("hollow_husk",
+            () -> EntityType.Builder.<HollowHusk>of(HollowHusk::new, MobCategory.MONSTER).sized(1.0F, 0.8F).clientTrackingRange(8).build("hollow_husk"));
+    public static final RegistryObject<EntityType<Scavenger>> SCAVENGER = ENTITIES.register("scavenger",
+            () -> EntityType.Builder.<Scavenger>of(Scavenger::new, MobCategory.MISC).sized(1.4F, 1.9F).clientTrackingRange(12).updateInterval(1).fireImmune().build("scavenger"));
     public static final RegistryObject<EntityType<WebShot>> WEB_SHOT = ENTITIES.register("web_shot",
             () -> EntityType.Builder.<WebShot>of(WebShot::new, MobCategory.MISC).sized(0.3F, 0.3F).clientTrackingRange(6).updateInterval(5).build("web_shot"));
 
@@ -70,6 +74,8 @@ public final class ShadowRegistry {
     public static final RegistryObject<net.minecraft.world.item.Item> SHADE_BOOTS = ITEMS.register("shade_boots", () -> new ShadowGear.ShadeArmor(net.minecraft.world.item.ArmorItem.Type.BOOTS));
     public static final RegistryObject<net.minecraft.world.item.Item> BITER_EGG = ITEMS.register("pale_biter_spawn_egg",
             () -> new net.minecraftforge.common.ForgeSpawnEggItem(PALE_BITER, 0xE8E4D8, 0x5A0E0E, new net.minecraft.world.item.Item.Properties()));
+    public static final RegistryObject<net.minecraft.world.item.Item> HUSK_EGG = ITEMS.register("hollow_husk_spawn_egg",
+            () -> new net.minecraftforge.common.ForgeSpawnEggItem(HUSK, 0xA8A494, 0x1A1420, new net.minecraft.world.item.Item.Properties()));
     public static final RegistryObject<net.minecraft.world.item.Item> SPITTER_EGG = ITEMS.register("pale_spitter_spawn_egg",
             () -> new net.minecraftforge.common.ForgeSpawnEggItem(PALE_SPITTER, 0xE8E4D8, 0x7C8A56, new net.minecraft.world.item.Item.Properties()));
 

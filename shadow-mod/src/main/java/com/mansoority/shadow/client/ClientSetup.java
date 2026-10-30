@@ -11,6 +11,7 @@ public final class ClientSetup {
         net.minecraftforge.fml.ModLoadingContext.get().registerExtensionPoint(net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
                 () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory((mc, parent) -> new ShadowConfigScreen(parent)));
         modBus.addListener(ClientSetup::onRenderers);
+        com.mansoority.shadow.SkullBlockEntity.CLIENT_TICK = ReviveFx::tick;
         modBus.addListener(ClientSetup::onOverlays);
         modBus.addListener(ClientSetup::onParticles);
         modBus.addListener(ClientSetup::onLayers);
@@ -40,6 +41,8 @@ public final class ClientSetup {
         event.registerBlockEntityRenderer(ShadowRegistry.SKULL_BE.get(), SkullRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.PALE_BITER.get(), PaleSpiderRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.PALE_SPITTER.get(), PaleSpiderRenderer::new);
+        event.registerEntityRenderer(ShadowRegistry.HUSK.get(), HuskRenderer::new);
+        event.registerEntityRenderer(ShadowRegistry.SCAVENGER.get(), ScavengerRenderer::new);
         event.registerEntityRenderer(ShadowRegistry.WEB_SHOT.get(), net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
     }
 

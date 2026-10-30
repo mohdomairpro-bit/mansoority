@@ -25,6 +25,8 @@ public class BossData extends SavedData {
     public int tnt;
     /** where its skull lies after it died (rematch altar), or null */
     public BlockPos skull;
+    /** its tower (base centre), once built */
+    public BlockPos tower;
     /** blocks the fight crumbled into the void, restored when the fight ends */
     public final List<CompoundTag> broken = new ArrayList<>();
 
@@ -42,6 +44,7 @@ public class BossData extends SavedData {
         d.sealedAt = NbtUtils.readBlockPos(tag.getCompound("sealedAt"));
         d.tnt = tag.getInt("tnt");
         if (tag.contains("skull")) d.skull = NbtUtils.readBlockPos(tag.getCompound("skull"));
+        if (tag.contains("tower")) d.tower = NbtUtils.readBlockPos(tag.getCompound("tower"));
         ListTag l = tag.getList("broken", 10);
         for (int i = 0; i < l.size(); i++) d.broken.add(l.getCompound(i));
         return d;
@@ -57,6 +60,7 @@ public class BossData extends SavedData {
         tag.put("sealedAt", NbtUtils.writeBlockPos(sealedAt));
         tag.putInt("tnt", tnt);
         if (skull != null) tag.put("skull", NbtUtils.writeBlockPos(skull));
+        if (tower != null) tag.put("tower", NbtUtils.writeBlockPos(tower));
         ListTag l = new ListTag(); l.addAll(broken); tag.put("broken", l);
         return tag;
     }

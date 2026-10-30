@@ -43,6 +43,8 @@ public class TheShadow {
         event.put(ShadowRegistry.BOSS.get(), MansoorityBoss.createAttributes().build());
         event.put(ShadowRegistry.SHADE.get(), ShadeEntity.createAttributes().build());
         event.put(ShadowRegistry.PALE_BITER.get(), PaleSpider.biter().build());
+        event.put(ShadowRegistry.HUSK.get(), HollowHusk.createAttributes().build());
+        event.put(ShadowRegistry.SCAVENGER.get(), Scavenger.createAttributes().build());
         event.put(ShadowRegistry.PALE_SPITTER.get(), PaleSpider.spitter().build());
     }
 
@@ -56,7 +58,7 @@ public class TheShadow {
             event.accept(ShadowRegistry.SHADE_LEGGINGS); event.accept(ShadowRegistry.SHADE_BOOTS);
         }
         if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.INGREDIENTS) { event.accept(ShadowRegistry.PALE_SILK); event.accept(ShadowRegistry.SHADE_ESSENCE); }
-        if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.SPAWN_EGGS) { event.accept(ShadowRegistry.BITER_EGG); event.accept(ShadowRegistry.SPITTER_EGG); }
+        if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.SPAWN_EGGS) { event.accept(ShadowRegistry.BITER_EGG); event.accept(ShadowRegistry.SPITTER_EGG); event.accept(ShadowRegistry.HUSK_EGG); }
         if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.BUILDING_BLOCKS)
             for (var b : ShadowRegistry.PALE_BLOCKS) event.accept(b.get());
     }

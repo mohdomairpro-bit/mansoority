@@ -338,21 +338,75 @@ def scream(f):
 
 @clip("slam", 80, loop=False)
 def slam(f):
-    """crouch, leap, crash down on both hands, recover. the server moves it through the air between 22 and 44"""
-    crouch = ease((f - 0) / 18) * (1 - ease((f - 18) / 4))
-    air = ease((f - 22) / 6) * (1 - ease((f - 40) / 4))
-    hit = math.exp(-((f - 46) / 3.5) ** 2)
-    rec = ease((f - 52) / 24)
-    p = predator(P(), 1.0 + 0.6 * crouch + 0.7 * hit - 0.4 * air)
-    p.rot("chest", -0.25 * air + 0.35 * hit).rot("head", -0.3 * air + 0.25 * hit)
-    for limb, s in (("armL", -1), ("armR", 1)):                       # arms swing up in the air, then down
-        p.feet[limb] = p.feet[limb] + np.array([0.3 * s * air, 1.5 * air, -0.35 * air - 0.25 * crouch])
-        p.pole[limb] = np.array([1.8 * s, 2.0, 0.2])
+    """the pounce. coils down low (shaking with it), launches, flies at you stretched out with its arms reaching and
+    claws spread, crashes down onto its hands, the body slamming in after them; then it pulls itself back up.
+    the server moves it through the air between frames 22 and 44"""
+    coil = ease(f / 16) * (1 - ease((f - 19) / 3))
+    shake = 0.03 * math.sin(f * 2.9) * coil if f > 8 else 0.0
+    launch = math.exp(-((f - 21) / 2.2) ** 2)
+    air = ease((f - 21) / 5) * (1 - ease((f - 40) / 4))
+    hit = math.exp(-((f - 46) / 3.0) ** 2)
+    sink = ease((f - 44) / 3) * (1 - ease((f - 50) / 14))
+    rec = ease((f - 54) / 24)
+    p = predator(P(), 1.0 + 0.75 * coil - 0.55 * air + 0.5 * sink)
+    p.off("hips", shake, -0.10 * coil + 0.14 * launch - 0.16 * sink * (1 - rec), -0.12 * coil + 0.08 * air)
+    p.rot("hips", 0.18 * coil - 0.35 * air + 0.2 * hit)
+    p.rot("chest", 0.25 * coil - 0.30 * air + 0.40 * hit, 0, shake * 2)
+    p.rot("neck", 0.35 * coil + 0.45 * air - 0.2 * hit).rot("head", -0.25 * coil - 0.35 * air + 0.45 * hit)
+    for limb, s_ in (("armL", -1), ("armR", 1)):
+        # coiled: hands drawn in under the chest. air: thrown forward, wide, reaching. impact: slammed down far ahead
+        p.feet[limb] = p.feet[limb] + np.array([(-0.12 * coil + 0.55 * air + 0.25 * hit) * s_, 0.75 * air, -0.25 * coil + 0.75 * air + 0.35 * hit * (1 - rec)])
+        p.pole[limb] = np.array([1.9 * s_, 2.3, 0.4 + 0.6 * air])
         p.contact[limb] = air < 0.1
-    for limb in ("legL", "legR"):
-        p.feet[limb] = p.feet[limb] + np.array([0, 0.35 * air, 0.15 * air])
+    for limb, s_ in (("legL", -1), ("legR", 1)):
+        p.feet[limb] = p.feet[limb] + np.array([0.12 * s_ * coil, 0.25 * air, -0.15 * coil - 0.55 * air])   # legs trail behind
         p.contact[limb] = air < 0.1
-    p.off("hips", 0, -0.12 * hit * (1 - rec), 0)
+    for b_ in ("fingerL0", "fingerL1", "fingerL2", "fingerL3", "fingerR0", "fingerR1", "fingerR2", "fingerR3"):
+        if b_ in ORDER: p.rot(b_, -0.6 * air)                         # claws spread wide in the air
+    p.tongue(0.25 * air, pitch=0.4, wave=0.3, phase=f * 0.5, droop=0.6)
+    return p
+
+@clip("summon", 70, loop=False)
+def summon(f):
+    """its blade comes through a rift in front of its face: it stretches its neck out to it, mouth gaping,
+    shaking, then snaps its jaws shut on it and jerks its head back"""
+    reach = ease_out((f - 4) / 18) * (1 - ease((f - 58) / 6))
+    snap = math.exp(-((f - 60) / 2.5) ** 2)
+    rec = ease((f - 60) / 10)
+    p = predator(P(), 1.15)
+    p.rot("neck", 0.55 * reach - 0.2 * rec).rot("head", -0.6 * reach + 0.35 * snap - 0.25 * rec)
+    p.off("neck", 0, 0.04 * reach, 0.20 * reach).off("head", 0, 0, 0.10 * reach)
+    if 18 < f < 58:
+        sh = f * 2.4
+        p.rot("head", 0.04 * math.sin(sh), 0.05 * math.sin(sh * 1.4), 0.06 * math.sin(sh * 0.8))
+    for limb, s_ in (("armL", -1), ("armR", 1)):
+        p.feet[limb] = p.feet[limb] + np.array([0.35 * s_ * reach, 0, 0.1 * reach])       # braced wide
+    p.rot("chest", -0.15 * rec).off("hips", 0, 0.05 * rec, 0)
+    return p
+
+CL_CYCLE, CL_STRIDE = 32, 1.25
+@clip("climb", CL_CYCLE, speed=CL_STRIDE / CL_CYCLE)
+def climb(f):
+    """up the side of a pillar: flat against the stone, diagonal pairs reaching far up, claws hooking in.
+    (the renderer stands it on the wall, so 'forward' here is straight up)"""
+    p = spider(P(), 1.15, 0.9)
+    gait(p, f, CL_CYCLE, CL_STRIDE, 0.38, 0.52, {"legL": 0.0, "armR": 0.0, "legR": 0.5, "armL": 0.5})
+    ph = 2 * PI * f / CL_CYCLE
+    p.off("hips", 0.05 * math.sin(ph), -0.03 * abs(math.sin(ph)), 0).rot("hips", 0, 0.12 * math.sin(ph), 0.06 * math.sin(ph))
+    p.rot("chest", 0, -0.14 * math.sin(ph), 0)
+    p.rot("neck", 0.25).rot("head", -0.35 + 0.1 * math.sin(ph * 0.5), 0.25 * math.sin(2 * PI * f / (CL_CYCLE * 2)), 0)
+    return p
+
+@clip("perch", 120)
+def perch(f):
+    """crouched on top of something narrow: all four gathered under it, toes gripping the edge, head low, watching"""
+    p = spider(P(), 0.95, 0.55)
+    for limb, s_ in (("legL", -1), ("legR", 1)):
+        p.feet[limb] = p.feet[limb] + np.array([-0.2 * s_, 0, 0.12])
+    for limb, s_ in (("armL", -1), ("armR", 1)):
+        p.feet[limb] = p.feet[limb] + np.array([-0.15 * s_, 0, -0.18])
+    breathe(p, f, 1.6, 60)
+    p.rot("head", 0.1 * math.sin(2 * PI * f / 120), 0.35 * math.sin(2 * PI * f / 120), 0)
     return p
 
 @clip("bite", 60, loop=False)
