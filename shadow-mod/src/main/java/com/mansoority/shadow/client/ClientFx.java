@@ -178,6 +178,7 @@ public final class ClientFx {
     // ------------------------------------------------------------------ ticking
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
+        BladeAura.tick(Minecraft.getInstance());
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) { js = -1; seq = -1; stare = 0; lightsOut = 0; return; }
         if (mc.isPaused()) return;

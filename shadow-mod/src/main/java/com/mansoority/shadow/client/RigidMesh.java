@@ -155,5 +155,27 @@ public final class RigidMesh {
         drawPart(ps, p, null, vc, true, 0xF000F0, overlay, 1F, 1F, 1F, a);
     }
 
+    /**
+     * the part pushed out along its normals by 'off' (flickering, licking upward like flame), every triangle, flat colour.
+     * for additive glow shells (TRIANGLES vertex mode)
+     */
+    public void drawShell(PoseStack ps, Part p, VertexConsumer vc, float off, float time, float r, float g, float bl) {
+        Matrix4f M = new Matrix4f(ps.last().pose()).mul(world[p.index]);
+        float[] P = p.pos, N = p.nrm;
+        int n = P.length / 3;
+        for (int v = 0; v < n; v++) {
+            int v3 = v * 3;
+            float x = P[v3], y = P[v3 + 1], z = P[v3 + 2];
+            float fl = 0.55F + 0.45F * (float) Math.sin(time * 9F + y * 23F + x * 11F) * (float) Math.sin(time * 5.3F - y * 9F + z * 17F);
+            float o = off * (0.6F + fl);
+            float px = x + N[v3] * o, py = y + N[v3 + 1] * o + off * 1.4F * fl * fl, pz = z + N[v3 + 2] * o;
+            float ox = M.m00() * px + M.m10() * py + M.m20() * pz + M.m30();
+            float oy = M.m01() * px + M.m11() * py + M.m21() * pz + M.m31();
+            float oz = M.m02() * px + M.m12() * py + M.m22() * pz + M.m32();
+            float k = 0.7F + 0.3F * fl;
+            vc.vertex(ox, oy, oz, r * k, g * k, bl * k, 1F, 0.5F, 0.5F, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, 0xF000F0, 0F, 1F, 0F);
+        }
+    }
+
     public Matrix4f matrix(Part p) { return world[p.index]; }
 }

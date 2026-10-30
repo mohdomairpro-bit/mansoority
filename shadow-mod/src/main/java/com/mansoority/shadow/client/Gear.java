@@ -11,11 +11,31 @@ import org.joml.Matrix4f;
 
 /** drawing the blade and the shield models anywhere (in hand, in its teeth, through its stomach) */
 public final class Gear {
+    private static final java.util.Map<String, net.minecraft.resources.ResourceLocation> HD = java.util.Map.of(
+            "shadow_blade", new net.minecraft.resources.ResourceLocation(com.mansoority.shadow.TheShadow.MODID, "textures/entity/shadow_blade_hd.png"),
+            "pale_ward", new net.minecraft.resources.ResourceLocation(com.mansoority.shadow.TheShadow.MODID, "textures/entity/pale_ward_hd.png"));
+
     public static void draw(String mesh, PoseStack pose, MultiBufferSource buf, int light, int overlay) {
         RigidMesh m = RigidMesh.load(mesh);
         if (m == null) return;
         m.reset(); m.pose();
-        m.draw(pose, buf, RenderType.entityCutoutNoCull(RigidMesh.PALETTE), RenderType.eyes(RigidMesh.PALETTE), light, overlay, 1F, 1F, 1F, 1F);
+        var tex = HD.getOrDefault(mesh, RigidMesh.PALETTE);          // the blade and the shield have their own baked 2048px textures
+        m.draw(pose, buf, RenderType.entityCutoutNoCull(tex), RenderType.eyes(tex), light, overlay, 1F, 1F, 1F, 1F);
+    }
+
+    /**
+     * the blade's aura: layered shells around it that flicker and lick upward like flames - white at the core,
+     * violet, then a deep purple haze. additive, so it glows in the dark. strength 0..1
+     */
+    public static void aura(PoseStack pose, MultiBufferSource buf, float strength) {
+        RigidMesh m = RigidMesh.load("shadow_blade");
+        if (m == null || strength <= 0F) return;
+        m.reset(); m.pose();
+        float t = (net.minecraft.Util.getMillis() % 100000L) / 1000F;
+        VertexConsumer vc = buf.getBuffer(ShadowRenderer.Types.GLOW);
+        float[][] layers = {{0.010F, 0.55F, 0.48F, 0.70F}, {0.026F, 0.36F, 0.16F, 0.62F}, {0.048F, 0.17F, 0.05F, 0.36F}, {0.075F, 0.07F, 0.02F, 0.16F}};
+        for (float[] L : layers)
+            for (RigidMesh.Part p : m.parts) m.drawShell(pose, p, vc, L[0], t, L[1] * strength, L[2] * strength, L[3] * strength);
     }
 
     /** the blade, its middle at the origin, lying along x (for clamping it crossways in the teeth) */
@@ -25,6 +45,7 @@ public final class Gear {
         pose.scale(size, size, size);
         pose.translate(0F, -0.75F, 0F);
         draw("shadow_blade", pose, buf, light, OverlayTexture.NO_OVERLAY);
+        aura(pose, buf, 0.8F);
         pose.popPose();
     }
 

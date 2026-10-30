@@ -158,6 +158,117 @@ def write_rigid(name, items, parts, convert=mc, budget=3000):
     for o in objs: bpy.data.objects.remove(o, do_unlink=True)
 
 
+# ================================================================== baked HD textures for the blade and the shield
+TEX = 2048
+MAT_COL = {BONE: ((0.17, 0.15, 0.12), (0.86, 0.82, 0.72)), JOINT: ((0.03, 0.025, 0.022), (0.35, 0.31, 0.26)),
+           CHITIN: ((0.004, 0.003, 0.006), (0.07, 0.055, 0.1)), METAL: ((0.006, 0.005, 0.01), (0.16, 0.13, 0.22)),
+           EDGE: ((0.55, 0.25, 1.0), (1.0, 0.92, 1.0)), VIOLET: ((0.45, 0.12, 0.9), (0.95, 0.75, 1.0)), VOID: ((0.0, 0.0, 0.0), (0.01, 0.006, 0.012)),
+           TOOTH: ((0.32, 0.27, 0.18), (0.95, 0.9, 0.78)), PURPLE: ((0.06, 0.01, 0.12), (0.5, 0.25, 0.75))}
+
+
+def gear_material(mat):
+    """procedural surface for one material, written as an emission so the bake captures it as colour:
+    grain and blotches, scratches, dirt in the creases (AO), worn bright edges (pointiness)"""
+    m = bpy.data.materials.new("g%d" % mat); m.use_nodes = True
+    nt = m.node_tree; N = nt.nodes; L = nt.links
+    for n in list(N): N.remove(n)
+    out = N.new("ShaderNodeOutputMaterial"); em = N.new("ShaderNodeEmission")
+    L.new(em.outputs[0], out.inputs[0])
+    dk, lt = MAT_COL.get(mat, ((0.1, 0.1, 0.1), (0.6, 0.6, 0.6)))
+    tc = N.new("ShaderNodeTexCoord")
+    ramp = N.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].color = (*dk, 1); ramp.color_ramp.elements[1].color = (*lt, 1)
+    # base value: big soft blotches + fine grain
+    n1 = N.new("ShaderNodeTexNoise"); n1.inputs["Scale"].default_value = 9; n1.inputs["Detail"].default_value = 8
+    n2 = N.new("ShaderNodeTexNoise"); n2.inputs["Scale"].default_value = 140; n2.inputs["Detail"].default_value = 4
+    L.new(tc.outputs["Object"], n1.inputs["Vector"]); L.new(tc.outputs["Object"], n2.inputs["Vector"])
+    if mat == METAL:                        # brushed along the blade
+        mp = N.new("ShaderNodeMapping"); mp.inputs["Scale"].default_value = (60, 60, 1.5)
+        L.new(tc.outputs["Object"], mp.inputs["Vector"]); L.new(mp.outputs[0], n2.inputs["Vector"])
+    mix = N.new("ShaderNodeMath"); mix.operation = 'MULTIPLY_ADD'
+    L.new(n1.outputs["Fac"], mix.inputs[0]); mix.inputs[1].default_value = 0.55; L.new(n2.outputs["Fac"], mix.inputs[2])
+    # scratches / cracks: thin dark voronoi edges
+    vo = N.new("ShaderNodeTexVoronoi"); vo.feature = 'DISTANCE_TO_EDGE'; vo.inputs["Scale"].default_value = 26 if mat != METAL else 40
+    L.new(tc.outputs["Object"], vo.inputs["Vector"])
+    cr = N.new("ShaderNodeMath"); cr.operation = 'GREATER_THAN'; cr.inputs[1].default_value = 0.025
+    L.new(vo.outputs["Distance"], cr.inputs[0])
+    m2 = N.new("ShaderNodeMath"); m2.operation = 'MULTIPLY'
+    L.new(mix.outputs[0], m2.inputs[0]); L.new(cr.outputs[0], m2.inputs[1])
+    crack_floor = N.new("ShaderNodeMath"); crack_floor.operation = 'MAXIMUM'; crack_floor.inputs[1].default_value = 0.12
+    L.new(m2.outputs[0], crack_floor.inputs[0])
+    # dirt in the creases
+    ao = N.new("ShaderNodeAmbientOcclusion"); ao.samples = 12; ao.inputs["Distance"].default_value = 0.05
+    m3 = N.new("ShaderNodeMath"); m3.operation = 'MULTIPLY'
+    L.new(crack_floor.outputs[0], m3.inputs[0]); L.new(ao.outputs["AO"], m3.inputs[1])
+    # worn, bright edges
+    geo = N.new("ShaderNodeNewGeometry")
+    pe = N.new("ShaderNodeMath"); pe.operation = 'SUBTRACT'; pe.inputs[1].default_value = 0.5
+    L.new(geo.outputs["Pointiness"], pe.inputs[0])
+    pe2 = N.new("ShaderNodeMath"); pe2.operation = 'MULTIPLY_ADD'; pe2.inputs[1].default_value = 3.0
+    L.new(pe.outputs[0], pe2.inputs[0]); L.new(m3.outputs[0], pe2.inputs[2])
+    cl = N.new("ShaderNodeClamp"); L.new(pe2.outputs[0], cl.inputs[0])
+    L.new(cl.outputs[0], ramp.inputs[0])
+    L.new(ramp.outputs[0], em.inputs[0])
+    if mat in (EDGE, VIOLET):                # glowing parts: bright, flat
+        ramp.color_ramp.elements[0].color = (*lt, 1)
+    return m
+
+
+def bake_gear(name, items, parts, budget=7000):
+    """thin the parts, join them, unwrap, bake every material's procedural surface into one TEX x TEX image,
+    and write the mesh with those UVs (+ the image as <name>_hd.png)"""
+    total = sum(len(o.data.polygons) * 2 for o, *_ in items)
+    ratio = min(1.0, budget / max(1, total))
+    mats = {}
+    for o, part, mat, glow in items:
+        if ratio < 1.0 and len(o.data.polygons) >= 40:
+            dm = o.modifiers.new("dec", 'DECIMATE'); dm.ratio = max(ratio, 0.15); apply_mods(o)
+        if mat not in mats: mats[mat] = gear_material(mat)
+        o.data.materials.clear(); o.data.materials.append(mats[mat])
+    bpy.ops.object.select_all(action='DESELECT')
+    objs = [o for o, *_ in items]
+    for o in objs: o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.join()
+    ob = bpy.context.active_object
+    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.004)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    img = bpy.data.images.new(name + "_hd", TEX, TEX)
+    for m in ob.data.materials:
+        tn = m.node_tree.nodes.new("ShaderNodeTexImage"); tn.image = img
+        m.node_tree.nodes.active = tn
+    scene.render.engine = 'CYCLES'; scene.cycles.samples = 12; scene.cycles.device = 'CPU'
+    scene.render.bake.margin = 6
+    bpy.ops.object.bake(type='EMIT')
+    img.filepath_raw = os.path.join(OUT, name + "_hd.png"); img.file_format = 'PNG'; img.save()
+    # export with the baked UVs (v flipped for minecraft)
+    glow_mats = {i for i, m in enumerate(ob.data.materials) if int(m.name[1:].split(".")[0]) in (EDGE, VIOLET, EYE, BILE)}
+    me = ob.data; me.calc_loop_triangles()
+    uvl = me.uv_layers.active.data
+    nm = ob.matrix_world.to_3x3().inverted().transposed()
+    tris = []
+    for lt in me.loop_triangles:
+        glow = lt.material_index in glow_mats
+        for k, vi in enumerate(lt.vertices):
+            v = me.vertices[vi]
+            u = uvl[lt.loops[k]].uv
+            tris.append((mc(ob.matrix_world @ v.co), mc((nm @ v.normal).normalized()), (u[0], 1.0 - u[1]), 1 if glow else 0))
+    path = os.path.join(OUT, name + ".mesh")
+    k0 = list(parts.keys())[0]
+    with open(path, "wb") as f:
+        f.write(b"SHD2"); f.write(struct.pack("<i", 1))
+        nb_ = k0.encode(); f.write(struct.pack("<h", len(nb_))); f.write(nb_)
+        f.write(struct.pack("<i", -1)); f.write(struct.pack("<3f", 0, 0, 0))
+        f.write(struct.pack("<i", len(tris) // 3))
+        for (p, n, c, e) in tris:
+            f.write(struct.pack("<3f", *p))
+            f.write(struct.pack("<3b", *[max(-127, min(127, int(round(x * 127)))) for x in n]))
+            f.write(struct.pack("<2f", *c)); f.write(struct.pack("<B", e))
+    print("%-14s %5d tris, baked %dpx" % (name, len(tris) // 3, TEX), flush=True)
+    bpy.data.objects.remove(ob, do_unlink=True)
+
+
 # ================================================================== the pale spiders
 def spider(name, spitter):
     items, parts = [], {}
@@ -372,20 +483,20 @@ def scavenger():
 def blade():
     items, parts = [], {"blade": (None, Vector((0, 0, 0)))}
     # grip: wrapped bone with knuckles, a skull pommel
-    items.append((tube([Vector((0, 0, -0.30)), Vector((0, 0, -0.1)), Vector((0, 0, 0.05))], [0.035, 0.032, 0.036], 1), "blade", CHITIN, False))
+    items.append((tube([Vector((0, 0, -0.30)), Vector((0, 0, -0.1)), Vector((0, 0, 0.05))], [0.048, 0.044, 0.05], 1), "blade", CHITIN, False))
     for i in range(6):
-        items.append((blob(Vector((0, 0, -0.27 + i * 0.055)), Vector((0.04, 0.04, 0.012)), 12, 6), "blade", JOINT, False))
-    sk = blob(Vector((0, 0, -0.38)), Vector((0.06, 0.065, 0.075)), 16, 10, 0.004, 20)
+        items.append((blob(Vector((0, 0, -0.27 + i * 0.055)), Vector((0.054, 0.054, 0.016)), 16, 8), "blade", JOINT, False))
+    sk = blob(Vector((0, 0, -0.39)), Vector((0.075, 0.08, 0.09)), 20, 12, 0.005, 20)
     items.append((sk, "blade", BONE, False))
-    for sx in (-1, 1): items.append((blob(Vector((0.024 * sx, -0.05, -0.37)), Vector((0.016, 0.012, 0.016)), 8, 6), "blade", VIOLET, True))
+    for sx in (-1, 1): items.append((blob(Vector((0.03 * sx, -0.065, -0.38)), Vector((0.02, 0.014, 0.02)), 10, 6), "blade", VIOLET, True))
     # guard: a jaw of bone, teeth pointing up the blade
-    g = tube([Vector((-0.24, 0, 0.12)), Vector((-0.12, 0, 0.07)), Vector((0, 0, 0.06)), Vector((0.12, 0, 0.07)), Vector((0.24, 0, 0.12))], [0.02, 0.04, 0.05, 0.04, 0.02], 1, 0.7)
+    g = tube([Vector((-0.24, 0, 0.12)), Vector((-0.12, 0, 0.07)), Vector((0, 0, 0.06)), Vector((0.12, 0, 0.07)), Vector((0.24, 0, 0.12))], [0.032, 0.06, 0.075, 0.06, 0.032], 1, 0.75)
     items.append((g, "blade", BONE, False))
     for sx in (-1, 1):
-        items.append((hook(Vector((0.22 * sx, 0, 0.11)), Vector((0.5 * sx, 0, 1)), 0.18, 0.02, 0.4, 4, Vector((-sx, 0, 0))), "blade", BONE, False))
+        items.append((hook(Vector((0.22 * sx, 0, 0.11)), Vector((0.5 * sx, 0, 1)), 0.22, 0.032, 0.4, 5, Vector((-sx, 0, 0))), "blade", BONE, False))
     for i in range(7):
         x = -0.15 + i * 0.05
-        items.append((cone(Vector((x, 0, 0.09)), Vector((x * 0.8, 0, 0.16)), 0.012), "blade", TOOTH, False))
+        items.append((cone(Vector((x, 0, 0.1)), Vector((x * 0.8, 0, 0.19)), 0.018), "blade", TOOTH, False))
     # the blade: long, black, jagged, curving a little; a glowing violet edge and a groove
     L, n = 1.55, 40
     bm = bmesh.new()
@@ -393,17 +504,21 @@ def blade():
     for i in range(n + 1):
         t = i / n
         z = 0.12 + t * L
-        w = 0.13 * (1 - t ** 1.8) + 0.008
-        serr = 0.045 * max(0.0, math.sin(t * 30)) ** 4 * (1 - t * 0.6) if t > 0.08 else 0.0
+        w = 0.15 * (1 - t ** 1.8) + 0.01
+        serr = 0.05 * max(0.0, math.sin(t * 30)) ** 4 * (1 - t * 0.6) if t > 0.08 else 0.0
         curve = 0.08 * t * t
-        th = 0.03 * (1 - t) + 0.004
-        rows.append([bm.verts.new((curve - w - serr, 0, z)), bm.verts.new((curve, -th, z)), bm.verts.new((curve + w * 0.8, 0, z)), bm.verts.new((curve, th, z))])
+        th = 0.075 * (1 - t ** 1.3) + 0.01          # a heavy blade: thick down the spine, bevelled to the edges
+        rows.append([bm.verts.new((curve - w - serr, 0, z)), bm.verts.new((curve - w * 0.45, -th * 0.8, z)), bm.verts.new((curve + w * 0.15, -th, z)),
+                     bm.verts.new((curve + w * 0.8, -th * 0.35, z)), bm.verts.new((curve + w * 0.86, 0, z)), bm.verts.new((curve + w * 0.8, th * 0.35, z)),
+                     bm.verts.new((curve + w * 0.15, th, z)), bm.verts.new((curve - w * 0.45, th * 0.8, z))])
     tip = bm.verts.new((0.08 + 0.01, 0, 0.12 + L + 0.12))
+    K = len(rows[0])
     for i in range(n):
-        for k in range(4):
-            a, b = rows[i][k], rows[i][(k + 1) % 4]; c, d = rows[i + 1][(k + 1) % 4], rows[i + 1][k]
+        for k in range(K):
+            a, b = rows[i][k], rows[i][(k + 1) % K]; c, d = rows[i + 1][(k + 1) % K], rows[i + 1][k]
             bm.faces.new((a, b, c, d))
-    for k in range(4): bm.faces.new((rows[n][k], rows[n][(k + 1) % 4], tip))
+    for k in range(K): bm.faces.new((rows[n][k], rows[n][(k + 1) % K], tip))
+    bm.faces.new(list(reversed(rows[0])))
     me = bpy.data.meshes.new("bl"); bm.to_mesh(me); bm.free()
     bo = link(bpy.data.objects.new("bl", me))
     sd = bo.modifiers.new("d", 'SUBSURF'); sd.levels = 1; apply_mods(bo)
@@ -413,16 +528,17 @@ def blade():
     for i in range(0, n + 1, 2):
         t = i / n
         z = 0.12 + t * L
-        w = 0.13 * (1 - t ** 1.8) + 0.008
-        serr = 0.045 * max(0.0, math.sin(t * 30)) ** 4 * (1 - t * 0.6) if t > 0.08 else 0.0
-        ep.append(Vector((0.08 * t * t - w - serr - 0.002, 0, z))); er.append(0.006)
+        w = 0.15 * (1 - t ** 1.8) + 0.01
+        serr = 0.05 * max(0.0, math.sin(t * 30)) ** 4 * (1 - t * 0.6) if t > 0.08 else 0.0
+        ep.append(Vector((0.08 * t * t - w - serr - 0.003, 0, z))); er.append(0.011)
     items.append((tube(ep, er, 1), "blade", EDGE, True))
     for i in range(9):
         z = 0.3 + i * 0.13
         c = 0.08 * ((z - 0.12) / L) ** 2
+        th = 0.075 * (1 - ((z - 0.12) / L) ** 1.3) + 0.01
         for sy in (-1, 1):
-            items.append((blob(Vector((c - 0.01, sy * 0.012, z)), Vector((0.01, 0.003, 0.035)), 8, 6), "blade", VIOLET, True))
-    write_rigid("shadow_blade", items, parts, budget=2600)
+            items.append((blob(Vector((c - 0.01, sy * (th * 0.92), z)), Vector((0.014, 0.004, 0.045)), 10, 6), "blade", VIOLET, True))
+    bake_gear("shadow_blade", items, parts, budget=7000)
 
 
 # ================================================================== the Pale Ward (shield, item space: front faces -y, up +z)
@@ -440,9 +556,9 @@ def shield():
     ring_f, ring_b = [], []
     for i in range(N):
         x, z = outline(i / N)
-        ring_f.append(bm.verts.new((x, -0.03 - 0.05 * (1 - (x / 0.36) ** 2), z)))
-        ring_b.append(bm.verts.new((x, 0.02, z)))
-    cf = bm.verts.new((0, -0.12, 0.1)); cb = bm.verts.new((0, 0.02, 0.1))
+        ring_f.append(bm.verts.new((x, -0.05 - 0.07 * (1 - (x / 0.36) ** 2), z)))
+        ring_b.append(bm.verts.new((x, 0.06, z)))
+    cf = bm.verts.new((0, -0.16, 0.1)); cb = bm.verts.new((0, 0.07, 0.1))
     for i in range(N):
         j = (i + 1) % N
         bm.faces.new((ring_f[i], ring_f[j], cf)); bm.faces.new((ring_b[j], ring_b[i], cb))
@@ -457,31 +573,31 @@ def shield():
     rp, rr = [], []
     for i in range(N + 1):
         x, z = outline((i % N) / N)
-        rp.append(Vector((x * 1.02, -0.03, z * 1.0 + (0.0))))
-        rr.append(0.028)
-    items.append((tube(rp, rr, 1, 0.8), "shield", BONE, False))
+        rp.append(Vector((x * 1.02, -0.01, z * 1.0 + (0.0))))
+        rr.append(0.05)
+    items.append((tube(rp, rr, 1, 1.4), "shield", BONE, False))
     for i in range(0, N, 6):
         x, z = outline(i / N)
         out = Vector((x, 0, z - 0.1)).normalized()
         base = Vector((x, -0.03, z))
-        items.append((cone(base, base + out * 0.12 + Vector((0, -0.02, 0)), 0.022), "shield", BONE, False))
+        items.append((cone(base, base + out * 0.15 + Vector((0, -0.02, 0)), 0.034), "shield", BONE, False))
     for k in range(4):
         z = 0.42 - k * 0.15
         w = 0.30 * (1 - abs(k - 0.8) * 0.18)
-        items.append((tube([Vector((-w, -0.09, z)), Vector((0, -0.13, z - 0.03)), Vector((w, -0.09, z))], [0.016, 0.022, 0.016], 1, 0.7), "shield", BONE, False))
+        items.append((tube([Vector((-w, -0.12, z)), Vector((0, -0.17, z - 0.03)), Vector((w, -0.12, z))], [0.024, 0.033, 0.024], 1, 0.8), "shield", BONE, False))
     for k in range(5):
         a = -0.9 + k * 0.45
-        items.append((tube([Vector((0, -0.12, 0.12)), Vector((math.sin(a) * 0.14, -0.105, 0.12 + math.cos(a) * 0.14)), Vector((math.sin(a) * 0.27, -0.08, 0.1 + math.cos(a) * 0.3))], [0.007, 0.006, 0.003], 1), "shield", VIOLET, True))
-    sk = blob(Vector((0, -0.15, 0.12)), Vector((0.11, 0.07, 0.12)), 20, 12, 0.006, 18)
+        items.append((tube([Vector((0, -0.16, 0.12)), Vector((math.sin(a) * 0.14, -0.145, 0.12 + math.cos(a) * 0.14)), Vector((math.sin(a) * 0.27, -0.115, 0.1 + math.cos(a) * 0.3))], [0.01, 0.008, 0.004], 1), "shield", VIOLET, True))
+    sk = blob(Vector((0, -0.19, 0.12)), Vector((0.12, 0.08, 0.13)), 24, 14, 0.006, 18)
     items.append((sk, "shield", BONE, False))
     for sx in (-1, 1):
-        items.append((blob(Vector((0.04 * sx, -0.205, 0.145)), Vector((0.026, 0.012, 0.022)), 10, 6), "shield", VOID, False))
-        items.append((blob(Vector((0.04 * sx, -0.212, 0.145)), Vector((0.011, 0.006, 0.01)), 8, 6), "shield", VIOLET, True))
+        items.append((blob(Vector((0.045 * sx, -0.255, 0.15)), Vector((0.029, 0.014, 0.024)), 12, 8), "shield", VOID, False))
+        items.append((blob(Vector((0.045 * sx, -0.265, 0.15)), Vector((0.012, 0.007, 0.011)), 10, 6), "shield", VIOLET, True))
     for i in range(6):
         x = -0.05 + i * 0.02
-        items.append((cone(Vector((x, -0.2, 0.06)), Vector((x, -0.21, 0.025)), 0.007), "shield", TOOTH, False))
-    items.append((tube([Vector((0, 0.03, -0.08)), Vector((0, 0.09, 0.1)), Vector((0, 0.03, 0.28))], [0.02, 0.022, 0.02], 1), "shield", CHITIN, False))
-    write_rigid("pale_ward", items, parts, budget=2800)
+        items.append((cone(Vector((x, -0.25, 0.065)), Vector((x, -0.26, 0.025)), 0.008), "shield", TOOTH, False))
+    items.append((tube([Vector((0, 0.07, -0.08)), Vector((0, 0.13, 0.1)), Vector((0, 0.07, 0.28))], [0.024, 0.026, 0.024], 1), "shield", CHITIN, False))
+    bake_gear("pale_ward", items, parts, budget=7000)
 
 
 # ================================================================== Shade armour (authored around the humanoid model parts; 1 px = 1/16)
@@ -574,11 +690,8 @@ def armour():
     write_rigid("shade_boots", items, parts, part_space, budget=1200)
 
 
-spider("pale_biter", False)
-spider("pale_spitter", True)
-husk()
-scavenger()
-blade()
-shield()
-armour()
+ONLY = os.environ.get("ONLY", "").split(",") if os.environ.get("ONLY") else None
+for nm_, fn_ in (("spiders", lambda: (spider("pale_biter", False), spider("pale_spitter", True))), ("husk", husk), ("scavenger", scavenger),
+                 ("blade", blade), ("shield", shield), ("armour", armour)):
+    if ONLY is None or nm_ in ONLY: fn_()
 print("done", flush=True)
