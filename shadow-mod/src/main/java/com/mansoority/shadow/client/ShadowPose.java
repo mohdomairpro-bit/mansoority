@@ -62,9 +62,9 @@ final class ShadowPose {
             int a = boss.getAction();
             boolean jaw = boss.has(com.mansoority.shadow.MansoorityBoss.F_JAW);
             switch (a) {
-                case com.mansoority.shadow.MansoorityBoss.A_ROAR -> { clip = "roar"; drive = el; bossMouth = el > 8 && el < 62 ? 1.65F : 0.2F; }
-                case com.mansoority.shadow.MansoorityBoss.A_SCREAM -> { clip = "scream"; drive = el; bossMouth = el > 6 && el < 52 ? 1.7F : 0.3F; }
-                case com.mansoority.shadow.MansoorityBoss.A_BITE -> { clip = "bite"; drive = el; bossMouth = el < 14 ? 0.4F + el * 0.09F : el < 22 ? 1.75F : 0.3F; }
+                case com.mansoority.shadow.MansoorityBoss.A_ROAR -> { clip = "roar"; drive = el; bossMouth = el > 10 && el < 60 ? 1.65F : el > 6 && el <= 10 ? 0.5F : 0.2F; }
+                case com.mansoority.shadow.MansoorityBoss.A_SCREAM -> { clip = "scream"; drive = el; bossMouth = el > 9 && el < 52 ? 1.7F : 0.3F; }
+                case com.mansoority.shadow.MansoorityBoss.A_BITE -> { clip = "bite"; drive = el; bossMouth = el < 16 ? 0.3F + el * 0.04F : el < 27 ? 1.75F : 0.3F; }
                 case com.mansoority.shadow.MansoorityBoss.A_CHEW -> { clip = "chew"; bossMouth = 0.5F + 0.5F * Math.abs(Mth.sin(el * 0.31F)); }
                 case com.mansoority.shadow.MansoorityBoss.A_SLAM -> { clip = "slam"; drive = el; bossMouth = el > 20 && el < 50 ? 1.2F : 0.2F; }
                 case com.mansoority.shadow.MansoorityBoss.A_SPRAY -> { clip = "spray"; drive = el; bossMouth = 0.5F; }

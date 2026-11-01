@@ -31,6 +31,7 @@ public class FxPacket {
     public static final int PILLAR_EYES = 20;    // a pair of eyes in a pillar at x,y,z for 'sound' ticks, facing yaw in volume
     public static final int SHAKE = 21;          // a jolt of camera shake (amount in volume)
     public static final int SPRAY = 22;          // its stomach spraying: boss id in volume, ticks in 'sound'
+    public static final int HITSTOP = 24;        // a blow landed on entity id 'volume': freeze it 'sound' ms. pitch 0 = you hit it, 1 = it hit you, 2 = someone else did; x = strength
     public static final int HOLLOW = 23;         // you're in its place: 'sound' ticks of it      // the lair appears at x,y,z on this client only, for 'sound' ticks     // player entity id in 'volume' carries the mark (seconds in 'sound')           // you've been marked (seconds in 'sound')             // cinematic camera: shot in 'sound', params x/y/z, focus entity id in volume, chapter card in pitch
 
     public final int kind;

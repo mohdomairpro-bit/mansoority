@@ -142,7 +142,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         boolean far = lvl == 2;
         ShadowMesh mesh = ShadowMesh.level(lvl);
         if (mesh == null) return;
-        float age = e.tickCount + partialTick;
+        float age = HitStop.age(e.getId(), e.tickCount + partialTick);
         ShadowPose.apply(mesh, e, age, partialTick, camPos);
         float bodyYaw = Mth.rotLerp(partialTick, e.yBodyRotO, e.yBodyRot);
         float grow = 1F + Math.min(1F, e.getStare() / (float) ShadowEntity.STARE_LIMIT) * 0.12F;
@@ -193,6 +193,14 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         if (black && !shadowPass && lvl < 2) {            // the black form reads against the dark: an ember-red outline that breathes
             float pulse = 0.75F + 0.25F * Mth.sin(age * 0.12F);
             rim(mesh, buffers.getBuffer(Types.RIM), 0.010F * SCALE * grow, (int) (150 * pulse), (int) (14 * pulse), 8);
+        }
+        if (!shadowPass && lvl < 2) {
+            // a blow landing: a white flash over it. its tell: a glint over the whole outline just before it strikes
+            float fl = HitStop.flash(e.getId());
+            float tl = boss != null ? HitStop.tell(boss, boss.actionAge(age)) : 0F;
+            if (fl > 0.02F) rim(mesh, buffers.getBuffer(Types.RIM), (0.006F + 0.01F * fl) * SCALE * grow, (int) (255 * fl), (int) (235 * fl), (int) (225 * fl));
+            else if (tl > 0.02F) rim(mesh, buffers.getBuffer(Types.RIM), (0.008F + 0.012F * tl) * SCALE * grow,
+                    (int) (255 * tl), (int) ((black ? 50 : 235) * tl), (int) ((black ? 30 : 255) * tl));
         }
         if (!shadowPass && lvl < 2 && dist2 < 40 * 40) Saliva.render(e, mesh, pose, buffers, light, age, ex, ey, ez, bodyYaw, SCALE * grow);
         if (boss != null) BossLook.inModel(boss, mesh, pose, buffers, light, age);

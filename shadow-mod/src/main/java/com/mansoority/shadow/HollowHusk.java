@@ -27,6 +27,9 @@ import net.minecraft.world.level.Level;
  * when it dies it bursts and leaves a pool of bile that slows anyone standing in it.
  */
 public class HollowHusk extends Monster {
+    /** client: burst already shown */
+    public boolean burst;
+
     public HollowHusk(EntityType<? extends Monster> t, Level l) {
         super(t, l);
         this.xpReward = 6;

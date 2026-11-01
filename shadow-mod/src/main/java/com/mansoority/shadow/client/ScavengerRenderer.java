@@ -22,16 +22,20 @@ public class ScavengerRenderer extends RigidMobRenderer<Scavenger> {
         for (int k = 0; k < 3; k++) for (int s = 0; s < 2; s++) {
             String side = s == 0 ? "L" : "R";
             float sign = s == 0 ? 1F : -1F;
-            float ph = w + (((k + s) % 2 == 0) ? 0F : Mth.PI);
+            // tripod gait: each leg planted and dragging back 60% of the time, then a high quick step forward
+            float u = (w / Mth.TWO_PI + (((k + s) % 2 == 0) ? 0F : 0.5F) + k * 0.05F) % 1F; if (u < 0F) u += 1F;
+            float fwd, lift;
+            if (u < 0.6F) { fwd = Mth.lerp(u / 0.6F, 1F, -1F); lift = 0F; }
+            else { float v = (u - 0.6F) / 0.4F; fwd = Mth.lerp(ease(v), -1F, 1F); lift = Mth.sin(v * Mth.PI); }
             RigidMesh.Part a = m.get("leg" + k + side + "_0"), b = m.get("leg" + k + side + "_1");
             if (a == null) continue;
-            a.yRot = Mth.sin(ph) * 0.35F * sign;
-            a.zRot = -Math.max(0F, Mth.cos(ph)) * 0.35F * sign;
-            if (b != null) b.zRot = Math.max(0F, Mth.cos(ph)) * 0.2F * sign;
+            a.yRot = fwd * 0.35F * sign;
+            a.zRot = -lift * 0.45F * sign;
+            if (b != null) b.zRot = lift * 0.3F * sign;
         }
         RigidMesh.Part neck = m.get("neck"), head = m.get("head"), body = m.get("body");
-        if (body != null) body.ty = Math.abs(Mth.sin(w)) * 0.03F;
-        if (neck != null) neck.xRot = Mth.sin(w * 2F) * 0.08F + Mth.sin(age * 0.07F) * 0.05F;
+        if (body != null) { body.ty = -Math.abs(Mth.cos(w)) * 0.035F; body.zRot = Mth.sin(w) * 0.04F; }
+        if (neck != null) neck.xRot = Mth.sin(w * 2F - 0.6F) * 0.09F + Mth.sin(age * 0.07F) * 0.05F;      // bobs a beat behind the steps
         if (head != null) head.yRot = Mth.sin(age * 0.3F) * 0.2F * (Mth.sin(age * 0.05F) > 0.6F ? 1F : 0.2F);
     }
 

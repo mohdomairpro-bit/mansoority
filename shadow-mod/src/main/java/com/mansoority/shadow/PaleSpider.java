@@ -38,6 +38,8 @@ public class PaleSpider extends Spider implements RangedAttackMob {
     private boolean dropping;
     /** client-side animation state */
     public float walk, walkO;
+    /** client: rearing up to strike (0..1, smoothed), and the walk speed (smoothed) */
+    public float rear, rearO, pace;
 
     @Override
     protected void defineSynchedData() {
@@ -55,7 +57,14 @@ public class PaleSpider extends Spider implements RangedAttackMob {
         super.tick();
         if (this.level().isClientSide) {
             walkO = walk;
-            walk += (float) Math.hypot(this.getX() - this.xo, this.getZ() - this.zo) * 3.2F;
+            double mv = Math.hypot(this.getX() - this.xo, this.getZ() - this.zo);
+            walk += (float) mv * 3.2F;
+            pace += ((float) Math.min(1.0, mv * 5.0) - pace) * 0.3F;
+            // close to someone and hunting: it rears up on its back legs, front legs raised, fangs spread
+            Player near = this.level().getNearestPlayer(this, 4.5);
+            boolean threat = this.isAggressive() && near != null && !near.isCreative() && !near.isSpectator() && !clinging() && yank() == 0;
+            rearO = rear;
+            rear += ((threat ? 1F : 0F) - rear) * (threat ? 0.16F : 0.25F);
             return;
         }
         if (yankCd > 0) yankCd--;

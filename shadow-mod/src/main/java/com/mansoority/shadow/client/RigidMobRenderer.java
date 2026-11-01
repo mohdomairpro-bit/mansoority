@@ -27,6 +27,14 @@ public abstract class RigidMobRenderer<T extends LivingEntity> extends EntityRen
     /** pose the parts for this frame (they're reset first) */
     protected abstract void animate(RigidMesh m, T e, float pt, float age);
 
+    /** true if the subclass poses its own death (otherwise it keels over sideways) */
+    protected boolean ownDeath(T e) { return false; }
+
+    /** smooth 0..1 */
+    protected static float ease(float t) { t = Mth.clamp(t, 0F, 1F); return t * t * (3F - 2F * t); }
+    /** 0..1 with a kick past the end before settling */
+    protected static float back(float t) { t = Mth.clamp(t, 0F, 1F) - 1F; return 1F + 2.7F * t * t * t + 1.7F * t * t; }
+
     /** extra transform before drawing (upside down on a ceiling, etc.) */
     protected void place(T e, PoseStack pose, float pt) {}
 
@@ -41,7 +49,7 @@ public abstract class RigidMobRenderer<T extends LivingEntity> extends EntityRen
         pose.pushPose();
         float body = Mth.rotLerp(pt, e.yBodyRotO, e.yBodyRot);
         pose.mulPose(Axis.YP.rotationDegrees(-body));
-        if (e.deathTime > 0) {                                   // keels over
+        if (e.deathTime > 0 && !ownDeath(e)) {                                   // keels over
             float k = Math.min(1F, (e.deathTime + pt - 1F) / 20F * 1.6F);
             pose.mulPose(Axis.ZP.rotationDegrees(Mth.sqrt(k) * 90F));
         }

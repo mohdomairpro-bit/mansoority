@@ -48,6 +48,8 @@ public class MansoorityBoss extends ShadowEntity {
     /** what the body is doing right now (drives the animation on every client) */
     private static final EntityDataAccessor<Integer> DATA_ACTION = SynchedEntityData.defineId(MansoorityBoss.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_ACTION_SEQ = SynchedEntityData.defineId(MansoorityBoss.class, EntityDataSerializers.INT);
+    /** the server game tick the current action started on: every client works out the same frame from it */
+    private static final EntityDataAccessor<Integer> DATA_ACTION_START = SynchedEntityData.defineId(MansoorityBoss.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_PHASE = SynchedEntityData.defineId(MansoorityBoss.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_FORM = SynchedEntityData.defineId(MansoorityBoss.class, EntityDataSerializers.INT);
 
@@ -105,6 +107,7 @@ public class MansoorityBoss extends ShadowEntity {
         super.defineSynchedData();
         this.entityData.define(DATA_ACTION, 0);
         this.entityData.define(DATA_ACTION_SEQ, 0);
+        this.entityData.define(DATA_ACTION_START, 0);
         this.entityData.define(DATA_PHASE, 1);
         this.entityData.define(DATA_FORM, 0);
     }
@@ -116,16 +119,32 @@ public class MansoorityBoss extends ShadowEntity {
     public boolean has(int flag) { return (getForm() & flag) != 0; }
     private void flag(int f, boolean on) { int v = getForm(); this.entityData.set(DATA_FORM, on ? v | f : v & ~f); }
     /** client: animation clock for the current action */
-    public float clientActionStart; public int clientSeq = -1;
-    /** client: how long since the current action started (ticks) */
+    public float clientActionStart; public int clientSeq = -1, clientStart = Integer.MIN_VALUE;
+    /**
+     * client: how long since the current action started (ticks). anchored to the server's tick the action started on,
+     * so a player who walks up mid-move (or whose packets come in late) sees the same frame as everyone else; a fresh
+     * action a tick or two behind still plays from the top so the wind-up is never skipped, then runs on the local clock
+     */
     public float actionAge(float age) {
-        if (clientSeq != getActionSeq()) { clientSeq = getActionSeq(); clientActionStart = age; }
+        int st = this.entityData.get(DATA_ACTION_START);
+        if (clientSeq != getActionSeq() || clientStart != st) {
+            boolean fresh = clientSeq != getActionSeq();
+            clientSeq = getActionSeq(); clientStart = st;
+            float behind = Mth.clamp((float) (this.level().getGameTime() - st), 0F, 2400F);
+            if (fresh && behind < 3F) behind = 0F;
+            clientActionStart = age - behind;
+        }
         return age - clientActionStart;
+    }
+    private void syncClock() {
+        int st = (int) (this.level().getGameTime() - actionT);
+        if (this.entityData.get(DATA_ACTION_START) != st) this.entityData.set(DATA_ACTION_START, st);
     }
 
     private void act(int a) {
         actionT = 0;
         this.entityData.set(DATA_ACTION, a);
+        syncClock();
         this.entityData.set(DATA_ACTION_SEQ, this.entityData.get(DATA_ACTION_SEQ) + 1);
         flag(F_JAW, false); flag(F_BELLY, false);
     }
@@ -167,6 +186,7 @@ public class MansoorityBoss extends ShadowEntity {
         ServerLevel sl = (ServerLevel) this.level();
         LIVE.add(this);
         t++; actionT++;
+        syncClock();
         setStageData(STAGE_BOSS);
         List<ServerPlayer> near = sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(96), pl -> !pl.isSpectator() && !pl.isCreative() && pl.isAlive());
         for (ServerPlayer pl : sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(110))) bar.addPlayer(pl);
@@ -249,7 +269,7 @@ public class MansoorityBoss extends ShadowEntity {
             case A_CLIMB -> { pillar = pillarNear(sl); moveTo = null; moveFrom = null; sound(ShadowRegistry.CRACK, 3F, 0.8F); }
             case A_BLINK -> { moveTo = blinkSpot(sl, near); sound(ShadowRegistry.RISER, 4F, 0.6F); }
             case A_THROW, A_BLADE -> sound(ShadowRegistry.BREATH, 3F, 0.6F);
-            case A_SPIKES -> spikesCd = 300;
+            case A_SPIKES -> { spikesCd = 300; sound(ShadowRegistry.CRACK, 4F, 0.5F); }
             default -> {}
         }
     }
@@ -309,11 +329,14 @@ public class MansoorityBoss extends ShadowEntity {
     // ================================================================ the attacks
     /** the head draws back, the neck snaps out: if it gets you, it eats you (for a while) */
     private void biteTick(ServerLevel sl, int k) {
-        face(focus);
-        if (k > 15 && k < 21) stepToward(sl, focus.position(), 0.55);          // the lunge
+        if (k < 14) face(focus);                                                // past here it's committed: sidestep the lunge
+        if (k > 15 && k < 21) stepToward(sl, this.position().add(Vec3.directionFromRotation(0, this.getYRot()).scale(6)), 0.55);
         if (k == 20) {
             sound(ShadowRegistry.CRUNCH, 4F, 0.8F);
-            if (focus.distanceTo(this) < 9.5 && !focus.isPassenger()) {
+            Vec3 to = focus.position().subtract(this.position()).multiply(1, 0, 1);
+            boolean inFront = to.length() < 2.5 || to.normalize().dot(Vec3.directionFromRotation(0, this.getYRot())) > 0.55;
+            if (!inFront || focus.distanceTo(this) >= 9.5) sound(ShadowRegistry.SNAP, 4F, 0.7F);   // bit air: jaw left hanging open - punish it
+            if (inFront && focus.distanceTo(this) < 9.5 && !focus.isPassenger()) {
                 grabbedId = focus.getId();
                 GRABBED.add(focus.getUUID());
                 focus.startRiding(this, true);
@@ -322,7 +345,7 @@ public class MansoorityBoss extends ShadowEntity {
                 return;
             }
         }
-        if (k >= 46) act(A_NONE);
+        if (k >= 54) act(A_NONE);
     }
 
     private void chewTick(ServerLevel sl, int k) {
@@ -471,7 +494,7 @@ public class MansoorityBoss extends ShadowEntity {
 
     /** phase three: tears the blade out of its own stomach and throws it */
     private void throwTick(ServerLevel sl, int k) {
-        face(focus);
+        if (k < 17) face(focus);
         if (k == 6) sound(ShadowRegistry.CRUNCH, 4F, 0.5F);
         if (k == 20) {
             ThrownBlade b = ShadowRegistry.THROWN_BLADE.get().create(sl);
@@ -1148,6 +1171,17 @@ public class MansoorityBoss extends ShadowEntity {
         pl.invulnerableTime = 0;
         pl.hurt(this.damageSources().indirectMagic(this, this), through);
         pl.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 20 * (ph == 1 ? 6 : 10), ph == 1 ? 0 : 1, false, true, true));
+        float power = Mth.clamp(dmg / 18F, 0.3F, 1F);
+        ShadowNet.send(pl, new FxPacket(FxPacket.HITSTOP, (int) (70 + 80 * power), power, 0, 0, this.getId(), 1));
+        pl.level().playSound(null, pl.blockPosition(), ShadowRegistry.CRUNCH.get(), SoundSource.HOSTILE, 1.4F, 1.3F - power * 0.4F);
+    }
+
+    /** you landed one: it locks up for a moment on everyone's screen; you feel it in your view */
+    private void landed(ServerLevel sl, Entity attacker, boolean head, float amount) {
+        float power = Mth.clamp(amount / 14F + (head ? 0.35F : 0F), 0.25F, 1F);
+        int ms = (int) (45 + 85 * power);
+        for (ServerPlayer p : sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(64)))
+            ShadowNet.send(p, new FxPacket(FxPacket.HITSTOP, ms, power, 0, 0, this.getId(), p == attacker ? 0 : 2));
     }
 
     private void fling(ServerPlayer p, double side, double up) {
@@ -1189,6 +1223,8 @@ public class MansoorityBoss extends ShadowEntity {
         float sum = 0; for (float[] r : recent) sum += r[1];
         if (sum > MAX_HP * 0.08F && floodCd <= 0) { floodCd = 900; flood(sl); recent.clear(); }
         sound(ShadowRegistry.HIT, 3F, 0.7F + this.random.nextFloat() * 0.3F);
+        landed(sl, src, head, amount);
+        if (head) sl.playSound(null, hp.x, hp.y, hp.z, SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.PLAYERS, 1.6F, 0.6F);
         if (getPhase() == 1 && this.getHealth() <= MAX_HP * 0.5F) { this.setHealth(MAX_HP * 0.5F); phaseTwo(sl); }
         if (this.getHealth() <= 0F) {
             if (!fakeDone && !showcase) fakeDeath(sl);

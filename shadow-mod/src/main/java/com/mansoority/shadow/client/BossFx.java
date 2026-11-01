@@ -46,6 +46,11 @@ public final class BossFx {
             case FxPacket.SHAKE -> ClientFx.kick(p.volume * 3F);
             case FxPacket.SPRAY -> { sprayT = p.sound; sprayId = (int) p.volume; }
             case FxPacket.HOLLOW -> hollow = p.sound;
+            case FxPacket.HITSTOP -> {
+                HitStop.hit((int) p.volume, p.sound, (float) p.x);
+                if (p.pitch == 0F) ClientFx.kick(0.5F + (float) p.x * 0.9F);
+                else if (p.pitch == 1F) HitStop.hurtYou((float) p.x);
+            }
             default -> {}
         }
     }
@@ -211,6 +216,18 @@ public final class BossFx {
             }
         }
         if (knock > 0) g.fill(0, 0, w, h, ((int) (Math.min(1F, knock / 20F) * 0.35F * 255) << 24));
+        float hr = HitStop.hurtNow();                                   // it hit you: red bleeds in from the edges
+        if (hr > 0F) {
+            int a = (int) (hr * 150);
+            int band = Math.max(8, h / 5);
+            for (int i = 0; i < band; i += 2) {
+                int c = ((int) (a * (1F - i / (float) band)) << 24) | 0x8A0000;
+                int iw = i * w / h;
+                g.fill(0, i, w, i + 2, c); g.fill(0, h - i - 2, w, h - i, c);
+                g.fill(iw, 0, iw + 2, h, c); g.fill(w - iw - 2, 0, w - iw, h, c);
+            }
+            g.fill(0, 0, w, h, ((int) (hr * 40) << 24) | 0x600000);
+        }
         if (line >= 0 && line < LINES.length) {
             float a = lineT < 6 ? lineT / 6F : lineT > 64 ? Math.max(0F, (80 - lineT) / 16F) : 1F;
             if (a > 0.02F) {
