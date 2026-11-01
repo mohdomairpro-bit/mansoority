@@ -46,10 +46,10 @@ public final class ShadowGear {
     public static class ShadeArmor extends ArmorItem {
         public ShadeArmor(Type t) { super(Shade.INSTANCE, t, new Properties().rarity(Rarity.RARE)); }
 
-        /** the 3D pieces are coloured from the shared palette */
+        /** one painted sheet for every piece (shadow-gear/armor.py) */
         @Override
         public String getArmorTexture(ItemStack stack, net.minecraft.world.entity.Entity entity, EquipmentSlot slot, String type) {
-            return TheShadow.MODID + ":textures/entity/minion_palette.png";
+            return TheShadow.MODID + ":textures/models/armor/shade_armor.png";
         }
 
         @Override
@@ -72,13 +72,6 @@ public final class ShadowGear {
     public static class PaleWard extends net.minecraft.world.item.ShieldItem {
         public PaleWard() { super(new Properties().durability(520).rarity(Rarity.RARE)); }
 
-        @Override
-        public void initializeClient(java.util.function.Consumer<net.minecraftforge.client.extensions.common.IClientItemExtensions> consumer) {
-            consumer.accept(new net.minecraftforge.client.extensions.common.IClientItemExtensions() {
-                @Override
-                public net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer getCustomRenderer() { return com.mansoority.shadow.client.GearItemRenderer.get(); }
-            });
-        }
         @Override
         public void appendHoverText(ItemStack s, Level l, List<Component> tip, TooltipFlag f) {
             tip.add(Component.translatable("item.theshadow.pale_ward.desc").withStyle(ChatFormatting.GRAY));

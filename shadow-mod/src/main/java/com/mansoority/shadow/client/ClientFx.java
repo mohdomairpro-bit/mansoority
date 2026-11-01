@@ -59,7 +59,7 @@ public final class ClientFx {
         switch (p.kind) {
             case FxPacket.JUMPSCARE -> js = 0;
             case FxPacket.JUMPSCARE_NOW -> js = SCARE_AT - 10;
-            case FxPacket.SOUND_UI -> ui(sound(p.sound), p.volume, p.pitch);
+            case FxPacket.SOUND_UI -> { ui(sound(p.sound), p.volume, p.pitch); ui(sound(p.sound), p.volume, p.pitch); }   // doubled: right in your head, as loud as it gets
             case FxPacket.SOUND_AT -> at(sound(p.sound), p.x, p.y, p.z, p.volume, p.pitch);
             case FxPacket.SEQUENCE -> { seq = p.sound; seqTick = 0; }
             case FxPacket.CAM -> CinematicCam.handle(p);

@@ -1,0 +1,62 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#6d8fbf}canvas{display:block}</style></head><body>
+<script src="three.min.js"></script>
+<script>
+// renders a Minecraft JSON item model (elements + per-face uv) with nearest filtering, like the game
+const W = 900, H = 900;
+const renderer = new THREE.WebGLRenderer({antialias: false, preserveDrawingBuffer: true});
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const dl = new THREE.DirectionalLight(0xffffff, 0.6); dl.position.set(0.4, 1, 0.7); scene.add(dl);
+const dl2 = new THREE.DirectionalLight(0xffffff, 0.25); dl2.position.set(-0.6, 0.2, -0.8); scene.add(dl2);
+const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 500);
+window.ready = false;
+const AX = {north: [[1,1,0],[-1,0,0],[0,-1,0]], south: [[0,1,1],[1,0,0],[0,-1,0]], east: [[1,1,1],[0,0,-1],[0,-1,0]],
+            west: [[0,1,0],[0,0,1],[0,-1,0]], up: [[0,1,0],[1,0,0],[0,0,1]], down: [[0,0,1],[1,0,0],[0,0,-1]]};
+async function load(spec) {
+  const model = await (await fetch(spec.model)).json();
+  const texs = {};
+  for (const [k, v] of Object.entries(model.textures)) {
+    const path = spec.texroot + v.split(':')[1] + '.png';
+    texs[k] = await new Promise(r => new THREE.TextureLoader().load(path, t => { t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; r(t); }));
+  }
+  const group = new THREE.Group();
+  for (const e of model.elements) {
+    const f = e.from, t = e.to;
+    for (const [fn, face] of Object.entries(e.faces)) {
+      const key = face.texture.slice(1); const tex = texs[key];
+      const img = tex.image; const anim = img.height > img.width;      // animated strip: first frame only
+      const fh = anim ? img.width / img.height : 1;
+      const [o, ua, va] = AX[fn];
+      const P = o.map((s, i) => s ? t[i] : f[i]);
+      const su = Math.abs(ua.reduce((s, a, i) => s + a * (t[i] - f[i]), 0)), sv = Math.abs(va.reduce((s, a, i) => s + a * (t[i] - f[i]), 0));
+      const c = (uu, vv) => P.map((p, i) => p + ua[i] * uu * su + va[i] * vv * sv);
+      const q = [c(0,0), c(1,0), c(1,1), c(0,1)];
+      const [u1, v1, u2, v2] = face.uv.map(x => x / 16);
+      const uv = [[u1, v1], [u2, v1], [u2, v2], [u1, v2]].map(([u, v]) => [u, 1 - v * fh]);
+      const g = new THREE.BufferGeometry();
+      const pos = [], uvs = [];
+      for (const i of [0, 2, 1, 0, 3, 2]) { pos.push(...q[i]); uvs.push(...uv[i]); }
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      g.computeVertexNormals();
+      const glow = !!(e.forge_data || face.forge_data);
+      const mat = glow ? new THREE.MeshBasicMaterial({map: tex, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, depthWrite: key !== 'aura'})
+                       : new THREE.MeshLambertMaterial({map: tex, transparent: true, alphaTest: 0.02, side: key === 'aura' ? THREE.DoubleSide : THREE.FrontSide, depthWrite: key !== 'aura'});
+      if (key === 'aura') { mat.depthWrite = false; }
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.renderOrder = key === 'aura' ? 2 : 0;
+      if (e.rotation) {
+        const r = e.rotation, ax = new THREE.Vector3(r.axis === 'x' ? 1 : 0, r.axis === 'y' ? 1 : 0, r.axis === 'z' ? 1 : 0);
+        const piv = new THREE.Group(); piv.position.set(...r.origin);
+        mesh.position.set(-r.origin[0], -r.origin[1], -r.origin[2]);
+        piv.add(mesh); piv.setRotationFromAxisAngle(ax, r.angle * Math.PI / 180); group.add(piv);
+      } else group.add(mesh);
+    }
+  }
+  scene.add(group);
+  if (spec.bg) scene.background = new THREE.Color(spec.bg);
+  window.ready = true;
+}
+window.view = (pos, target) => { camera.position.set(...pos); camera.lookAt(...target); renderer.render(scene, camera); };
+load(JSON.parse(decodeURIComponent(location.hash.slice(1))));
+</script></body></html>

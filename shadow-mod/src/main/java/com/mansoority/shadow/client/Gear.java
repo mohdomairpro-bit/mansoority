@@ -11,33 +11,16 @@ import org.joml.Matrix4f;
 
 /** drawing the blade and the shield models anywhere (in hand, in its teeth, through its stomach) */
 public final class Gear {
-    private static final java.util.Map<String, net.minecraft.resources.ResourceLocation> HD = java.util.Map.of(
-            "shadow_blade", new net.minecraft.resources.ResourceLocation(com.mansoority.shadow.TheShadow.MODID, "textures/entity/shadow_blade_hd.png"),
-            "pale_ward", new net.minecraft.resources.ResourceLocation(com.mansoority.shadow.TheShadow.MODID, "textures/entity/pale_ward_hd.png"));
+    private static net.minecraft.world.item.ItemStack BLADE;
 
-    public static void draw(String mesh, PoseStack pose, MultiBufferSource buf, int light, int overlay) {
-        RigidMesh m = RigidMesh.load(mesh);
-        if (m == null) return;
-        m.reset(); m.pose();
-        var tex = HD.getOrDefault(mesh, RigidMesh.PALETTE);          // the blade and the shield have their own baked 2048px textures
-        m.draw(pose, buf, RenderType.entityCutoutNoCull(tex), RenderType.eyes(tex), light, overlay, 1F, 1F, 1F, 1F);
-    }
-
-    /**
-     * the blade's aura: layered shells around it that flicker and lick upward like flames - white at the core,
-     * violet, then a deep purple haze. additive, so it glows in the dark. strength 0..1
-     */
-    public static void aura(PoseStack pose, MultiBufferSource buf, float strength) {
-        RigidMesh m = RigidMesh.load("shadow_blade");
-        if (m == null || strength <= 0F) return;
-        m.reset(); m.pose();
-        float t = (net.minecraft.Util.getMillis() % 100000L) / 1000F;
-        VertexConsumer vc = buf.getBuffer(ShadowRenderer.Types.RIM);
-        // inside-out shells: only their edges show past the blade, so it reads as a glowing outline that flickers
-        // and licks upward - white-hot close in, violet flame, then a purple haze. offset (blade units), r, g, b
-        float[][] layers = {{0.008F, 0.75F, 0.62F, 0.95F}, {0.022F, 0.55F, 0.18F, 0.95F}, {0.042F, 0.30F, 0.06F, 0.55F}, {0.07F, 0.12F, 0.02F, 0.25F}};
-        for (float[] L : layers)
-            for (RigidMesh.Part p : m.parts) m.drawShell(pose, p, vc, L[0], t, L[1] * strength, L[2] * strength, L[3] * strength);
+    /** the blade's own item model, upright along +y, centred on the origin (in its teeth, through its stomach) */
+    public static void blade(PoseStack pose, MultiBufferSource buf, int light) {
+        if (BLADE == null) BLADE = new net.minecraft.world.item.ItemStack(com.mansoority.shadow.ShadowRegistry.SHADOW_BLADE.get());
+        pose.pushPose();
+        pose.mulPose(Axis.ZP.rotationDegrees(45F));               // the model lies diagonally like a sprite
+        net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(BLADE, net.minecraft.world.item.ItemDisplayContext.NONE,
+                light, OverlayTexture.NO_OVERLAY, pose, buf, null, 0);
+        pose.popPose();
     }
 
     /** the blade, its middle at the origin, lying along x (for clamping it crossways in the teeth) */
@@ -45,9 +28,7 @@ public final class Gear {
         pose.pushPose();
         pose.mulPose(Axis.ZP.rotationDegrees(-90F));
         pose.scale(size, size, size);
-        pose.translate(0F, -0.75F, 0F);
-        draw("shadow_blade", pose, buf, light, OverlayTexture.NO_OVERLAY);
-        aura(pose, buf, 0.8F);
+        blade(pose, buf, light);
         pose.popPose();
     }
 

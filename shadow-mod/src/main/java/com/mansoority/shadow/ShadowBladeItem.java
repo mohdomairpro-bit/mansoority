@@ -17,9 +17,6 @@ public class ShadowBladeItem extends SwordItem {
     @Override
     public void initializeClient(java.util.function.Consumer<net.minecraftforge.client.extensions.common.IClientItemExtensions> consumer) {
         consumer.accept(new net.minecraftforge.client.extensions.common.IClientItemExtensions() {
-            @Override
-            public net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer getCustomRenderer() { return com.mansoority.shadow.client.GearItemRenderer.get(); }
-
             /** a heavy diagonal cut: wound up over the shoulder, swept down and across, with follow-through */
             @Override
             public boolean applyForgeHandTransform(com.mojang.blaze3d.vertex.PoseStack pose, net.minecraft.client.player.LocalPlayer player,

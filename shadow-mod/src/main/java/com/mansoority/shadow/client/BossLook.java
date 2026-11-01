@@ -55,8 +55,8 @@ final class BossLook {
             pose.mulPose(Axis.XP.rotationDegrees(-95F));
             pose.mulPose(Axis.YP.rotationDegrees(20F));
             pose.scale(0.62F, 0.62F, 0.62F);
-            pose.translate(0F, -0.9F, 0F);
-            Gear.draw("shadow_blade", pose, buf, light, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+            pose.translate(0F, -0.27F, 0F);
+            Gear.blade(pose, buf, light);
             pose.popPose();
         }
         if (b.has(MansoorityBoss.F_PORTAL)) {                         // the rift in front of its face, the blade coming through

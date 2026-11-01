@@ -1,628 +1,592 @@
 {
- "scream": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/scream_0",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/scream_1",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/scream_2",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/scream_3",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/scream_4",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/scream_5",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/scream_6",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/scream_7",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/scream_8",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/scream_9",
-    "weight": 2
-   },
-   {
-    "name": "minecraft:mob/warden/roar_1",
-    "pitch": 0.75
-   },
-   {
-    "name": "minecraft:mob/warden/roar_2",
-    "pitch": 0.75
-   },
-   {
-    "name": "minecraft:mob/warden/roar_3",
-    "pitch": 0.75
-   },
-   {
-    "name": "minecraft:mob/warden/roar_4",
-    "pitch": 0.75
-   },
-   {
-    "name": "minecraft:mob/warden/roar_5",
-    "pitch": 0.75
-   }
-  ],
-  "subtitle": "theshadow.subtitle.scream"
- },
- "stinger": {
-  "sounds": [
-   {
-    "name": "minecraft:block/sculk_shrieker/shriek1",
-    "pitch": 0.55
-   },
-   {
-    "name": "minecraft:block/sculk_shrieker/shriek2",
-    "pitch": 0.55
-   },
-   {
-    "name": "minecraft:block/sculk_shrieker/shriek3",
-    "pitch": 0.55
-   },
-   {
-    "name": "minecraft:block/sculk_shrieker/shriek4",
-    "pitch": 0.55
-   },
-   {
-    "name": "minecraft:block/sculk_shrieker/shriek5",
-    "pitch": 0.55
-   },
-   {
-    "name": "minecraft:mob/guardian/curse",
-    "pitch": 0.55
-   }
-  ],
-  "subtitle": "theshadow.subtitle.stinger"
- },
- "hit": {
-  "sounds": [
-   {
-    "name": "minecraft:mob/warden/attack_impact_1",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:mob/warden/attack_impact_2",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:mob/warden/emerge",
-    "pitch": 0.8
-   }
-  ],
-  "subtitle": "theshadow.subtitle.hit"
- },
- "drone": {
-  "sounds": [
-   {
-    "name": "minecraft:ambient/nether/soulsand_valley/mood1",
-    "pitch": 0.6
-   },
-   {
-    "name": "minecraft:ambient/nether/soulsand_valley/mood2",
-    "pitch": 0.6
-   },
-   {
-    "name": "minecraft:ambient/nether/soulsand_valley/mood3",
-    "pitch": 0.6
-   },
-   {
-    "name": "minecraft:ambient/nether/soulsand_valley/mood4",
-    "pitch": 0.6
-   },
-   {
-    "name": "minecraft:ambient/nether/crimson_forest/mood1",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:ambient/nether/crimson_forest/mood2",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:ambient/nether/crimson_forest/mood3",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:ambient/nether/crimson_forest/mood4",
-    "pitch": 0.5
-   }
-  ],
-  "subtitle": "theshadow.subtitle.drone"
- },
- "whisper": {
-  "sounds": [
-   {
-    "name": "minecraft:mob/vex/idle1",
-    "pitch": 0.42
-   },
-   {
-    "name": "minecraft:mob/vex/idle2",
-    "pitch": 0.42
-   },
-   {
-    "name": "minecraft:mob/vex/idle3",
-    "pitch": 0.42
-   },
-   {
-    "name": "minecraft:mob/vex/idle4",
-    "pitch": 0.42
-   },
-   {
-    "name": "minecraft:ambient/nether/soulsand_valley/mood1",
-    "pitch": 0.9
-   },
-   {
-    "name": "minecraft:ambient/nether/soulsand_valley/mood2",
-    "pitch": 0.9
-   }
-  ],
-  "subtitle": "theshadow.subtitle.whisper"
- },
- "heartbeat": {
-  "sounds": [
-   {
-    "name": "minecraft:mob/warden/heartbeat_1",
-    "pitch": 0.85
-   },
-   {
-    "name": "minecraft:mob/warden/heartbeat_2",
-    "pitch": 0.85
-   },
-   {
-    "name": "minecraft:mob/warden/heartbeat_3",
-    "pitch": 0.85
-   },
-   {
-    "name": "minecraft:mob/warden/heartbeat_4",
-    "pitch": 0.85
-   }
-  ],
-  "subtitle": "theshadow.subtitle.heartbeat"
- },
- "breath": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/breath_0",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/breath_1",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/breath_2",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/breath_3",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/breath_4",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/breath_5",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/breath_6",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/breath_7",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/breath_8",
-    "weight": 2
-   },
-   {
-    "name": "theshadow:creature/breath_9",
-    "weight": 2
-   },
-   {
-    "name": "minecraft:mob/warden/sniff_1",
-    "pitch": 0.7
-   },
-   {
-    "name": "minecraft:mob/warden/sniff_2",
-    "pitch": 0.7
-   },
-   {
-    "name": "minecraft:mob/warden/sniff_3",
-    "pitch": 0.7
-   },
-   {
-    "name": "minecraft:mob/warden/sniff_4",
-    "pitch": 0.7
-   }
-  ],
-  "subtitle": "theshadow.subtitle.breath"
- },
- "snap": {
-  "sounds": [
-   {
-    "name": "minecraft:block/bone_block/break1",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:block/bone_block/break2",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:block/bone_block/break3",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:block/bone_block/break4",
-    "pitch": 0.5
-   },
-   {
-    "name": "minecraft:block/bone_block/break5",
-    "pitch": 0.5
-   }
-  ],
-  "subtitle": "theshadow.subtitle.snap"
- },
- "riser": {
-  "sounds": [
-   {
-    "name": "minecraft:mob/warden/sonic_charge1",
-    "pitch": 0.7
-   },
-   {
-    "name": "minecraft:mob/warden/sonic_charge2",
-    "pitch": 0.7
-   },
-   {
-    "name": "minecraft:mob/warden/sonic_charge3",
-    "pitch": 0.7
-   },
-   {
-    "name": "minecraft:mob/warden/sonic_charge4",
-    "pitch": 0.7
-   }
-  ],
-  "subtitle": "theshadow.subtitle.riser"
- },
- "static": {
-  "sounds": [
-   {
-    "name": "theshadow:static",
-    "pitch": 1.0
-   }
-  ],
-  "subtitle": "theshadow.subtitle.static"
- },
- "far": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/far_0",
-    "weight": 1
-   },
-   {
-    "name": "theshadow:creature/far_1",
-    "weight": 1
-   },
-   {
-    "name": "theshadow:creature/far_2",
-    "weight": 1
-   },
-   {
-    "name": "theshadow:creature/far_3",
-    "weight": 1
-   },
-   {
-    "name": "theshadow:creature/far_4",
-    "weight": 1
-   },
-   {
-    "name": "theshadow:creature/far_5",
-    "weight": 1
-   },
-   {
-    "name": "theshadow:creature/far_6",
-    "weight": 1
-   },
-   {
-    "name": "theshadow:creature/far_7",
-    "weight": 1
-   },
-   {
-    "name": "theshadow:creature/far_8",
-    "weight": 1
-   },
-   {
-    "name": "theshadow:creature/far_9",
-    "weight": 1
-   }
-  ],
-  "subtitle": "theshadow.subtitle.far"
- },
- "step": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/step_0"
-   },
-   {
-    "name": "theshadow:creature/step_1"
-   },
-   {
-    "name": "theshadow:creature/step_2"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.step"
- },
- "slam": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/slam_0"
-   },
-   {
-    "name": "theshadow:creature/slam_1"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.slam"
- },
- "crack": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/crack_0"
-   },
-   {
-    "name": "theshadow:creature/crack_1"
-   },
-   {
-    "name": "theshadow:creature/crack_2"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.crack"
- },
- "roar": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/roar_0"
-   },
-   {
-    "name": "theshadow:creature/roar_1"
-   },
-   {
-    "name": "theshadow:creature/roar_2"
-   },
-   {
-    "name": "theshadow:creature/roar_3"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.roar"
- },
- "screech": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/screech_0"
-   },
-   {
-    "name": "theshadow:creature/screech_1"
-   },
-   {
-    "name": "theshadow:creature/screech_2"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.screech"
- },
- "gurgle": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/gurgle_0"
-   },
-   {
-    "name": "theshadow:creature/gurgle_1"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.gurgle"
- },
- "spray": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/spray_0"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.spray"
- },
- "crunch": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/crunch_0"
-   },
-   {
-    "name": "theshadow:creature/crunch_1"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.crunch"
- },
- "spikes": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/spikes_0"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.spikes"
- },
- "flood": {
-  "sounds": [
-   {
-    "name": "theshadow:creature/flood_0"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.flood"
- },
- "voice_destroy": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/destroy"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_destroy"
- },
- "voice_mine": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/mine"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_mine"
- },
- "voice_kneel": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/kneel"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_kneel"
- },
- "voice_again": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/again"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_again"
- },
- "voice_taste": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/taste"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_taste"
- },
- "voice_nowhere": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/nowhere"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_nowhere"
- },
- "voice_slow": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/slow"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_slow"
- },
- "voice_stay": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/stay"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_stay"
- },
- "voice_yours": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/yours"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_yours"
- },
- "voice_last": {
-  "sounds": [
-   {
-    "name": "theshadow:voice/last"
-   }
-  ],
-  "subtitle": "subtitles.theshadow.voice_last"
- },
- "boss_music_1": {
-  "sounds": [
-   {
-    "name": "theshadow:music/boss_1",
-    "stream": true
-   }
-  ],
-  "subtitle": "subtitles.theshadow.boss_music_1"
- },
- "boss_music_2": {
-  "sounds": [
-   {
-    "name": "theshadow:music/boss_2",
-    "stream": true
-   }
-  ],
-  "subtitle": "subtitles.theshadow.boss_music_2"
- },
- "boss_music_3": {
-  "sounds": [
-   {
-    "name": "theshadow:music/boss_3",
-    "stream": true
-   }
-  ],
-  "subtitle": "subtitles.theshadow.boss_music_3"
- },
- "js_riser": {
-  "sounds": [
-   {
-    "name": "theshadow:jumpscare/js_riser_0"
-   }
-  ],
-  "subtitle": "theshadow.subtitle.stinger"
- },
- "js_hit": {
-  "sounds": [
-   {
-    "name": "theshadow:jumpscare/js_hit_0"
-   },
-   {
-    "name": "theshadow:jumpscare/js_hit_1"
-   }
-  ],
-  "subtitle": "theshadow.subtitle.hit"
- },
- "js_scream": {
-  "sounds": [
-   {
-    "name": "theshadow:jumpscare/js_scream_0"
-   },
-   {
-    "name": "theshadow:jumpscare/js_scream_1"
-   },
-   {
-    "name": "theshadow:jumpscare/js_scream_2"
-   }
-  ],
-  "subtitle": "theshadow.subtitle.scream"
- },
- "js_strings": {
-  "sounds": [
-   {
-    "name": "theshadow:jumpscare/js_strings_0"
-   },
-   {
-    "name": "theshadow:jumpscare/js_strings_1"
-   }
-  ],
-  "subtitle": "theshadow.subtitle.stinger"
- }
+  "scream": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/scream_0",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/scream_1",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/scream_2",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/scream_3",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/scream_4",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/scream_5",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/scream_6",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/scream_7",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/scream_8",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/scream_9",
+        "weight": 2
+      },
+      {
+        "name": "minecraft:mob/warden/roar_1",
+        "pitch": 0.75
+      },
+      {
+        "name": "minecraft:mob/warden/roar_2",
+        "pitch": 0.75
+      },
+      {
+        "name": "minecraft:mob/warden/roar_3",
+        "pitch": 0.75
+      },
+      {
+        "name": "minecraft:mob/warden/roar_4",
+        "pitch": 0.75
+      },
+      {
+        "name": "minecraft:mob/warden/roar_5",
+        "pitch": 0.75
+      }
+    ],
+    "subtitle": "theshadow.subtitle.scream"
+  },
+  "stinger": {
+    "sounds": [
+      "theshadow:scare/stinger_0",
+      "theshadow:scare/stinger_1",
+      "theshadow:scare/stinger_2",
+      "theshadow:scare/stinger_3",
+      "theshadow:scare/stinger_4",
+      "theshadow:scare/stinger_5"
+    ],
+    "subtitle": "theshadow.subtitle.stinger"
+  },
+  "hit": {
+    "sounds": [
+      {
+        "name": "minecraft:mob/warden/attack_impact_1",
+        "pitch": 0.5
+      },
+      {
+        "name": "minecraft:mob/warden/attack_impact_2",
+        "pitch": 0.5
+      },
+      {
+        "name": "minecraft:mob/warden/emerge",
+        "pitch": 0.8
+      }
+    ],
+    "subtitle": "theshadow.subtitle.hit"
+  },
+  "drone": {
+    "sounds": [
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/mood1",
+        "pitch": 0.6
+      },
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/mood2",
+        "pitch": 0.6
+      },
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/mood3",
+        "pitch": 0.6
+      },
+      {
+        "name": "minecraft:ambient/nether/soulsand_valley/mood4",
+        "pitch": 0.6
+      },
+      {
+        "name": "minecraft:ambient/nether/crimson_forest/mood1",
+        "pitch": 0.5
+      },
+      {
+        "name": "minecraft:ambient/nether/crimson_forest/mood2",
+        "pitch": 0.5
+      },
+      {
+        "name": "minecraft:ambient/nether/crimson_forest/mood3",
+        "pitch": 0.5
+      },
+      {
+        "name": "minecraft:ambient/nether/crimson_forest/mood4",
+        "pitch": 0.5
+      }
+    ],
+    "subtitle": "theshadow.subtitle.drone"
+  },
+  "whisper": {
+    "sounds": [
+      "theshadow:scare/whisper_0",
+      "theshadow:scare/whisper_1",
+      "theshadow:scare/whisper_2",
+      "theshadow:scare/whisper_3",
+      "theshadow:scare/whisper_4",
+      "theshadow:scare/whisper_5"
+    ],
+    "subtitle": "theshadow.subtitle.whisper"
+  },
+  "heartbeat": {
+    "sounds": [
+      {
+        "name": "minecraft:mob/warden/heartbeat_1",
+        "pitch": 0.85
+      },
+      {
+        "name": "minecraft:mob/warden/heartbeat_2",
+        "pitch": 0.85
+      },
+      {
+        "name": "minecraft:mob/warden/heartbeat_3",
+        "pitch": 0.85
+      },
+      {
+        "name": "minecraft:mob/warden/heartbeat_4",
+        "pitch": 0.85
+      }
+    ],
+    "subtitle": "theshadow.subtitle.heartbeat"
+  },
+  "breath": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/breath_0",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/breath_1",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/breath_2",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/breath_3",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/breath_4",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/breath_5",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/breath_6",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/breath_7",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/breath_8",
+        "weight": 2
+      },
+      {
+        "name": "theshadow:creature/breath_9",
+        "weight": 2
+      },
+      {
+        "name": "minecraft:mob/warden/sniff_1",
+        "pitch": 0.7
+      },
+      {
+        "name": "minecraft:mob/warden/sniff_2",
+        "pitch": 0.7
+      },
+      {
+        "name": "minecraft:mob/warden/sniff_3",
+        "pitch": 0.7
+      },
+      {
+        "name": "minecraft:mob/warden/sniff_4",
+        "pitch": 0.7
+      }
+    ],
+    "subtitle": "theshadow.subtitle.breath"
+  },
+  "snap": {
+    "sounds": [
+      {
+        "name": "minecraft:block/bone_block/break1",
+        "pitch": 0.5
+      },
+      {
+        "name": "minecraft:block/bone_block/break2",
+        "pitch": 0.5
+      },
+      {
+        "name": "minecraft:block/bone_block/break3",
+        "pitch": 0.5
+      },
+      {
+        "name": "minecraft:block/bone_block/break4",
+        "pitch": 0.5
+      },
+      {
+        "name": "minecraft:block/bone_block/break5",
+        "pitch": 0.5
+      }
+    ],
+    "subtitle": "theshadow.subtitle.snap"
+  },
+  "riser": {
+    "sounds": [
+      {
+        "name": "minecraft:mob/warden/sonic_charge1",
+        "pitch": 0.7
+      },
+      {
+        "name": "minecraft:mob/warden/sonic_charge2",
+        "pitch": 0.7
+      },
+      {
+        "name": "minecraft:mob/warden/sonic_charge3",
+        "pitch": 0.7
+      },
+      {
+        "name": "minecraft:mob/warden/sonic_charge4",
+        "pitch": 0.7
+      }
+    ],
+    "subtitle": "theshadow.subtitle.riser"
+  },
+  "static": {
+    "sounds": [
+      "theshadow:scare/glitch_0",
+      "theshadow:scare/glitch_1",
+      "theshadow:scare/glitch_2",
+      "theshadow:scare/glitch_3"
+    ],
+    "subtitle": "theshadow.subtitle.static"
+  },
+  "far": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/far_0",
+        "weight": 1
+      },
+      {
+        "name": "theshadow:creature/far_1",
+        "weight": 1
+      },
+      {
+        "name": "theshadow:creature/far_2",
+        "weight": 1
+      },
+      {
+        "name": "theshadow:creature/far_3",
+        "weight": 1
+      },
+      {
+        "name": "theshadow:creature/far_4",
+        "weight": 1
+      },
+      {
+        "name": "theshadow:creature/far_5",
+        "weight": 1
+      },
+      {
+        "name": "theshadow:creature/far_6",
+        "weight": 1
+      },
+      {
+        "name": "theshadow:creature/far_7",
+        "weight": 1
+      },
+      {
+        "name": "theshadow:creature/far_8",
+        "weight": 1
+      },
+      {
+        "name": "theshadow:creature/far_9",
+        "weight": 1
+      }
+    ],
+    "subtitle": "theshadow.subtitle.far"
+  },
+  "step": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/step_0"
+      },
+      {
+        "name": "theshadow:creature/step_1"
+      },
+      {
+        "name": "theshadow:creature/step_2"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.step"
+  },
+  "slam": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/slam_0"
+      },
+      {
+        "name": "theshadow:creature/slam_1"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.slam"
+  },
+  "crack": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/crack_0"
+      },
+      {
+        "name": "theshadow:creature/crack_1"
+      },
+      {
+        "name": "theshadow:creature/crack_2"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.crack"
+  },
+  "roar": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/roar_0"
+      },
+      {
+        "name": "theshadow:creature/roar_1"
+      },
+      {
+        "name": "theshadow:creature/roar_2"
+      },
+      {
+        "name": "theshadow:creature/roar_3"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.roar"
+  },
+  "screech": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/screech_0"
+      },
+      {
+        "name": "theshadow:creature/screech_1"
+      },
+      {
+        "name": "theshadow:creature/screech_2"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.screech"
+  },
+  "gurgle": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/gurgle_0"
+      },
+      {
+        "name": "theshadow:creature/gurgle_1"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.gurgle"
+  },
+  "spray": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/spray_0"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.spray"
+  },
+  "crunch": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/crunch_0"
+      },
+      {
+        "name": "theshadow:creature/crunch_1"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.crunch"
+  },
+  "spikes": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/spikes_0"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.spikes"
+  },
+  "flood": {
+    "sounds": [
+      {
+        "name": "theshadow:creature/flood_0"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.flood"
+  },
+  "voice_destroy": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/destroy"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_destroy"
+  },
+  "voice_mine": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/mine"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_mine"
+  },
+  "voice_kneel": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/kneel"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_kneel"
+  },
+  "voice_again": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/again"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_again"
+  },
+  "voice_taste": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/taste"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_taste"
+  },
+  "voice_nowhere": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/nowhere"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_nowhere"
+  },
+  "voice_slow": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/slow"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_slow"
+  },
+  "voice_stay": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/stay"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_stay"
+  },
+  "voice_yours": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/yours"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_yours"
+  },
+  "voice_last": {
+    "sounds": [
+      {
+        "name": "theshadow:voice/last"
+      }
+    ],
+    "subtitle": "subtitles.theshadow.voice_last"
+  },
+  "boss_music_1": {
+    "sounds": [
+      {
+        "name": "theshadow:music/boss_1",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.theshadow.boss_music_1"
+  },
+  "boss_music_2": {
+    "sounds": [
+      {
+        "name": "theshadow:music/boss_2",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.theshadow.boss_music_2"
+  },
+  "boss_music_3": {
+    "sounds": [
+      {
+        "name": "theshadow:music/boss_3",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.theshadow.boss_music_3"
+  },
+  "js_riser": {
+    "sounds": [
+      {
+        "name": "theshadow:jumpscare/js_riser_0"
+      }
+    ],
+    "subtitle": "theshadow.subtitle.stinger"
+  },
+  "js_hit": {
+    "sounds": [
+      {
+        "name": "theshadow:jumpscare/js_hit_0"
+      },
+      {
+        "name": "theshadow:jumpscare/js_hit_1"
+      }
+    ],
+    "subtitle": "theshadow.subtitle.hit"
+  },
+  "js_scream": {
+    "sounds": [
+      {
+        "name": "theshadow:jumpscare/js_scream_0"
+      },
+      {
+        "name": "theshadow:jumpscare/js_scream_1"
+      },
+      {
+        "name": "theshadow:jumpscare/js_scream_2"
+      }
+    ],
+    "subtitle": "theshadow.subtitle.scream"
+  },
+  "js_strings": {
+    "sounds": [
+      {
+        "name": "theshadow:jumpscare/js_strings_0"
+      },
+      {
+        "name": "theshadow:jumpscare/js_strings_1"
+      }
+    ],
+    "subtitle": "theshadow.subtitle.stinger"
+  }
 }
