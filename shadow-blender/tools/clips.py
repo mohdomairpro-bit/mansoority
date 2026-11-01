@@ -112,6 +112,64 @@ def gait(p, f, cycle, stride, lift, duty, phases, speed_z=True, height=None):
     return p
 
 
+# ---------------------------------------------------------------- hand-keyed animation: pose-to-pose with curves
+def back_out(t, k=1.9):
+    """overshoots the target and settles back onto it"""
+    t = min(1.0, max(0.0, t)) - 1.0
+    return 1 + (k + 1) * t ** 3 + k * t ** 2
+
+CURVES = {
+    "ease": ease,                                   # slow in, slow out
+    "snap": lambda t: 1 - (1 - min(1.0, max(0.0, t))) ** 4,       # explodes out of the pose, decelerates hard
+    "slow": lambda t: min(1.0, max(0.0, t)) ** 3,                 # creeps away, then goes
+    "back": back_out,                               # overshoot and settle: weight
+    "lin": lambda t: min(1.0, max(0.0, t)),
+    "hold": lambda t: 0.0,
+}
+
+# overlapping action: these bones run this many frames behind the body, so motion travels down the chain
+LAG = {"neck": 1.0, "head": 2.2, "jaw": 3.0, "jawR": 3.0, "foreL": 1.0, "foreR": 1.0, "handL": 2.2, "handR": 2.2,
+       "tongue0": 3.0, "tongue1": 3.6, "tongue2": 4.2, "tongue3": 4.8, "tongue4": 5.4, "tongue5": 6.0,
+       "bellyL": 2.0, "bellyR": 2.0}
+
+
+class Keys:
+    """keys: [(frame, pose_builder(), curve_into_this_key)]. the builders return a P (a whole static pose).
+    between keys the pose blends along the curve; the bones in LAG trail behind; holds keep breathing."""
+    def __init__(self, keys, lag=1.0, alive=1.0):
+        self.keys = sorted(keys, key=lambda k: k[0]); self.lag = lag; self.alive = alive
+        self.cache = {}
+
+    def _pose(self, i):
+        if i not in self.cache: self.cache[i] = self.keys[i][1]()
+        return self.cache[i]
+
+    def at(self, f):
+        ks = self.keys
+        if f <= ks[0][0]: return blend(self._pose(0), self._pose(0), 0.0)
+        for i in range(1, len(ks)):
+            if f <= ks[i][0]:
+                a, b = ks[i - 1][0], ks[i][0]
+                u = (f - a) / max(1e-6, b - a)
+                return blend(self._pose(i - 1), self._pose(i), CURVES[ks[i][2]](u))
+        return blend(self._pose(len(ks) - 1), self._pose(len(ks) - 1), 0.0)
+
+    def __call__(self, f):
+        p = self.at(f)
+        for bn, d in LAG.items():                    # overlapping action
+            if bn in ORDER and d * self.lag > 0:
+                p.r[bn] = self.at(f - d * self.lag).r[bn]
+        if self.alive:                               # never a dead hold: a slow breath and a tremor in the head
+            p.rot("chest", -0.02 * math.sin(f * 0.21) * self.alive).rot("head", 0.012 * math.sin(f * 0.9) * self.alive, 0.015 * math.sin(f * 0.53) * self.alive, 0)
+        return p
+
+
+def shake(p, f, amt, bones=("head", "neck", "chest")):
+    for i, bn in enumerate(bones):
+        p.rot(bn, amt * math.sin(f * 2.7 + i), amt * 0.8 * math.sin(f * 3.3 + i * 2), amt * math.sin(f * 2.1 + i * 3))
+    return p
+
+
 CLIPS = {}
 def clip(name, frames, loop=True, speed=0.0):
     def deco(fn): CLIPS[name] = (frames, loop, speed, fn); return fn
@@ -309,32 +367,7 @@ def boss_walk(f):
     p.rot("head", 0, -0.06 * math.sin(ph), 0.08 * math.sin(ph * 0.5))
     return p
 
-@clip("roar", 70, loop=False)
-def roar(f):
-    """rears up, arms off the ground and thrown wide, everything shaking"""
-    p = predator(P(), 1 - ease((f - 4) / 14) * 0.8)
-    up = ease_out((f - 6) / 14) * (1 - ease((f - 58) / 12))
-    p.rot("chest", -0.45 * up).rot("neck", -0.35 * up).rot("head", -0.45 * up).off("hips", 0, 0.12 * up, -0.05 * up)
-    for limb, s in (("armL", -1), ("armR", 1)):
-        p.feet[limb] = p.feet[limb] + np.array([0.55 * s * up, 1.7 * up, -0.05 * up])
-        p.pole[limb] = np.array([1.6 * s, 2.2, -0.3])
-        p.contact[limb] = up < 0.05
-    if 14 < f < 58:
-        sh = (f - 14) * 2.7
-        p.rot("head", 0.06 * math.sin(sh), 0.05 * math.sin(sh * 1.3), 0.08 * math.sin(sh * 0.9))
-        p.rot("chest", 0.02 * math.sin(sh * 1.7))
-    belly(p, 0.15 * up)
-    return p
 
-@clip("scream", 60, loop=False)
-def scream(f):
-    """low and forward: the neck stretches at you while it screams"""
-    p = predator(P(), 1.0 + 0.25 * ease(f / 10))
-    a = ease_out((f - 4) / 10) * (1 - ease((f - 50) / 10))
-    p.rot("neck", 0.45 * a).rot("head", -0.5 * a).off("neck", 0, 0.03 * a, 0.16 * a).off("head", 0, 0, 0.08 * a)
-    if 10 < f < 50: p.rot("head", 0.05 * math.sin(f * 3.1), 0.04 * math.sin(f * 2.3), 0.07 * math.sin(f * 2.7))
-    p.tongue(0.35 * a, pitch=0.5, wave=0.25, phase=f * 0.6, droop=1.0)
-    return p
 
 @clip("slam", 80, loop=False)
 def slam(f):
@@ -409,63 +442,10 @@ def perch(f):
     p.rot("head", 0.1 * math.sin(2 * PI * f / 120), 0.35 * math.sin(2 * PI * f / 120), 0)
     return p
 
-@clip("bite", 60, loop=False)
-def bite(f):
-    """draws its head back, then the neck snaps out at you"""
-    p = predator(P())
-    back = ease((f - 0) / 14) * (1 - ease((f - 14) / 3))
-    out = ease_out((f - 15) / 5) * (1 - ease((f - 40) / 18))
-    p.rot("chest", -0.15 * back + 0.25 * out).rot("neck", -0.35 * back + 0.55 * out).rot("head", 0.3 * back - 0.45 * out)
-    p.off("neck", 0, 0.02 * out, -0.08 * back + 0.22 * out).off("head", 0, 0, 0.12 * out)
-    p.off("hips", 0, 0, -0.06 * back + 0.12 * out)
-    return p
 
-@clip("chew", 24)
-def chew(f):
-    """you're in its mouth: the head thrashes side to side"""
-    p = predator(P())
-    ph = 2 * PI * f / 24
-    p.rot("neck", 0.35, 0.25 * math.sin(ph), 0).rot("head", -0.2 + 0.12 * math.sin(2 * ph), 0.35 * math.sin(ph + 0.5), 0.3 * math.sin(ph))
-    p.off("neck", 0, 0, 0.12)
-    return p
 
-@clip("spray", 90, loop=False)
-def spray(f):
-    """stands tall, arms thrown back, the stomach opens and empties itself at you"""
-    up = ease((f - 2) / 14) * (1 - ease((f - 78) / 12))
-    p = predator(P(), 1 - 0.7 * up)
-    opn = ease_out((f - 12) / 10) * (1 - ease((f - 74) / 10))
-    heave = math.sin(f * 0.9) * opn if 22 < f < 72 else 0
-    p.rot("chest", -0.3 * up + 0.06 * heave).rot("neck", 0.2 * up).rot("head", 0.25 * up).off("hips", 0, 0.1 * up, 0)
-    for limb, s in (("armL", -1), ("armR", 1)):
-        p.feet[limb] = p.feet[limb] + np.array([0.7 * s * up, 1.3 * up, -0.55 * up])
-        p.pole[limb] = np.array([1.6 * s, 2.0, -0.6])
-        p.contact[limb] = up < 0.05
-    belly(p, opn * (1 + 0.08 * heave))
-    return p
 
-@clip("spikes", 60, loop=False)
-def spikes(f):
-    """rears, then drives both hands into the ground"""
-    up = ease_out((f - 2) / 14) * (1 - ease((f - 18) / 4))
-    down = ease((f - 20) / 4) * (1 - ease((f - 46) / 14))
-    p = predator(P(), 1 + 0.5 * down - 0.5 * up)
-    p.rot("chest", -0.3 * up + 0.4 * down).rot("head", -0.2 * up + 0.3 * down)
-    for limb, s in (("armL", -1), ("armR", 1)):
-        p.feet[limb] = p.feet[limb] + np.array([0.1 * s * up, 1.4 * up - 0.25 * down, 0.2 * up - 0.3 * down])
-        p.contact[limb] = up < 0.05 and down < 0.05          # buried in the ground: not "standing" on it
-    return p
 
-@clip("stun", 48)
-def stun(f):
-    """dazed: slumped to one side, head hanging, jaw slack, twitching"""
-    p = predator(P(), 1.3)
-    ph = 2 * PI * f / 48
-    p.off("hips", -0.1, -0.12, 0).rot("hips", 0, 0, 0.18).rot("chest", 0.25, 0, 0.15 + 0.03 * math.sin(ph))
-    p.rot("neck", 0.5).rot("head", 0.5, 0.1 * math.sin(ph), 0.5 + 0.05 * math.sin(ph * 2))
-    if f % 16 < 2: p.rot("head", 0.1, 0, -0.15)
-    p.tongue(0.5, pitch=0.9, droop=1.0, wave=0.1, phase=ph)
-    return p
 
 @clip("collapse", 50, loop=False)
 def collapse(f):
@@ -489,6 +469,8 @@ def blend(a, b, k):
     for bn in ORDER:
         p.r[bn] = a.r[bn] * (1 - k) + b.r[bn] * k
         p.t[bn] = a.t[bn] * (1 - k) + b.t[bn] * k
+    src = a if k < 0.5 else b                         # contacts and hand-posed limbs come from the nearer pose
+    p.contact = dict(src.contact); p.free = set(src.free)
     for limb in p.feet:
         p.feet[limb] = a.feet[limb] * (1 - k) + b.feet[limb] * k
         pa, pb = a.pole.get(limb), b.pole.get(limb)
@@ -506,27 +488,7 @@ def rise(f):
     p.rot("head", 0, 0, 0.5 * math.sin(f * 0.7) * (1 - k))
     return p
 
-@clip("blade_swing", 36, loop=False)
-def blade_swing(f):
-    """phase 2: the blade in its teeth - the whole neck whips it across in front"""
-    p = predator(P(), 1.2)
-    wind = ease((f - 0) / 10) * (1 - ease((f - 12) / 3))
-    sw = ease_out((f - 13) / 6) * (1 - ease((f - 24) / 12))
-    p.rot("neck", 0.2, 0.7 * wind - 0.9 * sw, 0).rot("head", 0, 0.5 * wind - 0.6 * sw, -0.3 * wind + 0.4 * sw)
-    p.rot("chest", 0, 0.25 * wind - 0.3 * sw, 0).off("neck", 0, 0, 0.1 * sw)
-    return p
 
-@clip("throw", 40, loop=False)
-def throw(f):
-    """phase 3: it pulls the blade out of its own stomach and hurls it"""
-    p = predator(P())
-    pull = ease((f - 2) / 12) * (1 - ease((f - 16) / 4))
-    hurl = ease_out((f - 17) / 5) * (1 - ease((f - 26) / 14))
-    p.free.add("armR"); p.contact["armR"] = False
-    p.rot("armR", 0.6 * pull - 0.4 * hurl, 0, -0.3 * pull).rot("foreR", -1.4 * pull - 0.6 * hurl).rot("handR", 0.6 * pull + 0.9 * hurl)
-    p.rot("chest", 0.25 * pull - 0.2 * hurl, -0.3 * pull + 0.4 * hurl, 0)
-    belly(p, 0.5 * pull)
-    return p
 
 @clip("intro_stare", 100)
 def intro_stare(f):
@@ -537,6 +499,152 @@ def intro_stare(f):
     return p
 
 # ---------------------------------------------------------------- export
+# ================================================================ the boss's moves, hand-keyed
+def arms_up(p, x=0.6, y=1.5, z=-0.05, pole=(1.7, 2.2, -0.3)):
+    for limb, s_ in (("armL", -1), ("armR", 1)):
+        p.feet[limb] = p.feet[limb] + np.array([x * s_, y, z])
+        p.pole[limb] = np.array([pole[0] * s_, pole[1], pole[2]])
+        p.contact[limb] = False
+    return p
+
+def K_stance(k=1.0): return lambda: predator(P(), k)
+
+ROAR = Keys([
+    (0, K_stance(), "ease"),
+    (9, lambda: predator(P(), 1.45).rot("chest", 0.25).rot("neck", 0.3).rot("head", 0.35).off("hips", 0, -0.06, 0.04), "slow"),    # gathers itself down, breath in
+    (17, lambda: arms_up(predator(P(), 0.35).rot("chest", -0.55).rot("neck", -0.45).rot("head", -0.55).off("hips", 0, 0.16, -0.08)), "back"),
+    (56, lambda: arms_up(predator(P(), 0.4).rot("chest", -0.48).rot("neck", -0.4).rot("head", -0.5).off("hips", 0, 0.14, -0.06), 0.65, 1.4), "lin"),
+    (70, K_stance(), "ease")])
+
+@clip("roar", 70, loop=False)
+def roar(f):
+    """gathers itself, then rears up with its arms thrown wide and screams at the sky, shaking"""
+    p = ROAR(f)
+    if 16 < f < 58: shake(p, f, 0.07 * (1 - abs(f - 37) / 30))
+    belly(p, 0.15 * ease((f - 14) / 6) * (1 - ease((f - 56) / 10)))
+    return p
+
+SCREAM = Keys([
+    (0, K_stance(), "ease"),
+    (7, lambda: predator(P(), 1.1).rot("neck", -0.25).rot("head", 0.3).off("neck", 0, 0, -0.05), "slow"),         # pulls back
+    (12, lambda: predator(P(), 1.3).rot("neck", 0.5).rot("head", -0.55).off("neck", 0, 0.03, 0.18).off("head", 0, 0, 0.09), "back"),
+    (50, lambda: predator(P(), 1.25).rot("neck", 0.45).rot("head", -0.5).off("neck", 0, 0.03, 0.16).off("head", 0, 0, 0.08), "lin"),
+    (60, K_stance(), "ease")])
+
+@clip("scream", 60, loop=False)
+def scream(f):
+    """recoils, then the neck shoots out at you and it screams in your face"""
+    p = SCREAM(f)
+    if 12 < f < 50: shake(p, f, 0.05)
+    a = ease((f - 10) / 4) * (1 - ease((f - 48) / 8))
+    p.tongue(0.4 * a, pitch=0.5, wave=0.3, phase=f * 0.6, droop=1.0)
+    return p
+
+BITE = Keys([
+    (0, K_stance(), "ease"),
+    (11, lambda: predator(P(), 0.85).rot("chest", -0.2).rot("neck", -0.5).rot("head", 0.45).off("neck", 0, 0.04, -0.12).off("hips", 0, 0.02, -0.1), "ease"),  # coils back, head high
+    (16, lambda: predator(P(), 0.8).rot("chest", -0.24).rot("neck", -0.58).rot("head", 0.5).off("neck", 0, 0.05, -0.14).off("hips", 0, 0.02, -0.12), "lin"),   # holds... shaking
+    (20, lambda: predator(P(), 1.3).rot("chest", 0.3).rot("neck", 0.65).rot("head", -0.5).off("neck", 0, 0.0, 0.28).off("head", 0, -0.02, 0.15).off("hips", 0, -0.04, 0.16), "snap"),
+    (34, lambda: predator(P(), 1.25).rot("chest", 0.25).rot("neck", 0.55).rot("head", -0.42).off("neck", 0, 0.0, 0.24).off("head", 0, 0, 0.12).off("hips", 0, -0.03, 0.14), "ease"),
+    (58, K_stance(), "ease")])
+
+@clip("bite", 60, loop=False)
+def bite(f):
+    """coils back with its head high, holds, trembling... then snaps forward faster than you can move"""
+    p = BITE(f)
+    if 11 < f < 17: shake(p, f, 0.035)
+    if 20 <= f < 24: p.rot("head", 0.06 * math.sin(f * 3), 0, 0)
+    return p
+
+@clip("chew", 24)
+def chew(f):
+    """you're in its mouth: the head thrashes, side to side and up, the body heaving with it"""
+    p = predator(P(), 1.1)
+    ph = 2 * PI * f / 24
+    p.rot("neck", 0.35 + 0.1 * math.sin(2 * ph), 0.35 * math.sin(ph), 0).rot("head", -0.25 + 0.18 * math.sin(2 * ph + 0.6), 0.45 * math.sin(ph + 0.7), 0.4 * math.sin(ph + 0.3))
+    p.rot("chest", 0.05 * math.sin(2 * ph), 0.12 * math.sin(ph + 0.2), 0).off("neck", 0, 0, 0.12).off("hips", 0.04 * math.sin(ph), 0, 0)
+    return p
+
+SPIKES = Keys([
+    (0, K_stance(), "ease"),
+    (14, lambda: arms_up(predator(P(), 0.3).rot("chest", -0.4).rot("head", -0.3).off("hips", 0, 0.12, -0.04), 0.15, 1.6, 0.25, (1.2, 2.6, 0.4)), "ease"),
+    (19, lambda: arms_up(predator(P(), 0.25).rot("chest", -0.45).rot("head", -0.35).off("hips", 0, 0.14, -0.05), 0.12, 1.7, 0.2, (1.2, 2.6, 0.4)), "lin"),
+    (22, lambda: predator(P(), 1.7).rot("chest", 0.45).rot("head", 0.35).rot("neck", 0.2).off("hips", 0, -0.08, 0.06), "snap"),    # drives both hands in
+    (44, lambda: predator(P(), 1.55).rot("chest", 0.4).rot("head", 0.25).off("hips", 0, -0.06, 0.05), "ease"),
+    (60, K_stance(), "ease")])
+
+@clip("spikes", 60, loop=False)
+def spikes(f):
+    """rears up with both arms over its head... and drives them into the ground; bone spears burst up along the line"""
+    p = SPIKES(f)
+    if 22 <= f < 44:
+        for limb, s_ in (("armL", -1), ("armR", 1)):            # hands buried in the ground
+            p.feet[limb] = p.feet[limb] + np.array([0.05 * s_, -0.06, -0.3]); p.contact[limb] = False
+        shake(p, f, 0.03 * (1 - (f - 22) / 22), ("chest", "neck"))
+    if 15 < f < 20: shake(p, f, 0.04)
+    return p
+
+SPRAY = Keys([
+    (0, K_stance(), "ease"),
+    (14, lambda: arms_up(predator(P(), 0.3).rot("chest", -0.38).rot("neck", 0.25).rot("head", 0.28).off("hips", 0, 0.12, 0), 0.75, 1.25, -0.6, (1.6, 2.0, -0.6)), "back"),
+    (76, lambda: arms_up(predator(P(), 0.32).rot("chest", -0.34).rot("neck", 0.22).rot("head", 0.26).off("hips", 0, 0.11, 0), 0.72, 1.2, -0.58, (1.6, 2.0, -0.6)), "lin"),
+    (90, K_stance(), "ease")])
+
+@clip("spray", 90, loop=False)
+def spray(f):
+    """stands tall and throws its arms back, the stomach splits and heaves its insides out at you"""
+    p = SPRAY(f)
+    opn = ease_out((f - 12) / 8) * (1 - ease((f - 74) / 10))
+    heave = math.sin(f * 0.9) * opn if 20 < f < 72 else 0
+    p.rot("chest", 0.07 * heave).off("hips", 0, 0.01 * heave, 0)
+    belly(p, opn * (1 + 0.1 * heave))
+    return p
+
+BLADE = Keys([
+    (0, K_stance(1.2), "ease"),
+    (10, lambda: predator(P(), 1.3).rot("chest", 0, 0.32, 0.05).rot("neck", 0.15, 0.8, 0).rot("head", 0, 0.55, -0.35).off("hips", -0.05, 0, -0.04), "ease"),   # coils right
+    (13, lambda: predator(P(), 1.32).rot("chest", 0, 0.36, 0.06).rot("neck", 0.15, 0.88, 0).rot("head", 0, 0.6, -0.38).off("hips", -0.06, 0, -0.05), "lin"),
+    (17, lambda: predator(P(), 1.25).rot("chest", 0.1, -0.38, -0.05).rot("neck", 0.25, -1.0, 0).rot("head", 0, -0.7, 0.45).off("neck", 0, 0, 0.12).off("hips", 0.08, 0, 0.08), "snap"),   # whips across
+    (21, lambda: predator(P(), 1.25).rot("chest", 0.1, -0.44, -0.06).rot("neck", 0.25, -1.12, 0).rot("head", 0, -0.8, 0.5).off("neck", 0, 0, 0.1).off("hips", 0.09, 0, 0.07), "ease"),  # follow-through
+    (36, K_stance(1.2), "ease")])
+
+@clip("blade_swing", 36, loop=False)
+def blade_swing(f):
+    """phase 2, the blade in its teeth: coils its whole neck one way, holds, then whips it across in front"""
+    return BLADE(f)
+
+def hand_r(p, x, y, z, pole=(1.6, 2.2, -0.2)):
+    p.feet["armR"] = REST_FOOT["armR"] + np.array([x, y, z]); p.pole["armR"] = np.array(pole); p.contact["armR"] = False
+    return p
+
+THROW = Keys([
+    (0, K_stance(), "ease"),
+    (10, lambda: hand_r(predator(P(), 1.1).rot("chest", 0.3, 0.25, 0).rot("head", 0.2), -0.35, 0.95, 0.45, (1.8, 1.2, 0.6)), "ease"),       # reaches into its own stomach
+    (16, lambda: hand_r(predator(P(), 0.85).rot("chest", -0.15, 0.55, 0).rot("head", 0, 0.3, 0).off("hips", 0, 0.05, -0.08), 0.55, 2.1, -0.95, (1.5, 1.0, 0.8)), "back"),  # rips it out, winds back over its shoulder
+    (20, lambda: hand_r(predator(P(), 1.15).rot("chest", 0.3, -0.55, 0).rot("head", 0, -0.3, 0).off("hips", 0, -0.03, 0.12), 0.05, 1.3, 1.7, (1.4, 2.4, -0.4)), "snap"),   # hurls
+    (26, lambda: hand_r(predator(P(), 1.25).rot("chest", 0.38, -0.65, 0).rot("head", 0, -0.35, 0).off("hips", 0, -0.05, 0.14), -0.3, 0.35, 1.5, (1.4, 2.4, -0.2)), "ease"),
+    (40, K_stance(), "ease")])
+
+@clip("throw", 40, loop=False)
+def throw(f):
+    """phase 3: it pulls the blade out of its own stomach, winds back and hurls it, its whole body following through"""
+    p = THROW(f)
+    belly(p, 0.5 * ease((f - 4) / 6) * (1 - ease((f - 16) / 4)))
+    return p
+
+@clip("stun", 48)
+def stun(f):
+    """dazed: slumped to one side, head hanging, jaw slack; it keeps trying to lift its head and failing"""
+    p = predator(P(), 1.3)
+    ph = 2 * PI * f / 48
+    lift = max(0.0, math.sin(ph)) ** 3
+    p.off("hips", -0.1, -0.12, 0).rot("hips", 0, 0, 0.18).rot("chest", 0.25, 0, 0.15 + 0.03 * math.sin(ph))
+    p.rot("neck", 0.5 - 0.25 * lift).rot("head", 0.5 - 0.3 * lift, 0.1 * math.sin(ph), 0.5 + 0.05 * math.sin(ph * 2))
+    if f % 16 < 2: p.rot("head", 0.1, 0, -0.15)
+    p.tongue(0.5, pitch=0.9, droop=1.0, wave=0.1, phase=ph)
+    return p
+
+
 def bake():
     out = {}
     for name, (frames, loop, speed, fn) in CLIPS.items():
