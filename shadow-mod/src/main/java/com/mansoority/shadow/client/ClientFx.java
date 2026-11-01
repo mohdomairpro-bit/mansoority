@@ -59,7 +59,7 @@ public final class ClientFx {
         switch (p.kind) {
             case FxPacket.JUMPSCARE -> js = 0;
             case FxPacket.JUMPSCARE_NOW -> js = SCARE_AT - 10;
-            case FxPacket.SOUND_UI -> { ui(sound(p.sound), p.volume, p.pitch); ui(sound(p.sound), p.volume, p.pitch); }   // doubled: right in your head, as loud as it gets
+            case FxPacket.SOUND_UI -> ui(sound(p.sound), p.volume, p.pitch);
             case FxPacket.SOUND_AT -> at(sound(p.sound), p.x, p.y, p.z, p.volume, p.pitch);
             case FxPacket.SEQUENCE -> { seq = p.sound; seqTick = 0; }
             case FxPacket.CAM -> CinematicCam.handle(p);
@@ -247,23 +247,23 @@ public final class ClientFx {
         if (t == 42) around(ShadowRegistry.WHISPER.get(), 210, 0.6, 0, 1F, 0.7F);
         if (t == 63) mc.getSoundManager().stop();
         // THE SCARE: dead silence, a swell sucking in... and it hits. stacked copies, as loud as the game goes
-        if (t == SCARE_AT - 14 || (t == SCARE_AT - 10 && !riserPlayed)) { ui(ShadowRegistry.JS_RISER.get(), 1F, 1F); ui(ShadowRegistry.JS_RISER.get(), 1F, 1F); riserPlayed = true; }
+        if (t == SCARE_AT - 14 || (t == SCARE_AT - 10 && !riserPlayed)) { ui(ShadowRegistry.JS_RISER.get(), 1F, 1F); riserPlayed = true; }
         if (t == SCARE_AT) {
-            for (int i = 0; i < 3; i++) ui(ShadowRegistry.JS_HIT.get(), 1F, 1F - i * 0.04F);
-            for (float p : new float[]{1F, 0.93F, 1.05F}) ui(ShadowRegistry.JS_SCREAM.get(), 1F, p);
-            ui(ShadowRegistry.JS_STRINGS.get(), 1F, 1F); ui(ShadowRegistry.JS_STRINGS.get(), 1F, 1.03F);
+            // one of each: the files are mastered as loud as they go; stacking them only made them crackle
+            ui(ShadowRegistry.JS_HIT.get(), 1F, 1F);
+            ui(ShadowRegistry.JS_SCREAM.get(), 1F, 1F);
+            ui(ShadowRegistry.JS_STRINGS.get(), 1F, 1F);
             ui(ShadowRegistry.SCREAM.get(), 1F, 0.8F);
             riserPlayed = false;
         }
         if (t == SCARE_AT + 30) ui(ShadowRegistry.BREATH.get(), 1F, 0.55F);                  // right in your face, breathing
         if (t == SCARE_AT + 44) ui(ShadowRegistry.JS_RISER.get(), 1F, 1.15F);
         if (t == SCARE_AT + 46) {                                                            // and again
-            for (int i = 0; i < 2; i++) ui(ShadowRegistry.JS_HIT.get(), 1F, 0.9F);
-            for (float p : new float[]{0.88F, 0.82F}) ui(ShadowRegistry.JS_SCREAM.get(), 1F, p);
+            ui(ShadowRegistry.JS_HIT.get(), 1F, 0.9F);
+            ui(ShadowRegistry.JS_SCREAM.get(), 1F, 0.88F);
             ui(ShadowRegistry.JS_STRINGS.get(), 1F, 0.9F);
         }
         if (t == SCARE_AT + 62) ui(ShadowRegistry.CRUNCH.get(), 1F, 0.6F);
-        if (t == SCARE_AT + SCARE_LEN) mc.getSoundManager().stop();
         if (t == SCARE_AT + SCARE_LEN + 28) around(ShadowRegistry.WHISPER.get(), 180, 0.6, 0, 1F, 0.8F);
         if (t == SCARE_AT + SCARE_LEN + 41 && mc.gui != null) {
             mc.gui.setOverlayMessage(Component.literal("it's still here").withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC), false);

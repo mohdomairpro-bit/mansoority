@@ -145,16 +145,20 @@ public class ShadowEvents {
     }
 
     /** a dragon fight is on: it climbs a pillar, waits, and takes the kill at the very end */
+    private static boolean stealOn(net.minecraft.server.level.ServerLevel end) {
+        if (!ShadowConfig.ENABLED.get() || !ShadowConfig.BOSS.get() || !ShadowConfig.STEAL.get()) return false;
+        return !BossData.get(end.getServer()).sealed;                     // every dragon fight, even after it's been beaten once
+    }
+
     private static void dragonWatch(net.minecraft.server.level.ServerLevel end) {
-        if (!ShadowConfig.ENABLED.get() || !ShadowConfig.BOSS.get() || !ShadowConfig.STEAL.get()) return;
+        if (!stealOn(end)) return;
         BossData d = BossData.get(end.getServer());
-        if (d.defeated || d.sealed) return;
         var fight = end.getDragonFight();
         if (fight == null) return;
         if (!end.getEntitiesOfClass(MansoorityBoss.class, new net.minecraft.world.phys.AABB(-300, 0, -300, 300, 320, 300)).isEmpty()) return;
         for (EnderDragon dragon : end.getEntitiesOfClass(EnderDragon.class, new net.minecraft.world.phys.AABB(-300, 0, -300, 300, 320, 300))) {
             if (!dragon.isAlive() || dragon.getHealth() > dragon.getMaxHealth() * 0.25F) continue;
-            boolean players = !end.getEntitiesOfClass(ServerPlayer.class, new net.minecraft.world.phys.AABB(-150, 0, -150, 150, 320, 150), q -> !q.isCreative() && !q.isSpectator()).isEmpty();
+            boolean players = !end.getEntitiesOfClass(ServerPlayer.class, new net.minecraft.world.phys.AABB(-150, 0, -150, 150, 320, 150), q -> !q.isSpectator()).isEmpty();
             if (!players) return;
             var spikes = net.minecraft.world.level.levelgen.feature.SpikeFeature.getSpikesForLevel(end);
             if (spikes.isEmpty()) return;
@@ -227,6 +231,28 @@ public class ShadowEvents {
         ShadowNet.send(p, FxPacket.of(FxPacket.POLTER));                          // its candles go out
         ShadowEntity e = ShadowEntity.spawnAround(p, 2, 180, 7);                    // and it's already behind you
         if (e == null) ShadowEntity.rushFrom(p, 20);
+    }
+
+    /**
+     * the kill is its. once the dragon is low, it can't be finished off by anyone else: it hangs on at a sliver of
+     * health until it bursts out of the pillar and cuts its head off. (if it can't come - config, sealed - nothing changes)
+     */
+    @SubscribeEvent
+    public void onDragonDamage(net.minecraftforge.event.entity.living.LivingDamageEvent event) {
+        if (!(event.getEntity() instanceof EnderDragon dragon) || !(dragon.level() instanceof net.minecraft.server.level.ServerLevel end)) return;
+        if (end.dimension() != net.minecraft.world.level.Level.END || event.getSource().getEntity() instanceof MansoorityBoss) return;
+        if (!stealOn(end)) return;
+        float after = dragon.getHealth() - event.getAmount();
+        if (after > dragon.getMaxHealth() * 0.25F) return;
+        boolean stealing = false;
+        for (MansoorityBoss b : MansoorityBoss.LIVE) if (b.isAlive() && b.level() == end && b.stealing(dragon)) stealing = true;
+        if (!stealing) {
+            dragonWatch(end);
+            for (MansoorityBoss b : MansoorityBoss.LIVE) if (b.isAlive() && b.level() == end && b.stealing(dragon)) stealing = true;
+        }
+        if (!stealing) return;
+        float floor = dragon.getMaxHealth() * 0.04F;
+        if (after < floor) event.setAmount(Math.max(0F, dragon.getHealth() - floor));
     }
 
     @SubscribeEvent

@@ -28,7 +28,7 @@ def hot(x, heat=4.0, ceiling=0.985):
     x = x / (np.max(np.abs(x)) + 1e-9)
     a = np.exp(-1.0 / (0.02 * SR))
     env = np.sqrt(signal.lfilter([1 - a], [1, -a], x ** 2)) + 1e-5          # 20 ms rms follower
-    g = np.clip((0.35 / env) ** 0.6, 0.4, 6.0)
+    g = np.clip((0.3 / env) ** 0.45, 0.5, 3.0)
     g = signal.lfilter([1 - a], [1, -a], g)                                   # smooth the gain: no pumping clicks
     x = x * g
     x = x / (np.max(np.abs(x)) + 1e-9)
@@ -97,7 +97,7 @@ def scream_full(seed, dur=2.8):
     x = filt(x, "high", 140)
     x = x + 0.6 * filt(x, "band", [2000, 4500])                                 # presence: the part that hurts
     x = drive(x, 2.2)                                                            # torn, but still a voice
-    return hot(reverb(x, 0.6, 0.12)[:len(x) + int(0.25 * SR)], 3.0)
+    return hot(reverb(x, 0.6, 0.12)[:len(x) + int(0.25 * SR)], 2.2)
 
 
 def stinger(i):
@@ -117,7 +117,7 @@ def stinger(i):
     sh = M.pad(shriek(1.6, 900 + i * 70, 50 + i, 0.4), n)
     x = mix(slam * 1.3, crack * 0.9, st * 0.9, br * 0.6, sh * 0.85)
     x = fade(x, 0.0005, 0.3)
-    return hot(reverb(x, 1.1, 0.18)[:n], 3.0)
+    return hot(reverb(x, 1.1, 0.18)[:n], 2.2)
 
 
 def whisperize(x):
@@ -160,7 +160,7 @@ def glitch(i):
     x = np.concatenate(out)
     x = drive(x, 2.0)
     x[-int(0.004 * SR):] *= np.linspace(1, 0, int(0.004 * SR))
-    return hot(x, 2.8)
+    return hot(x, 2.0)
 
 
 def remaster(path, heat, extra_gain_db=0.0):
@@ -180,10 +180,9 @@ if __name__ == "__main__":
     for i in range(4): save(glitch(i), "scare/glitch_%d" % i)
     for i in range(3): save(scream_full(i), "jumpscare/js_scream_%d" % i)
     print("remaster")
+    # loud but clean: gentle saturation only, no crunch (heavier settings made them crackle)
     for k in range(10):
-        remaster(os.path.join(OUT, "creature/scream_%d.ogg" % k), 4.0)
-        remaster(os.path.join(OUT, "creature/breath_%d.ogg" % k), 3.0)
-        remaster(os.path.join(OUT, "creature/far_%d.ogg" % k), 2.5)
-    for k in range(3): remaster(os.path.join(OUT, "creature/screech_%d.ogg" % k), 3.5)
-    for k in range(2): remaster(os.path.join(OUT, "jumpscare/js_hit_%d.ogg" % k), 3.0)
-    for k in range(2): remaster(os.path.join(OUT, "jumpscare/js_strings_%d.ogg" % k), 3.5)
+        remaster(os.path.join(OUT, "creature/scream_%d.ogg" % k), 1.8)
+        remaster(os.path.join(OUT, "creature/breath_%d.ogg" % k), 1.5)
+        remaster(os.path.join(OUT, "creature/far_%d.ogg" % k), 1.5)
+    for k in range(3): remaster(os.path.join(OUT, "creature/screech_%d.ogg" % k), 1.6)

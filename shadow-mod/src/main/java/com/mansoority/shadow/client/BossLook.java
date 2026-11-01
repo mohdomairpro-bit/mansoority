@@ -42,7 +42,21 @@ final class BossLook {
             pose.pushPose();
             pose.mulPoseMatrix(ShadowSkeleton.matrices(m)[head.index]);
             pose.translate(0F, 1.84F, 0.64F);
-            pose.mulPose(Axis.ZP.rotationDegrees(8F + 5F * Mth.sin(age * 0.2F)));
+            // alive in its teeth: it chews and worries at it, the blade bobbing and rocking; on a swing the blade
+            // drags behind the head as it whips round, then overshoots and settles
+            float el = b.actionAge(age);
+            float drag = 0F, pitch = 0F;
+            if (b.getAction() == MansoorityBoss.A_BLADE) {
+                if (el < 13F) drag = 14F * Mth.clamp(el / 10F, 0F, 1F);
+                else if (el < 17F) drag = 14F - 46F * (el - 13F) / 4F;
+                else drag = -32F * (float) Math.exp(-(el - 17F) / 5F) * Mth.cos((el - 17F) * 0.6F);
+                pitch = el > 13F && el < 24F ? -10F * Mth.sin((el - 13F) / 11F * Mth.PI) : 0F;
+            }
+            float chew = Mth.sin(age * 0.23F) * 3F + Mth.sin(age * 0.71F) * 1.2F;
+            pose.translate(0F, 0.012F * Mth.sin(age * 0.23F + 1F), 0F);
+            pose.mulPose(Axis.YP.rotationDegrees(drag + Mth.sin(age * 0.11F) * 2.5F));
+            pose.mulPose(Axis.XP.rotationDegrees(pitch + Mth.sin(age * 0.17F) * 1.5F));
+            pose.mulPose(Axis.ZP.rotationDegrees(8F + chew));
             Gear.bladeCrossways(pose, buf, light, 0.62F);          // huge: wider than its head
             pose.popPose();
         }

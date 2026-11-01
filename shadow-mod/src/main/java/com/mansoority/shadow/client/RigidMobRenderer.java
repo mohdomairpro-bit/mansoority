@@ -56,11 +56,18 @@ public abstract class RigidMobRenderer<T extends LivingEntity> extends EntityRen
         place(e, pose, pt);
         pose.scale(scale, scale, scale);
         int overlay = OverlayTexture.pack(OverlayTexture.u(0F), OverlayTexture.v(e.hurtTime > 0 || e.deathTime > 0));
-        m.draw(pose, buf, RenderType.entityCutoutNoCull(RigidMesh.PALETTE), RenderType.eyes(RigidMesh.PALETTE), light, overlay, 1F, 1F, 1F, 1F);
+        ResourceLocation tex = texture(mesh(e));
+        m.draw(pose, buf, RenderType.entityCutoutNoCull(tex), RenderType.eyes(tex), light, overlay, 1F, 1F, 1F, 1F);
         pose.popPose();
         super.render(e, yaw, pt, pose, buf, light);
     }
 
+    private static final java.util.Map<String, ResourceLocation> TEX = new java.util.HashMap<>();
+    /** each creature's own painted sheet (shadow-gear/mobs.py) */
+    static ResourceLocation texture(String mesh) {
+        return TEX.computeIfAbsent(mesh, n -> new ResourceLocation(com.mansoority.shadow.TheShadow.MODID, "textures/entity/" + n + "_cubes.png"));
+    }
+
     @Override
-    public ResourceLocation getTextureLocation(T e) { return RigidMesh.PALETTE; }
+    public ResourceLocation getTextureLocation(T e) { return texture(mesh(e)); }
 }

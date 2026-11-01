@@ -137,7 +137,9 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         double ex = Mth.lerp(partialTick, e.xo, e.getX()), ey = Mth.lerp(partialTick, e.yo, e.getY()), ez = Mth.lerp(partialTick, e.zo, e.getZ());
         double dist2 = camPos.distanceToSqr(ex, ey, ez);
         boolean shadowPass = ShaderCompat.shadowPass();
-        int lvl = e.getGrab() > 0 ? 0 : dist2 < 9 * 9 ? 0 : dist2 < 60 * 60 ? 1 : 2;      // it watches you from 30-45 blocks: keep it detailed there
+        if (shadowPass && dist2 > 48 * 48) return;              // a shadow that far off isn't worth drawing it twice
+        boolean blackForm = e instanceof com.mansoority.shadow.MansoorityBoss bf && bf.has(com.mansoority.shadow.MansoorityBoss.F_BLACK);
+        int lvl = e.getGrab() > 0 ? 0 : dist2 < 6 * 6 && !blackForm ? 0 : dist2 < 36 * 36 ? 1 : 2;
         if (shadowPass) lvl = 2;                                 // shader shadows only need the outline
         boolean far = lvl == 2;
         ShadowMesh mesh = ShadowMesh.level(lvl);
@@ -160,13 +162,13 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         // feet on the real ground (close enough to see it, standing on something)
         ShadowSkeleton.fk(mesh);
         boolean onWall = e instanceof com.mansoority.shadow.MansoorityBoss bb && bb.has(com.mansoority.shadow.MansoorityBoss.F_WALL);
-        if (e.animState instanceof ShadowAnim.State st && ShadowAnim.get() != null && dist2 < 64 * 64 && vt <= 0F && mc.level != null && !onWall) {
+        if (e.animState instanceof ShadowAnim.State st && ShadowAnim.get() != null && dist2 < 32 * 32 && !shadowPass && vt <= 0F && mc.level != null && !onWall) {
             if (!(e.legsState instanceof Legs.State)) e.legsState = new Legs.State();
             int contact = st.contact(ShadowAnim.get());
             int touched = Legs.update(mesh, (Legs.State) e.legsState, ShadowAnim.get(), st.cur, contact, mc.level, ex, ey, ez,
                     e.getX() - e.xo, e.getZ() - e.zo, bodyYaw, SCALE * grow, Math.max(0.05F, frameDt(e)), e.getGrab() <= 0 && e.getVehicle() == null);
             if (touched != 0) Footsteps.step(e, mesh, touched, ex, ey, ez, bodyYaw, SCALE * grow, dist2);
-        } else if (e.legsState instanceof Legs.State ls) { java.util.Arrays.fill(ls.has, false); }
+        } else if (!shadowPass && e.legsState instanceof Legs.State ls) { java.util.Arrays.fill(ls.has, false); }
         if (!shadowPass) hold(e, mesh, ex, ey, ez, bodyYaw, SCALE * grow);
         pose.pushPose();
         // two friends together never see it in the same place: while it's lurking, everyone else sees it somewhere else
@@ -202,7 +204,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
             else if (tl > 0.02F) rim(mesh, buffers.getBuffer(Types.RIM), (0.008F + 0.012F * tl) * SCALE * grow,
                     (int) (255 * tl), (int) ((black ? 50 : 235) * tl), (int) ((black ? 30 : 255) * tl));
         }
-        if (!shadowPass && lvl < 2 && dist2 < 40 * 40) Saliva.render(e, mesh, pose, buffers, light, age, ex, ey, ez, bodyYaw, SCALE * grow);
+        if (!shadowPass && lvl < 2 && dist2 < 24 * 24) Saliva.render(e, mesh, pose, buffers, light, age, ex, ey, ez, bodyYaw, SCALE * grow);
         if (boss != null) BossLook.inModel(boss, mesh, pose, buffers, light, age);
         pose.popPose();
         if (boss != null) BossLook.healthBar(boss, pose, buffers, this.entityRenderDispatcher.cameraOrientation(), this.getFont(), dist2);

@@ -12,9 +12,9 @@ parts = meshio.read_shd2(src)
 
 # per level: ratio for big islands, keep fraction for small islands
 LEVELS = {
-    'lod0': dict(big=0.40, head=0.52, small=1.0),
-    'lod1': dict(big=0.20, head=0.26, small=1.0),
-    'lod2': dict(big=0.085, head=0.10, small=0.5),
+    'lod0': dict(big=0.26, head=0.36, small=1.0, sdec=0.45, soft=0.45),
+    'lod1': dict(big=0.10, head=0.15, small=0.34, sdec=0.35, soft=0.22),
+    'lod2': dict(big=0.04, head=0.055, small=0.25, sdec=0.25, soft=0.1),
 }
 SMALL = 300
 
@@ -99,11 +99,15 @@ for lvl, cfg in LEVELS.items():
             if cfg['small'] >= 1 or (i % round(1 / cfg['small'])) == 0: keep_small |= (roots == r)
         keep_small &= ~big
         ratio = cfg['head'] if pt['name'] in ('head', 'jaw', 'jawR') else cfg['big']
-        if pt['name'].startswith('tongue') or pt['name'].startswith('eye'): ratio = max(ratio, 0.5 if lvl != 'lod2' else 0.25)
+        if pt['name'].startswith('tongue') or pt['name'].startswith('eye'): ratio = max(ratio, cfg['soft'])
         ps, ns, us, gs = [], [], [], []
         if big.any():
             dp, dn, du = decimate(P[big].reshape(-1, 3), U[big].reshape(-1, 2), ratio)
             ps.append(dp); ns.append(dn); us.append(du); gs.append(np.zeros(len(dp) // 3, bool))
+        if keep_small.any() and cfg.get('sdec', 1) < 1:          # the hair and spines: fewer segments each
+            dp, dn, du = decimate(P[keep_small].reshape(-1, 3), U[keep_small].reshape(-1, 2), cfg['sdec'])
+            ps.append(dp); ns.append(dn); us.append(du); gs.append(np.zeros(len(dp) // 3, bool))
+            keep_small = np.zeros(nt, bool)
         rest = keep_small | (G & True)
         if rest.any():
             ps.append(P[rest].reshape(-1, 3)); ns.append(N[rest].reshape(-1, 3)); us.append(U[rest].reshape(-1, 2)); gs.append(G[rest])

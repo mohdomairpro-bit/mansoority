@@ -199,7 +199,7 @@ public final class AutoTest {
                 if (g != null) sp.teleportTo(g.getX() + 0.5, g.getY(), g.getZ() + 0.5);
             }
         });
-        if (t == 5490 && ShadowRenderer.draws > 0) log(String.format("boss draw: %.2f ms per frame over %d frames", ShadowRenderer.nanos / 1e6 / ShadowRenderer.draws, ShadowRenderer.draws));
+        if (t == 5490 && ShadowRenderer.draws > 0) log(String.format("boss draw: %.2f ms per frame over %d frames, fps %d", ShadowRenderer.nanos / 1e6 / ShadowRenderer.draws, ShadowRenderer.draws, mc.getFps()));
         if (t == 5500) { mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
         if (t == 5520) shot(mc, "42_boss_third_person");
         if (t == 5530) mc.options.setCameraType(CameraType.FIRST_PERSON);

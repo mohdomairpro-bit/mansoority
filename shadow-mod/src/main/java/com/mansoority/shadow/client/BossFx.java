@@ -69,7 +69,7 @@ public final class BossFx {
             Ring g = RINGS.get(i);
             float rad = 2F + (tick - g.start) * g.speed;
             if (rad > g.max) { RINGS.remove(i); continue; }
-            int n = (int) Math.min(90, rad * 2.2F);
+            int n = (int) Math.min(40, rad * 1.2F);
             for (int k = 0; k < n; k++) {
                 double a = r.nextDouble() * Math.PI * 2;
                 double x = g.c.x + Math.cos(a) * rad, z = g.c.z + Math.sin(a) * rad;
@@ -77,7 +77,7 @@ public final class BossFx {
                 var st = mc.level.getBlockState(below);
                 if (st.isAir()) continue;
                 mc.level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, st), x, g.c.y + 0.1, z, Math.cos(a) * 0.15, 0.25 + r.nextDouble() * 0.2, Math.sin(a) * 0.15);
-                if (k % 4 == 0) mc.level.addParticle(ParticleTypes.LARGE_SMOKE, x, g.c.y + 0.3, z, 0, 0.05, 0);
+                if (k % 8 == 0) mc.level.addParticle(ParticleTypes.LARGE_SMOKE, x, g.c.y + 0.3, z, 0, 0.05, 0);
             }
         }
         // where it's about to land: a red circle, pulsing faster as it comes
@@ -86,8 +86,8 @@ public final class BossFx {
             if (tick > m.until) { MARKS.remove(i); continue; }
             int left = m.until - tick;
             if (left > 10 && tick % (left > 30 ? 4 : 2) != 0) continue;
-            for (int k = 0; k < 40; k++) {
-                double a = k / 40.0 * Math.PI * 2;
+            for (int k = 0; k < 24; k++) {
+                double a = k / 24.0 * Math.PI * 2;
                 mc.level.addParticle(new DustParticleOptions(new Vector3f(0.85F, 0.05F, 0.05F), 2.0F), m.c.x + Math.cos(a) * m.r, m.c.y + 0.15, m.c.z + Math.sin(a) * m.r, 0, 0, 0);
             }
         }
@@ -130,6 +130,7 @@ public final class BossFx {
         for (Entity e : mc.level.entitiesForRendering())
             if (e instanceof MansoorityBoss b && b.distanceToSqr(mc.player) < 150 * 150 && !b.showcase) { boss = b; break; }
         int want = boss == null || boss.has(MansoorityBoss.F_INTRO) || boss.has(MansoorityBoss.F_FAKEDEAD) ? 0 : boss.getPhase();
+        if (playing != null && !mc.getSoundManager().isActive(playing) && playing.target > 0F) { playing = null; playingPhase = 0; }   // got cut off (a scare, /stopsound): start it again
         if (want == playingPhase && (playing == null) == (want == 0)) {
             if (playing != null) mc.getMusicManager().stopPlaying();
             return;

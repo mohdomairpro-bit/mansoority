@@ -157,6 +157,8 @@ public class MansoorityBoss extends ShadowEntity {
     public void beginSteal(EnderDragon d, SpikeFeature.EndSpike sp) {
         prey = d; pillar = sp; stealT = 0; flag(F_INTRO, true); flag(F_HIDE, true); this.setNoGravity(true); this.noPhysics = true;
     }
+    /** waiting in a pillar for this dragon (its kill: nobody else can finish it) */
+    public boolean stealing(EnderDragon d) { return stealT >= 0 && prey == d; }
     public void restoreHp(float hp) { this.setHealth(Math.max(1F, Math.min(MAX_HP, hp))); }
 
     /** test hooks (CI screenshots and /shadow bossdebug): skip the intro, force a move, jump to a phase */
@@ -956,6 +958,7 @@ public class MansoorityBoss extends ShadowEntity {
             sound(ShadowRegistry.SLAM, 9F, 0.5F); sound(ShadowRegistry.ROAR, 9F, 0.7F);
             shake(near, 3.2F);
             flag(F_HIDE, false);
+            flag(F_BLADE, true);                                               // it comes out with the blade in its teeth
             Vec3 out = c.add(dir.scale(2.5)).add(0, -6, 0);
             this.setPos(out.x, out.y, out.z);
             float yaw = (float) (Mth.atan2(dir.z, dir.x) * (180F / Math.PI)) - 90F;
@@ -969,29 +972,47 @@ public class MansoorityBoss extends ShadowEntity {
             if (prey != null && prey.isAlive()) face(prey);
             return;
         }
-        if (stealT == 108) { moveFrom = this.position(); sound(ShadowRegistry.SCREECH, 8F, 0.8F); act(A_SLAM); actionT = 22; }
-        if (stealT < 125 && prey != null && prey.isAlive()) {                 // the leap
-            double u = (stealT - 108) / 16.0;
-            Vec3 p = moveFrom.lerp(prey.position(), u);
-            this.setPos(p.x, p.y + Math.sin(u * Math.PI) * 6, p.z);
+        if (stealT == 108) { moveFrom = this.position(); sound(ShadowRegistry.SCREECH, 8F, 0.8F); act(A_BLADE); }   // the swing lands as the leap does (k 17)
+        if (stealT < 125 && prey != null && prey.isAlive()) {                 // the leap, at the dragon's neck
+            double u = (stealT - 108) / 17.0;
+            Vec3 tgt = prey.head.position().add(prey.position()).scale(0.5);
+            Vec3 p = moveFrom.lerp(tgt.add(0, -5, 0), u);
+            this.setPos(p.x, p.y + Math.sin(u * Math.PI) * 7, p.z);
             face(prey);
             return;
         }
-        if (stealT == 125 || (stealT < 125 && (prey == null || !prey.isAlive()))) {   // it bites the dragon's head off
+        if (stealT == 125 || (stealT < 125 && (prey == null || !prey.isAlive()))) {   // one cut: the dragon's head comes off
             stealT = 125;
-            sound(ShadowRegistry.CRUNCH, 8F, 0.5F);
-            sound(ShadowRegistry.ROAR, 8F, 0.7F);
             if (prey != null && prey.isAlive()) {
+                Vec3 hp = prey.head.position();
+                Vec3 fwd = Vec3.directionFromRotation(0, this.getYRot());
+                Vec3 side = new Vec3(-fwd.z, 0, fwd.x);
+                for (int i = 0; i <= 28; i++) {                              // the arc of the cut
+                    double a = -1.3 + i * 0.1;
+                    Vec3 q = hp.add(side.scale(Math.cos(a) * 5)).add(0, Math.sin(a) * 5, 0);
+                    sl.sendParticles(ParticleTypes.SWEEP_ATTACK, q.x, q.y, q.z, 1, 0, 0, 0, 0);
+                }
+                sl.sendParticles(ParticleTypes.DRAGON_BREATH, hp.x, hp.y, hp.z, 160, 1.5, 1.2, 1.5, 0.12);
+                sl.sendParticles(ParticleTypes.CRIT, hp.x, hp.y, hp.z, 60, 1.2, 1.2, 1.2, 0.6);
+                sl.sendParticles(ShadowRegistry.WISP.get(), hp.x, hp.y, hp.z, 60, 1.5, 1.5, 1.5, 0.1);
+                sl.playSound(null, BlockPos.containing(hp), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.HOSTILE, 8F, 0.45F);
+                sl.playSound(null, BlockPos.containing(hp), SoundEvents.ENDER_DRAGON_HURT, SoundSource.HOSTILE, 8F, 0.6F);
+                for (ServerPlayer p : sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(160)))
+                    ShadowNet.send(p, new FxPacket(FxPacket.HITSTOP, 320, 1.0, 0, 0, this.getId(), 2));      // the whole world stops for a beat
                 prey.hurt(prey.head, this.damageSources().mobAttack(this), 10000F);
                 if (prey.isAlive()) prey.setHealth(0F);
             }
-            shake(near, 3F);
+            sound(ShadowRegistry.CRUNCH, 8F, 0.5F);
+            sound(ShadowRegistry.ROAR, 8F, 0.7F);
+            shake(near, 4F);
             this.noPhysics = false; this.setNoGravity(false);
-            act(A_NONE);
             return;
         }
         if (stealT > 125 && (this.onGround() || stealT > 340)) {              // landed on the island: the introduction
             stealT = -1;
+            flag(F_BLADE, false); act(A_NONE);                                 // the blade sinks back into the dark, for now
+            Vec3 hd = headPos();
+            sl.sendParticles(ShadowRegistry.WISP.get(), hd.x, hd.y, hd.z, 80, 1.2, 0.6, 1.2, 0.05);
             if (this.getY() < 30 || !onIsland(sl, this.getX(), this.getZ(), 4)) islandGuard(sl);
             sound(ShadowRegistry.SLAM, 7F, 0.7F);
             beginIntro();
