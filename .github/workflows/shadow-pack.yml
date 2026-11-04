@@ -42,11 +42,11 @@ jobs:
 
       - name: Install Forge and the pack
         run: |
-          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q portablemc
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q 'portablemc>=4.4,<5'
           VER=$(gh release list -R ${{ github.repository }} --limit 50 --json tagName -q '[.[] | select(.tagName | test("^v[0-9]+$"))] | sort_by(.tagName | ltrimstr("v") | tonumber) | last | .tagName')
           echo "pack $VER"
           mkdir -p /tmp/pack && gh release download "$VER" -R ${{ github.repository }} -p Mansoority.mrpack -D /tmp/pack
-          unzip -q -o /tmp/pack/Mansoority.mrpack -d /tmp/pack/mr
+          unzip -q -o /tmp/pack/Mansoority.mrpack -d /tmp/pack/mr && chmod -R u+rwX /tmp/pack/mr
           FORGE=$(python3 -c "import json;d=json.load(open('/tmp/pack/mr/modrinth.index.json'))['dependencies'];print(d['minecraft']+'-'+d['forge'])")
           echo "FORGE=$FORGE" >> $GITHUB_ENV
           /tmp/venv/bin/portablemc --main-dir "$MC" --work-dir "$MC" start --dry "forge:$FORGE" 2>&1 | tail -5
