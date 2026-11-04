@@ -645,6 +645,11 @@ def stun(f):
     return p
 
 
+# the stalker's procedural clips get the same overlapping action as the hand-keyed boss moves
+DRAG = {"idle": 1.0, "peek": 1.0, "walk": 0.8, "crawl": 0.8, "stareA": 1.2, "neck": 1.2, "fold": 0.8, "scuttle": 0.5,
+        "grab": 0.7, "lick": 1.0, "boss_idle": 1.0, "boss_walk": 0.8, "slam": 0.8, "climb": 0.8, "perch": 1.0, "intro_stare": 1.2}
+
+
 def bake():
     out = {}
     for name, (frames, loop, speed, fn) in CLIPS.items():
@@ -652,6 +657,12 @@ def bake():
         n = frames + 1
         for f in range(n):
             p = fn(f % frames if loop else f)
+            if name in DRAG:                              # follow-through: the head, jaw and tongue trail the body a few frames
+                for bn in ("head", "jaw", "jawR") + tuple("tongue%d" % i for i in range(6)):
+                    if bn not in ORDER or bn not in LAG: continue
+                    g = f - LAG[bn] * DRAG[name]
+                    g = g % frames if loop else max(0.0, g)
+                    p.r[bn] = fn(g).r[bn]
             pose = p.solve()
             row = []
             for b in ORDER:

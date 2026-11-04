@@ -58,7 +58,7 @@ public class MansoorityBoss extends ShadowEntity {
             A_CHARGE = 16, A_CLIMB = 17, A_SIGNATURE = 18, A_BLINK = 19, A_STEAL = 20, A_RETREAT = 21, A_FETCH = 22, A_SUMMON = 23;
     /** form flags */
     public static final int F_BLADE = 1, F_BLACK = 2, F_JAW = 4, F_BELLY = 8, F_WALL = 16, F_FAKEDEAD = 32, F_INTRO = 64, F_BLADE_OUT = 128,
-            F_HIDE = 256, F_PORTAL = 512;
+            F_HIDE = 256, F_PORTAL = 512, F_ENRAGED = 1024;
 
     /** live bosses (weak): their bars are dropped for anyone who leaves the dimension */
     public static final java.util.Set<MansoorityBoss> LIVE = java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
@@ -157,6 +157,10 @@ public class MansoorityBoss extends ShadowEntity {
     public void beginSteal(EnderDragon d, SpikeFeature.EndSpike sp) {
         prey = d; pillar = sp; stealT = 0; flag(F_INTRO, true); flag(F_HIDE, true); this.setNoGravity(true); this.noPhysics = true;
     }
+    /** you can hit it where you see it: those arms reach far past its middle */
+    @Override
+    public float getPickRadius() { return has(F_HIDE) ? 0F : 1.6F; }
+
     /** waiting in a pillar for this dragon (its kill: nobody else can finish it) */
     public boolean stealing(EnderDragon d) { return stealT >= 0 && prey == d; }
     public void restoreHp(float hp) { this.setHealth(Math.max(1F, Math.min(MAX_HP, hp))); }
@@ -244,6 +248,8 @@ public class MansoorityBoss extends ShadowEntity {
         int ph = getPhase();
         attackCd = ph == 1 ? 64 : ph == 2 ? 32 : 30;
         if (ph >= 2 && this.random.nextFloat() < 0.45F) attackCd = 6;            // phase two+: straight into the next one
+        if (near.size() > 1) attackCd = Math.max(4, attackCd - 8 * (near.size() - 1));   // more of you, less rest between blows
+        if (has(F_ENRAGED)) attackCd = Math.max(3, attackCd / 2);                // at the very end it doesn't stop
         double d = focus.distanceTo(this);
         if (ph == 3 && has(F_BLADE_OUT)) { act(A_FETCH); return; }               // first it wants its blade back
         if (signatureCd <= 0 && this.random.nextFloat() < 0.6F) { signatureCd = 1100 - ph * 150; startSignature(sl); return; }
@@ -1238,7 +1244,16 @@ public class MansoorityBoss extends ShadowEntity {
             if (stunCd <= 0 && a != A_CHEW && a != A_SIGNATURE) { stunCd = 300; release(sl, null); setVanishTick(0); act(A_STUN); sound(ShadowRegistry.ROAR, 5F, 1.4F); }
             sl.sendParticles(ParticleTypes.CRIT, hp.x, hp.y, hp.z, 20, 0.6, 0.6, 0.6, 0.4);
         } else if (head) amount *= 1.25F;
+        // two of you hit twice as often: it soaks a share of that, so the fight stays as long and as hard
+        int fighters = sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(64), q -> !q.isCreative() && !q.isSpectator()).size();
+        if (fighters > 1) amount /= 1F + 0.45F * (fighters - 1);
         this.setHealth(this.getHealth() - amount);
+        if (getPhase() == 3 && fakeDone && !has(F_ENRAGED) && this.getHealth() < MAX_HP * 0.15F && this.getHealth() > 0F) {
+            flag(F_ENRAGED, true);                                               // the last stretch: it goes berserk
+            sound(ShadowRegistry.ROAR, 9F, 0.6F); shake(sl.getEntitiesOfClass(ServerPlayer.class, this.getBoundingBox().inflate(96)), 3F);
+            line(sl, 9);
+            if (getAction() == A_NONE) act(A_ROAR);
+        }
         recent.add(new float[]{t, amount});
         recent.removeIf(r -> t - r[0] > 100);
         float sum = 0; for (float[] r : recent) sum += r[1];

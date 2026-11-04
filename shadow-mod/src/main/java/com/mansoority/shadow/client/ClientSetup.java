@@ -17,6 +17,7 @@ public final class ClientSetup {
         modBus.addListener(ClientSetup::onParticles);
         modBus.addListener(ClientSetup::onLayers);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onClientTick);
+        MinecraftForge.EVENT_BUS.addListener(Perf::register);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onCamera);
         MinecraftForge.EVENT_BUS.addListener(ClientFx::onFov);
         MinecraftForge.EVENT_BUS.addListener(RingRenderer::onRenderLevel);

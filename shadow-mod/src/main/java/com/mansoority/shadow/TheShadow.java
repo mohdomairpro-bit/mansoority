@@ -30,6 +30,7 @@ public class TheShadow {
         bus.addListener(this::onAttributes);
         bus.addListener(this::onSetup);
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ShadowConfig.SPEC);
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ShadowConfig.CLIENT_SPEC);
         MinecraftForge.EVENT_BUS.register(new ShadowEvents());
         MinecraftForge.EVENT_BUS.register(new ShadowTrails());
         if (Boolean.getBoolean("theshadow.servertest")) MinecraftForge.EVENT_BUS.addListener(ServerSmokeTest::onServerTick);

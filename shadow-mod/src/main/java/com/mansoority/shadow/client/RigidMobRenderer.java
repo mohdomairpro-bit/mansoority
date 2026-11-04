@@ -40,6 +40,11 @@ public abstract class RigidMobRenderer<T extends LivingEntity> extends EntityRen
 
     @Override
     public void render(T e, float yaw, float pt, PoseStack pose, MultiBufferSource buf, int light) {
+        long t0 = System.nanoTime();
+        try { render0(e, yaw, pt, pose, buf, light); } finally { Perf.mobNanos += System.nanoTime() - t0; Perf.mobDraws++; }
+    }
+
+    private void render0(T e, float yaw, float pt, PoseStack pose, MultiBufferSource buf, int light) {
         RigidMesh m = RigidMesh.load(mesh(e));
         if (m == null) return;
         m.reset();

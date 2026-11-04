@@ -41,5 +41,15 @@ public final class ShadowConfig {
         SPEC = b.build();
     }
 
+    /** each player's own (config/theshadow-client.toml): how loud the scares are on this machine */
+    public static final ForgeConfigSpec CLIENT_SPEC;
+    public static final ForgeConfigSpec.DoubleValue SCARE_VOLUME;
+    static {
+        ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
+        SCARE_VOLUME = b.comment("Volume of the scare sounds (jumpscare, stingers, whispers, its breathing), 0 to 1. The rest of the game is untouched.")
+                .defineInRange("scareVolume", 1.0D, 0.0D, 1.0D);
+        CLIENT_SPEC = b.build();
+    }
+
     private ShadowConfig() {}
 }

@@ -92,7 +92,9 @@ public final class ClientFx {
     private static boolean riserPlayed;
 
     private static void ui(SoundEvent s, float volume, float pitch) {
-        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(s, pitch, volume));
+        float k = (float) (double) com.mansoority.shadow.ShadowConfig.SCARE_VOLUME.get();
+        if (k <= 0.001F) return;
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(s, pitch, volume * k));
     }
 
     private record Echo(SoundEvent s, double x, double y, double z, float v, float p, int at) {}
@@ -115,7 +117,7 @@ public final class ClientFx {
             from = hit.getLocation().add(src.subtract(hit.getLocation()).normalize().scale(1.05));
             if (from.distanceToSqr(src) < 1) break;
         }
-        float v = volume * (float) Math.pow(0.55, walls), pch = pitch * (1F - 0.06F * walls);
+        float v = volume * (float) Math.pow(0.55, walls) * (float) (double) com.mansoority.shadow.ShadowConfig.SCARE_VOLUME.get(), pch = pitch * (1F - 0.06F * walls);
         mc.getSoundManager().play(new SimpleSoundInstance(s, SoundSource.HOSTILE, v, pch, RandomSource.create(), x, y, z));
         boolean cave = !mc.level.canSeeSky(mc.player.blockPosition()) && mc.player.getY() < 62;
         if (cave) {                                       // the tunnels throw it back at you
@@ -181,6 +183,7 @@ public final class ClientFx {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         BladeAura.tick(Minecraft.getInstance());
+        Perf.tick(Minecraft.getInstance());
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) { js = -1; seq = -1; stare = 0; lightsOut = 0; return; }
         if (mc.isPaused()) return;

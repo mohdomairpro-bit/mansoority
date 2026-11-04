@@ -159,6 +159,10 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         boolean black = boss != null && boss.has(com.mansoority.shadow.MansoorityBoss.F_BLACK);
         if (black) tint = 46;                                   // the thing that tore out of it: black, with red eyes
         glowR = 255; glowG = black ? 40 : 255; glowB = black ? 30 : 255;
+        if (boss != null && boss.has(com.mansoority.shadow.MansoorityBoss.F_ENRAGED)) {     // berserk: its eyes and glow throb hot red
+            float th = 0.5F + 0.5F * Mth.sin(age * 0.6F);
+            glowG = (int) (20 + 60 * th); glowB = (int) (10 + 20 * th);
+        }
         // feet on the real ground (close enough to see it, standing on something)
         ShadowSkeleton.fk(mesh);
         boolean onWall = e instanceof com.mansoority.shadow.MansoorityBoss bb && bb.has(com.mansoority.shadow.MansoorityBoss.F_WALL);
