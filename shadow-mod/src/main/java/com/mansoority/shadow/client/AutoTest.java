@@ -274,6 +274,8 @@ public final class AutoTest {
         if (t == 5584) server.execute(() -> {                               // clear anything left over from the fight, stand facing south
             ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
             s3p.removeAllEffects();
+            s3p.stopRiding();
+            com.mansoority.shadow.ShadowCinematic.camFor(s3p, com.mansoority.shadow.ShadowCinematic.OFF, 0, 0, 0, null, -1);
             s3p.serverLevel().setDayTime(6000);
             net.minecraft.core.BlockPos sp0 = s3p.serverLevel().getSharedSpawnPos();
             s3p.teleportTo(s3p.serverLevel(), sp0.getX() + 0.5, 262, sp0.getZ() + 0.5, 0F, 22F);
@@ -294,6 +296,10 @@ public final class AutoTest {
             mc.options.setCameraType(CameraType.FIRST_PERSON); mc.options.hideGui = true;
             if (mc.player != null) { mc.player.setYRot(0F); mc.player.yRotO = 0F; mc.player.setXRot(22F); mc.player.xRotO = 22F; mc.player.setYHeadRot(0F); }
         }
+        if (t == 5586) CinematicCam.onLogout();                              // whatever camera the fight left behind
+        if (t == 5593 && mc.player != null) log(String.format("view: cine=%s pos=%.1f,%.1f,%.1f rot=%.0f,%.0f pose=%s riding=%s cam=%s",
+                CinematicCam.active(), mc.player.getX(), mc.player.getY(), mc.player.getZ(), mc.player.getYRot(), mc.player.getXRot(),
+                mc.player.getPose(), mc.player.isPassenger(), mc.gameRenderer.getMainCamera().getPosition()));
         if (t == 5594) shot(mc, "45_pale_spiders");
         if (t == 5595) server.execute(() -> {                               // and how they die
             ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
