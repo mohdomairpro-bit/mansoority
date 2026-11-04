@@ -1,0 +1,112 @@
+name: Pack test (the real Mansoority modpack)
+# the mod inside the actual pack the server plays with (every mod from the latest Mansoority.mrpack, Oculus with
+# Complementary Reimagined on), launched like a player would: a real Forge install, not the dev environment.
+# catches clashes with other mods and shows what the fight looks like with the pack's shaders.
+on:
+  workflow_dispatch:
+  push:
+    branches: [shadow-mod]
+    paths: ['shadow-mod/**', '.github/workflows/shadow-pack.yml']
+concurrency:
+  group: shadow-pack
+  cancel-in-progress: true
+permissions:
+  contents: write
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MC: ${{ github.workspace }}/mc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+
+      - name: Build the mod and make a test world
+        working-directory: shadow-mod
+        run: |
+          gradle build --no-daemon -q
+          ls -la build/libs
+          mkdir -p run
+          echo "eula=true" > run/eula.txt
+          printf "view-distance=4\nsimulation-distance=4\nspawn-protection=0\nonline-mode=false\n" > run/server.properties
+          timeout 900 gradle runServer --no-daemon > server.log 2>&1 || true
+          ls run/world
+
+      - name: Install Forge and the pack
+        run: |
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q portablemc
+          VER=$(gh release list -R ${{ github.repository }} --limit 50 --json tagName -q '[.[] | select(.tagName | test("^v[0-9]+$"))] | sort_by(.tagName | ltrimstr("v") | tonumber) | last | .tagName')
+          echo "pack $VER"
+          mkdir -p /tmp/pack && gh release download "$VER" -R ${{ github.repository }} -p Mansoority.mrpack -D /tmp/pack
+          unzip -q -o /tmp/pack/Mansoority.mrpack -d /tmp/pack/mr
+          FORGE=$(python3 -c "import json;d=json.load(open('/tmp/pack/mr/modrinth.index.json'))['dependencies'];print(d['minecraft']+'-'+d['forge'])")
+          echo "FORGE=$FORGE" >> $GITHUB_ENV
+          /tmp/venv/bin/portablemc --main-dir "$MC" --work-dir "$MC" start --dry "forge:$FORGE" 2>&1 | tail -5
+          python3 - <<'EOF'
+          import json, os, urllib.request, shutil
+          mc = os.environ["MC"]; d = json.load(open("/tmp/pack/mr/modrinth.index.json"))
+          for f in d["files"]:
+              if f.get("env", {}).get("client") == "unsupported": continue
+              if "DistantHorizons" in f["path"]: continue          # LOD generation would swamp a CPU-only runner
+              out = os.path.join(mc, f["path"]); os.makedirs(os.path.dirname(out), exist_ok=True)
+              urllib.request.urlretrieve(f["downloads"][0], out)
+          ov = "/tmp/pack/mr/overrides"
+          for name in os.listdir(ov):
+              if name.startswith("Distant_Horizons"): continue
+              src = os.path.join(ov, name); dst = os.path.join(mc, name)
+              if os.path.isdir(src): shutil.copytree(src, dst, dirs_exist_ok=True)
+              else: shutil.copy(src, dst)
+          for j in os.listdir(os.path.join(mc, "mods")):
+              if j.lower().startswith("theshadow"): os.remove(os.path.join(mc, "mods", j))
+          # a sane test setup on top of the pack's own options
+          p = os.path.join(mc, "options.txt"); lines = open(p).read().splitlines() if os.path.exists(p) else []
+          want = {"pauseOnLostFocus": "false", "renderDistance": "8", "simulationDistance": "6", "onboardAccessibility": "false",
+                  "tutorialStep": "none", "narrator": "0", "fullscreen": "false", "maxFps": "260", "enableVsync": "false",
+                  "skipMultiplayerWarning": "true", "joinedFirstServer": "true"}
+          keep = [l for l in lines if l.split(":")[0] not in want]
+          open(p, "w").write("\n".join(keep + ["%s:%s" % kv for kv in want.items()]) + "\n")
+          os.makedirs(os.path.join(mc, "config"), exist_ok=True)
+          sp = [s for s in os.listdir(os.path.join(mc, "shaderpacks")) if s.lower().startswith("complementaryreimagined")]
+          open(os.path.join(mc, "config", "oculus.properties"), "w").write("enableShaders=true\nshaderPack=%s\n" % (sp[0] if sp else ""))
+          print("mods:", len(os.listdir(os.path.join(mc, "mods"))), "shader:", sp)
+          EOF
+          cp $(ls shadow-mod/build/libs/theshadow-*.jar | grep -v sources | head -1) "$MC/mods/"
+          mkdir -p "$MC/saves" && rm -rf "$MC/saves/autotest" && cp -r shadow-mod/run/world "$MC/saves/autotest"
+          ls "$MC/mods" | wc -l
+
+      - name: Play it
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-utils > /dev/null
+          export LIBGL_ALWAYS_SOFTWARE=1
+          timeout 5400 xvfb-run -a -s "-screen 0 1280x720x24" /tmp/venv/bin/portablemc --main-dir "$MC" --work-dir "$MC" start "forge:$FORGE" \
+            -u Tester --resolution 1280x720 "--jvm-args=-Xmx7G -Dtheshadow.autotest=true -Dtheshadow.autotest.world=autotest" > pack_client.log 2>&1 || true
+          tail -30 pack_client.log
+          cp "$MC/logs/latest.log" pack_latest.log 2>/dev/null || true
+          grep -a "SHADOW-AUTOTEST" pack_latest.log | tail -40 || true
+
+      - name: Collect
+        if: always()
+        run: |
+          mkdir -p pack_shots && cp "$MC"/screenshots/*.png pack_shots/ 2>/dev/null || true
+          cp -r "$MC/crash-reports" pack_crash 2>/dev/null || true
+          zip -q -r pack_results.zip pack_shots pack_crash pack_latest.log pack_client.log shadow-mod/server.log 2>/dev/null || true
+          ls -la pack_results.zip
+      - name: Publish
+        if: always()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: shadow-pack-test
+          name: The Shadow inside the real pack (auto test)
+          prerelease: true
+          make_latest: false
+          body: "The mod tested inside the latest Mansoority pack with Oculus + Complementary. Commit ${{ github.sha }}."
+          files: pack_results.zip

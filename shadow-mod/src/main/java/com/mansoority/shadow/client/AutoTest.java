@@ -20,6 +20,7 @@ import net.minecraftforge.event.TickEvent;
  */
 public final class AutoTest {
     private static int t = -1;
+    private static boolean opened;
     private static float sideYaw;
 
     public static boolean enabled() {
@@ -29,8 +30,15 @@ public final class AutoTest {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
+        // a real launcher can't quick-play into a world: open it from the title screen ourselves
+        String world = System.getProperty("theshadow.autotest.world");
+        if (world != null && !opened && mc.level == null && mc.screen instanceof net.minecraft.client.gui.screens.TitleScreen) {
+            opened = true; log("opening world " + world);
+            mc.createWorldOpenFlows().loadLevel(mc.screen, world);
+        }
         if (mc.player == null || mc.level == null || mc.getSingleplayerServer() == null) return;
         t++;
+        if (t % 200 == 0) log("fps " + mc.getFps() + " at t=" + t);
         MinecraftServer server = mc.getSingleplayerServer();
 
         if (t == 1) log("in world");
@@ -260,13 +268,40 @@ public final class AutoTest {
                 s3w.addFreshEntity(s3e);
             }
         });
-        if (t == 5560) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); }
+        if (t == 5560) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); if (mc.player != null) { mc.player.setXRot(4F); mc.player.xRotO = 4F; } }
         if (t == 5575) shot(mc, "44_shade_armour");
         if (t == 5580) mc.options.setCameraType(CameraType.FIRST_PERSON);
-        if (t == 5588 && mc.player != null) {                                // face the row of new mobs
-            float yaw = 0F; mc.player.setYRot(yaw); mc.player.yRotO = yaw; mc.player.setXRot(18F); mc.player.xRotO = 18F; mc.player.setYHeadRot(yaw);
+        if (t == 5584) server.execute(() -> {                               // clear anything left over from the fight, stand facing south
+            ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
+            s3p.removeAllEffects();
+            s3p.serverLevel().setDayTime(6000);
+            net.minecraft.core.BlockPos sp0 = s3p.serverLevel().getSharedSpawnPos();
+            s3p.teleportTo(s3p.serverLevel(), sp0.getX() + 0.5, 262, sp0.getZ() + 0.5, 0F, 22F);
+        });
+        if (t == 5590) server.execute(() -> {                               // every new mob in a row, right in front of the camera
+            ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
+            var mobs = s3p.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.Mob.class, s3p.getBoundingBox().inflate(30),
+                    m -> m instanceof com.mansoority.shadow.PaleSpider || m instanceof com.mansoority.shadow.HollowHusk || m instanceof com.mansoority.shadow.Scavenger);
+            int i = 0;
+            for (var mob : mobs) {
+                double x = s3p.getX() - 2.7 + i * 1.8, z = s3p.getZ() + 4.2 + (i % 2) * 0.6;
+                mob.moveTo(x, 262, z, 180F, 0F); mob.setYHeadRot(180F); mob.yBodyRot = 180F; mob.yBodyRotO = 180F;
+                i++;
+            }
+            log("mob row: " + i);
+        });
+        if (t == 5588 || t == 5592) {                                        // the client view, in case the teleport's rotation didn't land
+            mc.options.setCameraType(CameraType.FIRST_PERSON); mc.options.hideGui = true;
+            if (mc.player != null) { mc.player.setYRot(0F); mc.player.yRotO = 0F; mc.player.setXRot(22F); mc.player.xRotO = 22F; mc.player.setYHeadRot(0F); }
         }
-        if (t == 5595) shot(mc, "45_pale_spiders");
+        if (t == 5594) shot(mc, "45_pale_spiders");
+        if (t == 5595) server.execute(() -> {                               // and how they die
+            ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
+            for (var mob : s3p.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.Mob.class, s3p.getBoundingBox().inflate(30),
+                    m -> m instanceof com.mansoority.shadow.PaleSpider || m instanceof com.mansoority.shadow.HollowHusk))
+                mob.hurt(s3p.damageSources().playerAttack(s3p), 1000F);
+        });
+        if (t == 5599) shot(mc, "45b_mob_deaths");
         if (t == 5600) server.execute(() -> {
             ServerPlayer s3p = server.getPlayerList().getPlayers().get(0);
             var s3src = server.createCommandSourceStack().withPermission(4).withSuppressedOutput().withLevel(s3p.serverLevel());
