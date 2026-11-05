@@ -65,7 +65,8 @@ jobs:
               if os.path.isdir(src): shutil.copytree(src, dst, dirs_exist_ok=True)
               else: shutil.copy(src, dst)
           for j in os.listdir(os.path.join(mc, "mods")):
-              if j.lower().startswith("theshadow"): os.remove(os.path.join(mc, "mods", j))
+              # our own old copy, and Simple Login: its set-a-password screen would cover every screenshot
+              if j.lower().startswith("theshadow") or j.lower().startswith("simplelogin"): os.remove(os.path.join(mc, "mods", j))
           # a sane test setup on top of the pack's own options
           p = os.path.join(mc, "options.txt"); lines = open(p).read().splitlines() if os.path.exists(p) else []
           want = {"pauseOnLostFocus": "false", "renderDistance": "8", "simulationDistance": "6", "onboardAccessibility": "false",

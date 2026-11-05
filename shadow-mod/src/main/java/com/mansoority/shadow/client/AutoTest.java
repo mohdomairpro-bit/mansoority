@@ -193,7 +193,7 @@ public final class AutoTest {
         if (t == 4135) shot(mc, "24_boss_intro_wide");
         if (t == 4330) shot(mc, "25_boss_intro_face");
         if (t == 4400) boss(server, "skipintro");
-        if (t > 4400 && t < 5700 && t % 7 == 0) lookNear(mc, 0F);
+        if (t > 4400 && t < 5540 && t % 7 == 0) lookNear(mc, 0F);       // (stops before the mob and armour shots: it was pointing those at the ground)
         String[][] seq = {{"4420", "act:" + com.mansoority.shadow.MansoorityBoss.A_SLAM}, {"4520", "act:" + com.mansoority.shadow.MansoorityBoss.A_SPRAY},
                 {"4630", "act:" + com.mansoority.shadow.MansoorityBoss.A_SPIKES}, {"4720", "act:" + com.mansoority.shadow.MansoorityBoss.A_BITE},
                 {"4830", "phase2"}, {"4930", "act:" + com.mansoority.shadow.MansoorityBoss.A_BLADE}, {"5000", "signature"},
