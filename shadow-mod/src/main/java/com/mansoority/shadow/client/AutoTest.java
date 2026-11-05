@@ -21,6 +21,7 @@ import net.minecraftforge.event.TickEvent;
 public final class AutoTest {
     private static int t = -1;
     private static boolean opened;
+    private static int menuTicks;
     private static float sideYaw;
 
     public static boolean enabled() {
@@ -32,9 +33,16 @@ public final class AutoTest {
         Minecraft mc = Minecraft.getInstance();
         // a real launcher can't quick-play into a world: open it from the title screen ourselves
         String world = System.getProperty("theshadow.autotest.world");
-        if (world != null && !opened && mc.level == null && mc.screen instanceof net.minecraft.client.gui.screens.TitleScreen) {
-            opened = true; log("opening world " + world);
-            mc.createWorldOpenFlows().loadLevel(mc.screen, world);
+        if (world != null && !opened && mc.level == null) {
+            menuTicks++;
+            if (menuTicks % 100 == 0) log("menu: " + (mc.screen == null ? "none" : mc.screen.getClass().getName()));
+            // other mods put their own screens up first (welcome pages, onboarding): give it a few seconds, then go anyway
+            boolean title = mc.screen instanceof net.minecraft.client.gui.screens.TitleScreen;
+            if ((title && menuTicks > 40) || menuTicks > 300) {
+                opened = true; log("opening world " + world + " from " + (mc.screen == null ? "none" : mc.screen.getClass().getName()));
+                mc.setScreen(new net.minecraft.client.gui.screens.TitleScreen());
+                mc.createWorldOpenFlows().loadLevel(mc.screen, world);
+            }
         }
         if (mc.player == null || mc.level == null || mc.getSingleplayerServer() == null) return;
         t++;
