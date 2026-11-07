@@ -131,9 +131,15 @@ public class MansoorityBoss extends ShadowEntity {
             boolean fresh = clientSeq != getActionSeq();
             clientSeq = getActionSeq(); clientStart = st;
             float behind = Mth.clamp((float) (this.level().getGameTime() - st), 0F, 2400F);
-            if (fresh && behind < 3F) behind = 0F;
+            if (fresh && behind < 1.5F) behind = 0F;
             clientActionStart = age - behind;
         }
+        // keep every client on the server's schedule: if this one has drifted from (server ticks since the move
+        // started), ease it back - a little each frame, so it never jumps (the two-player test showed 3-4 tick drifts)
+        float local = age - clientActionStart;
+        float want = (float) (this.level().getGameTime() - st) + (age - (float) Math.floor(age));
+        float err = local - want;
+        if (Math.abs(err) > 0.75F && Math.abs(err) < 40F) clientActionStart += err * 0.08F;
         return age - clientActionStart;
     }
     private void syncClock() {
