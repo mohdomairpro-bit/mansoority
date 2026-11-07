@@ -184,6 +184,7 @@ public final class ClientFx {
         if (event.phase != TickEvent.Phase.END) return;
         BladeAura.tick(Minecraft.getInstance());
         Perf.tick(Minecraft.getInstance());
+        MultiTest.tick(Minecraft.getInstance());
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) { js = -1; seq = -1; stare = 0; lightsOut = 0; return; }
         if (mc.isPaused()) return;
